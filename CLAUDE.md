@@ -41,6 +41,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `composer lint` | Check code style (Pint) and Rector rules without changing files |
 | `composer fix` | Apply Rector refactorings, then Pint formatting |
 | `composer analyse` | Larastan static analysis, level 6 |
+| `npm run dev` / `npm run build` | Vite dev server / production build of `resources/scss` and `resources/js` |
 | `php artisan test --filter=<name>` | Run a single test |
 | `php artisan migrate:fresh --seed` | Rebuild the local database with demo data |
 | `php artisan module:make <Name>` then `composer dump-autoload` | Create a module with the §11 structure |
@@ -94,6 +95,20 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 15. **POS screens:** Blade renders the page shell; Alpine.js holds the order state and calls JSON endpoints (`/pos/api/...`) that reuse the same Actions as the admin screens. Business rules are never duplicated in JavaScript; the server recalculates every total.
 
 Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thin (authorize, validate, delegate, respond). Actions own one use case and its transaction. Services hold stateless domain logic. DTOs are `readonly` classes.
+
+## UI (ARCHITECTURE §10)
+
+- **Stack:** AdminLTE 4 and Bootstrap 5.3, compiled from SCSS (`resources/scss/app.scss`; tokens in `_variables.scss`), Bootstrap Icons, Alpine.js, Tom Select, flatpickr, DataTables (Bootstrap 5) and SweetAlert2. Server-side tables use `yajra/laravel-datatables-oracle`.
+- **Layouts** live in `resources/views/layouts` and are used as components: `<x-layouts::app :title :breadcrumbs>` (with an optional `actions` or `header` slot), `<x-layouts::guest>` (sign-in pages) and `<x-layouts::print>` (A4 documents, `resources/scss/print.scss`). The POS and KDS layouts come in Phase 3.
+- **Components** live in `resources/views/components`: `card`, `page-header`, `form.input`, `form.select` (Tom Select), `form.date` (flatpickr, submits `Y-m-d`), `form.money` (decimal string plus currency, never a float), `status-badge` (any `HasLabelAndColor` enum), `datatable`, `modal`, `confirm-delete`, `stat-box`, `empty-state`, `flash-messages`, `attachments`, `approval-panel` and `audit-trail`. Form components handle the label, required marker, help text, `old()` input and validation errors, so always use them.
+- **JS behaviour comes from data attributes:**
+  - `data-tom-select` and `data-flatpickr` (JSON options) set up selects and date pickers.
+  - `data-datatable` (JSON config) sets up server-side tables.
+  - `data-confirm="Title"` on a form or button opens the global confirm dialog; `data-confirm-text`, `data-confirm-variant` and the other `data-confirm-*` attributes customise it.
+  - After inserting HTML, call `window.initUi(element)`.
+- **Colour mode:** light, dark or auto through AdminLTE's colour mode (`localStorage` key `lte-theme`, applied before first paint). Enum `color()` values are `primary`, `secondary`, `success`, `danger`, `warning` or `info`, because `light` and `dark` are unreadable in one of the modes.
+- **Sidebar menu:** `App\Support\Ui\SidebarMenu` is a placeholder until the menu registry (Step 0.6).
+- **`/ui-kit`** (local only; 404 elsewhere) shows every layout piece and component. Add new shared components to it, and check it in light and dark mode and at tablet width.
 
 ## Modules
 

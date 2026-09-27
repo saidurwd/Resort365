@@ -1,0 +1,16 @@
+// Required-field marker shared by every form component.
+.form-label .required-marker {
+    color: var(--bs-danger);
+    margin-inline-start: 0.125rem;
+}
+
+// Tom Select: match Bootstrap validation styling.
+.ts-wrapper.is-invalid .ts-control {
+    border-color: var(--bs-form-invalid-border-color);
+}
+
+// Money inputs: tabular digits and right alignment make amounts easier to compare.
+.input-money {
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+}

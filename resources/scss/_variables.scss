@@ -1,0 +1,15 @@
+// Resort365 design tokens — Bootstrap/AdminLTE variable overrides.
+// Loaded before Bootstrap, so only plain Sass values here.
+
+$font-family-sans-serif:
+    'Source Sans 3',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif !default;
+
+// Brand: a calm teal for a resort product; Bootstrap's defaults for the other contextual colours.
+$primary: #0f766e !default;

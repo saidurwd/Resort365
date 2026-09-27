@@ -15,7 +15,8 @@ interface HasLabelAndColor
 
     /**
      * Bootstrap 5 contextual colour used for the badge:
-     * primary, secondary, success, danger, warning, info, light or dark.
+     * primary, secondary, success, danger, warning or info.
+     * (Not light or dark: they lose contrast in one of the two colour modes.)
      */
     public function color(): string;
 }

@@ -1,1 +1,32 @@
-//
+import * as bootstrap from 'bootstrap';
+import 'admin-lte';
+import Alpine from 'alpinejs';
+
+import { initFormControls } from './ui/form-controls';
+import { initDataTables } from './ui/datatables';
+import { initConfirm } from './ui/confirm';
+
+// AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
+window.bootstrap = bootstrap;
+
+window.Alpine = Alpine;
+Alpine.start();
+
+/**
+ * Initialise data-attribute widgets inside `root`. Call again after inserting
+ * server-rendered HTML (e.g. a modal body loaded over fetch).
+ */
+window.initUi = (root = document) => {
+    initFormControls(root);
+    initDataTables(root);
+};
+
+initConfirm();
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.initUi(document);
+
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((element) => {
+        bootstrap.Tooltip.getOrCreateInstance(element);
+    });
+});

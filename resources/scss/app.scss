@@ -1,0 +1,18 @@
+// Resort365 admin UI: Bootstrap 5.3 + AdminLTE 4 compiled from source so tokens can be customised.
+
+@import 'variables';
+@import 'admin-lte/src/scss/adminlte';
+
+// Third-party widgets
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import 'tom-select/dist/css/tom-select.bootstrap5.css';
+@import 'flatpickr/dist/flatpickr.css';
+@import 'datatables.net-bs5/css/dataTables.bootstrap5.css';
+@import 'sweetalert2/dist/sweetalert2.css';
+@import 'sweetalert2/themes/bootstrap-5.css';
+
+// Resort365 components and theme fixes
+@import 'components/forms';
+@import 'components/flatpickr';
+@import 'components/datatables';
+@import 'components/misc';

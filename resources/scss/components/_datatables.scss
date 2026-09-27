@@ -1,0 +1,8 @@
+// Keep DataTables controls aligned with the card padding.
+.card-body > div.dt-container {
+    margin: 0;
+}
+
+div.dt-container div.dt-processing > div:last-child > div {
+    background: var(--bs-primary);
+}

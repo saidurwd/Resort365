@@ -1,0 +1,78 @@
+// flatpickr ships light colours only; map it onto Bootstrap's theme variables
+// so it follows light and dark mode.
+
+.flatpickr-calendar {
+    background: var(--bs-body-bg);
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    box-shadow: var(--bs-box-shadow);
+    color: var(--bs-body-color);
+
+    &.arrowTop::after,
+    &.arrowTop::before {
+        border-bottom-color: var(--bs-border-color);
+    }
+
+    &.arrowBottom::after,
+    &.arrowBottom::before {
+        border-top-color: var(--bs-border-color);
+    }
+}
+
+.flatpickr-months .flatpickr-month,
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year,
+span.flatpickr-weekday,
+.flatpickr-time input,
+.flatpickr-time .flatpickr-am-pm {
+    background: transparent;
+    color: var(--bs-body-color);
+    fill: var(--bs-body-color);
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+    background: var(--bs-body-bg);
+}
+
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    color: var(--bs-body-color);
+    fill: var(--bs-body-color);
+
+    &:hover svg {
+        fill: var(--bs-primary);
+    }
+}
+
+.flatpickr-day {
+    color: var(--bs-body-color);
+
+    &:hover,
+    &:focus,
+    &.inRange {
+        background: var(--bs-tertiary-bg);
+        border-color: var(--bs-tertiary-bg);
+    }
+
+    &.today {
+        border-color: var(--bs-primary);
+    }
+
+    &.selected,
+    &.startRange,
+    &.endRange,
+    &.selected:hover {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: #fff;
+    }
+
+    &.flatpickr-disabled,
+    &.prevMonthDay,
+    &.nextMonthDay {
+        color: var(--bs-secondary-color);
+    }
+}
+
+.flatpickr-time {
+    border-top-color: var(--bs-border-color) !important;
+}

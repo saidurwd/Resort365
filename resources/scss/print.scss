@@ -1,0 +1,66 @@
+// A4 documents (invoices, vouchers, payslips): Bootstrap grid, tables and utilities, no app chrome.
+
+@import 'variables';
+@import 'bootstrap/scss/bootstrap';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+@page {
+    margin: 15mm 12mm;
+    size: A4;
+}
+
+body.print-document {
+    background: var(--bs-tertiary-bg);
+    color: #000;
+    font-size: 0.875rem;
+}
+
+.print-sheet {
+    background: #fff;
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1);
+    margin: 1.5rem auto;
+    min-height: 297mm;
+    padding: 15mm 12mm;
+    width: 210mm;
+}
+
+.print-toolbar {
+    margin: 1rem auto 0;
+    width: 210mm;
+}
+
+.print-sheet table {
+    page-break-inside: auto;
+
+    tr {
+        page-break-after: auto;
+        page-break-inside: avoid;
+    }
+
+    thead {
+        display: table-header-group;
+    }
+}
+
+.avoid-break {
+    page-break-inside: avoid;
+}
+
+@media print {
+    body.print-document {
+        background: #fff;
+    }
+
+    .print-toolbar,
+    .no-print {
+        display: none !important;
+    }
+
+    .print-sheet {
+        box-shadow: none;
+        margin: 0;
+        min-height: auto;
+        padding: 0;
+        width: auto;
+    }
+}

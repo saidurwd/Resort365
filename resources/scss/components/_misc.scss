@@ -1,0 +1,43 @@
+// Empty state
+.empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+
+    .empty-state-icon {
+        color: var(--bs-secondary-color);
+        font-size: 2.5rem;
+    }
+}
+
+// Audit trail: a compact vertical list with a guide line.
+.audit-trail {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    > li {
+        border-inline-start: 2px solid var(--bs-border-color);
+        padding: 0 0 1rem 1rem;
+        position: relative;
+
+        &::before {
+            background: var(--bs-primary);
+            border-radius: 50%;
+            content: '';
+            height: 0.625rem;
+            inset-inline-start: calc(-0.3125rem - 1px);
+            position: absolute;
+            top: 0.375rem;
+            width: 0.625rem;
+        }
+
+        &:last-child {
+            padding-bottom: 0;
+        }
+    }
+}
+
+// UI kit: section spacing only (page is local-only).
+.ui-kit-section + .ui-kit-section {
+    margin-top: 2rem;
+}
