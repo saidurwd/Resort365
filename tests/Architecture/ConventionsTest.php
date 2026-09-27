@@ -5,13 +5,16 @@ use App\Support\DTOs\Data;
 use App\Support\Enums\HasLabelAndColor;
 use App\Support\Tenancy\BelongsToTenant;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
+use Modules\Platform\Models\PlatformAdmin;
 
 require_once __DIR__.'/helpers.php';
 
 /*
 | Module models are tenant-owned unless listed here (central tables, ARCHITECTURE §4.2).
 */
-$centralModels = [];
+$centralModels = [
+    PlatformAdmin::class,
+];
 
 foreach (moduleNames() as $module) {
     arch("{$module} models are tenant-owned", function () use ($module, $centralModels): void {

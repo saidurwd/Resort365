@@ -9,7 +9,7 @@
     @if (session()->has($key))
         <div class="alert alert-{{ $variant }} alert-dismissible fade show d-flex align-items-start" role="alert">
             <i class="bi {{ $icons[$variant] }} me-2 mt-1"></i>
-            <div>{{ session($key) }}</div>
+            <div>{{ __((string) session($key)) }}</div>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ __('Close') }}"></button>
         </div>
     @endif
@@ -18,6 +18,13 @@
 @if ($errors->any())
     <div class="alert alert-danger d-flex align-items-start" role="alert">
         <i class="bi bi-exclamation-octagon me-2 mt-1"></i>
-        <div>{{ trans_choice('{1} Please correct the error below.|[2,*] Please correct the :count errors below.', $errors->count(), ['count' => $errors->count()]) }}</div>
+        <div>
+            {{ trans_choice('{1} Please correct the error below.|[2,*] Please correct the :count errors below.', $errors->count(), ['count' => $errors->count()]) }}
+            <ul class="mb-0 mt-1 small">
+                @foreach ($errors->all() as $message)
+                    <li>{{ $message }}</li>
+                @endforeach
+            </ul>
+        </div>
     </div>
 @endif

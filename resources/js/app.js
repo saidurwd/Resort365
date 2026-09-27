@@ -5,6 +5,7 @@ import Alpine from 'alpinejs';
 import { initFormControls } from './ui/form-controls';
 import { initDataTables } from './ui/datatables';
 import { initConfirm } from './ui/confirm';
+import { initThemePersistence } from './ui/theme';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
 window.bootstrap = bootstrap;
@@ -19,9 +20,14 @@ Alpine.start();
 window.initUi = (root = document) => {
     initFormControls(root);
     initDataTables(root);
+
+    root.querySelectorAll('.modal[data-show-on-load]').forEach((modal) => {
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+    });
 };
 
 initConfirm();
+initThemePersistence();
 
 document.addEventListener('DOMContentLoaded', () => {
     window.initUi(document);

@@ -4,6 +4,7 @@
     'id' => null,
     'required' => false,
     'help' => null,
+    'errorBag' => 'default',
 ])
 
 {{-- Shared wrapper: label with required marker, the control (slot), help text and the validation error. --}}
@@ -22,7 +23,7 @@
 
     {{ $slot }}
 
-    @error($key)
+    @error($key, $errorBag)
         <div class="invalid-feedback d-block" id="{{ $id }}-error">{{ $message }}</div>
     @enderror
 

@@ -1,0 +1,24 @@
+{
+    "name": "resort365/iam",
+    "description": "Resort365 IAM module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\IAM\\": "app/",
+            "Modules\\IAM\\Database\\Factories\\": "database/factories/",
+            "Modules\\IAM\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\IAM\\Tests\\": "tests/"
+        }
+    }
+}

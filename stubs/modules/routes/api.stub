@@ -8,10 +8,10 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 |
 | Loaded with the `api` middleware group under /api (names prefixed `api.`).
-| Versioned: /api/v1/$KEBAB_NAME$/..., names `api.v1.$KEBAB_NAME$.resource.action`.
+| Versioned: /api/v1/$LOWER_NAME$/..., names `api.v1.$LOWER_NAME$.resource.action`.
 |
 */
 
-Route::prefix('v1/$KEBAB_NAME$')->name('v1.$KEBAB_NAME$.')->group(function (): void {
+Route::prefix('v1/$LOWER_NAME$')->name('v1.$LOWER_NAME$.')->group(function (): void {
     //
 });

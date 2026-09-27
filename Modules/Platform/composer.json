@@ -1,0 +1,24 @@
+{
+    "name": "resort365/platform",
+    "description": "Resort365 Platform module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Platform\\": "app/",
+            "Modules\\Platform\\Database\\Factories\\": "database/factories/",
+            "Modules\\Platform\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Platform\\Tests\\": "tests/"
+        }
+    }
+}

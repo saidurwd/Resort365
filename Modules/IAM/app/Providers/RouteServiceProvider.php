@@ -1,0 +1,54 @@
+<?php
+
+namespace Modules\IAM\Providers;
+
+use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Route;
+
+class RouteServiceProvider extends ServiceProvider
+{
+    protected string $name = 'IAM';
+
+    /**
+     * Called before routes are registered.
+     *
+     * Register any model bindings or pattern based filters.
+     */
+    public function boot(): void
+    {
+        parent::boot();
+    }
+
+    /**
+     * Define the routes for the application.
+     */
+    public function map(): void
+    {
+        $this->mapApiRoutes();
+        $this->mapWebRoutes();
+    }
+
+    /**
+     * Web routes run on tenant subdomains with the `tenant` middleware group
+     * (ARCHITECTURE §4.2). A central module (e.g. Platform) maps its routes to
+     * config('tenancy.central_domain') instead.
+     */
+    protected function mapWebRoutes(): void
+    {
+        Route::domain('{tenant}.'.config('tenancy.central_domain'))
+            ->middleware(['web', 'tenant'])
+            ->group(module_path($this->name, '/routes/web.php'));
+    }
+
+    /**
+     * API routes: stateless, on tenant subdomains under /api.
+     */
+    protected function mapApiRoutes(): void
+    {
+        Route::domain('{tenant}.'.config('tenancy.central_domain'))
+            ->middleware(['api', 'tenant'])
+            ->prefix('api')
+            ->name('api.')
+            ->group(module_path($this->name, '/routes/api.php'));
+    }
+}

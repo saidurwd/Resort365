@@ -9,23 +9,18 @@ use function Pest\Laravel\get;
 
 uses(RefreshDatabase::class);
 
-function tenantUrl(string $slug, string $path = '/'): string
-{
-    return 'http://'.$slug.'.'.config('tenancy.central_domain').$path;
-}
-
 it('serves two tenants on their own subdomains', function (): void {
     Tenant::factory()->create(['slug' => 'sunrise', 'name' => 'Sunrise Resorts Ltd']);
     Tenant::factory()->create(['slug' => 'greenvalley', 'name' => 'Green Valley Resort']);
 
-    get(tenantUrl('sunrise'))->assertOk()->assertSee('Sunrise Resorts Ltd')->assertDontSee('Green Valley Resort');
-    get(tenantUrl('greenvalley'))->assertOk()->assertSee('Green Valley Resort')->assertDontSee('Sunrise Resorts Ltd');
+    get(tenantUrl('sunrise', '/login'))->assertOk()->assertSee('Sunrise Resorts Ltd')->assertDontSee('Green Valley Resort');
+    get(tenantUrl('greenvalley', '/login'))->assertOk()->assertSee('Green Valley Resort')->assertDontSee('Sunrise Resorts Ltd');
 });
 
 it('matches the subdomain case-insensitively', function (): void {
     Tenant::factory()->create(['slug' => 'sunrise', 'name' => 'Sunrise Resorts Ltd']);
 
-    get(tenantUrl('SunRise'))->assertOk()->assertSee('Sunrise Resorts Ltd');
+    get(tenantUrl('SunRise', '/login'))->assertOk()->assertSee('Sunrise Resorts Ltd');
 });
 
 it('returns 404 for an unknown subdomain', function (): void {
@@ -50,7 +45,7 @@ it('shows the suspended page for a suspended tenant', function (): void {
 it('lets trial tenants in', function (): void {
     Tenant::factory()->trial()->create(['slug' => 'trialco', 'name' => 'Trial Co']);
 
-    get(tenantUrl('trialco'))->assertOk()->assertSee('Trial Co');
+    get(tenantUrl('trialco', '/login'))->assertOk()->assertSee('Trial Co');
 });
 
 it('keeps the central domain separate from tenant routes', function (): void {

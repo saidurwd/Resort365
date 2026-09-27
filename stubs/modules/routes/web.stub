@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Route;
 | $STUDLY_NAME$ web routes
 |--------------------------------------------------------------------------
 |
-| URLs are prefixed with /$KEBAB_NAME$ and route names follow
-| `$KEBAB_NAME$.resource.action`. Every route must be protected by
+| URLs are prefixed with /$LOWER_NAME$ and route names follow
+| `$LOWER_NAME$.resource.action`. Every route must be protected by
 | authentication and permission middleware (see docs/MODULE_GUIDE.md).
 |
 */
 
-Route::prefix('$KEBAB_NAME$')->name('$KEBAB_NAME$.')->group(function (): void {
+Route::prefix('$LOWER_NAME$')->name('$LOWER_NAME$.')->group(function (): void {
     //
 });

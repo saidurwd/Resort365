@@ -37,16 +37,28 @@
                 </a>
             </li>
 
-            {{-- TODO(step-0.5): real user menu (profile, sign out). --}}
-            <li class="nav-item dropdown">
-                <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-person-circle me-1"></i>
-                    <span class="d-none d-md-inline">{{ __('Guest user') }}</span>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><span class="dropdown-item-text text-body-secondary small">{{ __('Sign-in arrives with authentication.') }}</span></li>
-                </ul>
-            </li>
+            {{-- $userMenu is shared by the IAM module for signed-in tenant users. --}}
+            @isset($userMenu)
+                <li class="nav-item dropdown">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span class="d-none d-md-inline">{{ $userMenu['name'] }}</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text small text-body-secondary">{{ $userMenu['email'] }}</span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        @foreach ($userMenu['items'] as $item)
+                            <li><a class="dropdown-item" href="{{ $item['url'] }}"><i class="bi {{ $item['icon'] }} me-2"></i>{{ $item['label'] }}</a></li>
+                        @endforeach
+                        <li>
+                            <form method="POST" action="{{ $userMenu['logoutUrl'] }}">
+                                @csrf
+                                <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>{{ __('Sign out') }}</button>
+                            </form>
+                        </li>
+                    </ul>
+                </li>
+            @endisset
         </ul>
     </div>
 </nav>

@@ -1,3 +1,5 @@
 {
-    "Core": true
+    "Core": true,
+    "IAM": true,
+    "Platform": true
 }

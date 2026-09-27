@@ -1,6 +1,7 @@
 <?php
 
-use App\Models\User;
+use Modules\IAM\Models\User;
+use Modules\Platform\Models\PlatformAdmin;
 
 return [
 
@@ -38,9 +39,16 @@ return [
     */
 
     'guards' => [
+        // Tenant users, on tenant subdomains (IAM module).
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+        ],
+
+        // Platform super admins, on the central domain only (Platform module).
+        'platform' => [
+            'driver' => 'session',
+            'provider' => 'platform_admins',
         ],
     ],
 
@@ -65,6 +73,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'platform_admins' => [
+            'driver' => 'eloquent',
+            'model' => PlatformAdmin::class,
         ],
 
         // 'users' => [

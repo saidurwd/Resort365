@@ -1,11 +1,12 @@
 <?php
 
+use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\IdentifyTenant;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -23,13 +24,20 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // TODO(step-0.5): add EnsureUserBelongsToTenant after authentication.
+        // Modules append to this group (e.g. IAM adds EnsureUserIsActive and SetUserLocale).
         $middleware->group('tenant', [
             IdentifyTenant::class,
+            EnsureUserBelongsToTenant::class,
         ]);
 
-        // The tenant must be known before route-model binding loads tenant-owned models.
-        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: IdentifyTenant::class);
+        // The tenant must be known before authentication, throttling and route-model binding
+        // touch tenant-owned models (they sort after AuthenticatesRequests in Laravel's priority list).
+        // (Laravel applies priority appends before prepends, so anchor both to AuthenticatesRequests.)
+        $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: IdentifyTenant::class);
+        $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: EnsureUserBelongsToTenant::class);
+
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.login') : route('login'));
+        $middleware->redirectUsersTo(fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.console') : route('dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

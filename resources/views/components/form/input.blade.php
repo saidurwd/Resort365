@@ -9,6 +9,7 @@
     'prepend' => null,
     'append' => null,
     'wrapperClass' => null,
+    'errorBag' => 'default',
 ])
 
 {{-- <x-form.input name="email" type="email" :label="__('Email')" required :value="$guest->email" /> --}}
@@ -16,11 +17,11 @@
     $errors ??= new \Illuminate\Support\ViewErrorBag;
     $key = \App\Support\Ui\FormField::key($name);
     $id ??= \App\Support\Ui\FormField::id($name);
-    $invalid = $errors->has($key);
+    $invalid = $errors->getBag($errorBag)->has($key);
     $describedBy = trim(($invalid ? $id.'-error ' : '').($help ? $id.'-help' : ''));
 @endphp
 
-<x-form.field :name="$name" :label="$label" :id="$id" :required="$required" :help="$help" :class="$wrapperClass">
+<x-form.field :name="$name" :label="$label" :id="$id" :required="$required" :help="$help" :error-bag="$errorBag" :class="$wrapperClass">
     @if ($prepend || $append)<div @class(['input-group', 'has-validation' => $invalid])>@endif
         @if ($prepend)<span class="input-group-text">{{ $prepend }}</span>@endif
 

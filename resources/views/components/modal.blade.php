@@ -4,13 +4,15 @@
     'size' => null,
     'static' => false,
     'scrollable' => false,
+    'show' => false,
 ])
 
 {{--
     <x-modal id="add-room" :title="__('Add room')" size="lg">…<x-slot:footer>…</x-slot:footer></x-modal>
-    Open with a button: data-bs-toggle="modal" data-bs-target="#add-room".
+    Open with a button: data-bs-toggle="modal" data-bs-target="#add-room". `show` opens it on page load
+    (e.g. :show="$errors->hasAny(['number'])" to reopen a form after a validation error).
 --}}
-<div {{ $attributes->class(['modal', 'fade']) }} id="{{ $id }}" tabindex="-1" aria-labelledby="{{ $id }}-title" aria-hidden="true" @if ($static) data-bs-backdrop="static" data-bs-keyboard="false" @endif>
+<div {{ $attributes->class(['modal', 'fade']) }} id="{{ $id }}" tabindex="-1" aria-labelledby="{{ $id }}-title" aria-hidden="true" @if ($show) data-show-on-load @endif @if ($static) data-bs-backdrop="static" data-bs-keyboard="false" @endif>
     <div @class(['modal-dialog', 'modal-dialog-centered', 'modal-'.$size => $size, 'modal-dialog-scrollable' => $scrollable])>
         <div class="modal-content">
             <div class="modal-header">

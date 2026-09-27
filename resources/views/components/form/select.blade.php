@@ -11,6 +11,7 @@
     'search' => true,
     'tomOptions' => [],
     'wrapperClass' => null,
+    'errorBag' => 'default',
 ])
 
 {{--
@@ -21,12 +22,12 @@
     $errors ??= new \Illuminate\Support\ViewErrorBag;
     $key = \App\Support\Ui\FormField::key($name);
     $id ??= \App\Support\Ui\FormField::id($name);
-    $invalid = $errors->has($key);
+    $invalid = $errors->getBag($errorBag)->has($key);
     $selected = collect(old($key, $value))->map(fn ($v) => (string) $v)->all();
     $fieldName = $multiple && ! str_ends_with($name, '[]') ? $name.'[]' : $name;
 @endphp
 
-<x-form.field :name="$name" :label="$label" :id="$id" :required="$required" :help="$help" :class="$wrapperClass">
+<x-form.field :name="$name" :label="$label" :id="$id" :required="$required" :help="$help" :error-bag="$errorBag" :class="$wrapperClass">
     <select
         name="{{ $fieldName }}"
         id="{{ $id }}"

@@ -45,6 +45,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `php artisan test --filter=<name>` | Run a single test |
 | `php artisan migrate:fresh --seed` | Rebuild the local database with demo data (tenants `sunrise`, `greenvalley`) |
 | `php artisan tenant:create <slug> "<Name>"` | Create a tenant; open `http://<slug>.resort365.test` |
+| `php artisan platform:create-admin <email> "<Name>"` | Create a platform super admin (prompts for the password) |
 | `php artisan module:make <Name>` then `composer dump-autoload` | Create a module with the §11 structure |
 | `php artisan module:make-action <Class> <Module>` (also `-enum`, `-event`, `-model … -mf`, `-request`, `-interface`, …) | Generate a class inside a module; see MODULE_GUIDE §2 |
 | `php artisan test --testsuite=Architecture` | Run only the architecture tests |
@@ -112,6 +113,22 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
 - **Isolation tests:** `tests/Tenancy/TenantIsolationTest.php` automatically runs every model that uses `BelongsToTenant` (found in `app/Models` and `Modules/*/app/Models`) through the list, find, route-binding, update, delete, create, move, reference and fail-closed checks. A new tenant model only needs a factory. Test-only tables live in `tests/Fixtures/Tenancy/migrations`.
 - **Development:** `php artisan tenant:create <slug> "<Name>" [--email=] [--status=trial|active|suspended|cancelled]`. `php artisan migrate:fresh --seed` creates the demo tenants `sunrise` and `greenvalley`.
 
+## Users and authentication (IAM, Platform)
+
+- **Tenant users** (`Modules\IAM\Models\User`, the `web` guard) belong to one tenant, with email unique per tenant. Sign-in, password reset, email verification and TOTP 2FA come from **Laravel Fortify**, whose routes are served on tenant subdomains only (`config/fortify.php`, with views in `Modules/IAM/resources/views/auth`). There's no self-registration; users join by **invitation**, a signed link valid for 7 days (`/iam/users`).
+- **Statuses:** `invited`, `active`, `inactive`. Only active users can sign in. `EnsureUserIsActive` signs out a deactivated user on their next request, and `EnsureUserBelongsToTenant` ends a session presented on another tenant's subdomain.
+- **Middleware order** in the `tenant` group matters, and is pinned by a test: `IdentifyTenant`, `EnsureUserBelongsToTenant`, `EnsureUserIsActive`, `SetUserLocale`, then `auth`. Modules add to the group through the HTTP kernel (`appendMiddlewareToGroup`), not the router.
+- **Security:**
+  - Password policy: `Password::defaults()` in `AppServiceProvider`.
+  - Lockout: 5 failed sign-ins per tenant, email and IP (Fortify with `TenantLoginRateLimiter`).
+  - Idle timeout: `SESSION_LIFETIME`.
+  - Reset tokens are stored per tenant (`User::getEmailForPasswordReset()`).
+  - Every sign-in event is recorded in `login_histories`.
+- **Profile** (`/iam/profile`): details, password, language, colour mode (saved to the user, including from the navbar toggle), 2FA setup and recent sign-ins.
+- **Platform admins** (`Modules\Platform\Models\PlatformAdmin`, the `platform` guard) sign in on the central domain at `/platform/login`. Create one with `php artisan platform:create-admin <email> "<Name>"`.
+- **Demo logins** (password `password`): `owner@sunrise.test` and `frontdesk@sunrise.test` at `http://sunrise.resort365.test`, `owner@greenvalley.test` at `http://greenvalley.resort365.test`, and the platform admin `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
+- **Permissions:** `TODO(step-0.6)` adds `iam.user.*` permissions and roles. Until then, any active user can manage the tenant's users.
+
 ## UI (ARCHITECTURE §10)
 
 - **Stack:** AdminLTE 4 and Bootstrap 5.3, compiled from SCSS (`resources/scss/app.scss`; tokens in `_variables.scss`), Bootstrap Icons, Alpine.js, Tom Select, flatpickr, DataTables (Bootstrap 5) and SweetAlert2. Server-side tables use `yajra/laravel-datatables-oracle`.
@@ -128,7 +145,7 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
 
 ## Modules
 
-Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through each module's `composer.json`). Only **Core** exists so far; each module is created by the plan step that first needs it. Dependencies point one way only (ARCHITECTURE §4.3): a downstream module reacts to an upstream module's events, and an upstream module never calls a downstream one.
+Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through each module's `composer.json`). So far: **Core**, **IAM** and **Platform**. Each module is created by the plan step that first needs it. Dependencies point one way only (ARCHITECTURE §4.3): a downstream module reacts to an upstream module's events, and an upstream module never calls a downstream one.
 
 | Module | Purpose | Depends on |
 |---|---|---|

@@ -11,6 +11,7 @@
     'range' => false,
     'pickerOptions' => [],
     'wrapperClass' => null,
+    'errorBag' => 'default',
 ])
 
 {{--
@@ -21,7 +22,7 @@
     $errors ??= new \Illuminate\Support\ViewErrorBag;
     $key = \App\Support\Ui\FormField::key($name);
     $id ??= \App\Support\Ui\FormField::id($name);
-    $invalid = $errors->has($key);
+    $invalid = $errors->getBag($errorBag)->has($key);
     $current = old($key, $value instanceof \DateTimeInterface ? $value->format($time ? 'Y-m-d H:i' : 'Y-m-d') : $value);
     $options = array_filter([
         'minDate' => $min,
@@ -34,7 +35,7 @@
     ], fn ($option) => $option !== null) + $pickerOptions;
 @endphp
 
-<x-form.field :name="$name" :label="$label" :id="$id" :required="$required" :help="$help" :class="$wrapperClass">
+<x-form.field :name="$name" :label="$label" :id="$id" :required="$required" :help="$help" :error-bag="$errorBag" :class="$wrapperClass">
     <div @class(['input-group', 'has-validation' => $invalid])>
         <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
         <input

@@ -1,0 +1,11 @@
+{
+    "name": "IAM",
+    "alias": "iam",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\IAM\\Providers\\IAMServiceProvider"
+    ],
+    "files": []
+}
