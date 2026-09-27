@@ -43,7 +43,8 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `composer analyse` | Larastan static analysis, level 6 |
 | `npm run dev` / `npm run build` | Vite dev server / production build of `resources/scss` and `resources/js` |
 | `php artisan test --filter=<name>` | Run a single test |
-| `php artisan migrate:fresh --seed` | Rebuild the local database with demo data |
+| `php artisan migrate:fresh --seed` | Rebuild the local database with demo data (tenants `sunrise`, `greenvalley`) |
+| `php artisan tenant:create <slug> "<Name>"` | Create a tenant; open `http://<slug>.resort365.test` |
 | `php artisan module:make <Name>` then `composer dump-autoload` | Create a module with the §11 structure |
 | `php artisan module:make-action <Class> <Module>` (also `-enum`, `-event`, `-model … -mf`, `-request`, `-interface`, …) | Generate a class inside a module; see MODULE_GUIDE §2 |
 | `php artisan test --testsuite=Architecture` | Run only the architecture tests |
@@ -95,6 +96,21 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 15. **POS screens:** Blade renders the page shell; Alpine.js holds the order state and calls JSON endpoints (`/pos/api/...`) that reuse the same Actions as the admin screens. Business rules are never duplicated in JavaScript; the server recalculates every total.
 
 Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thin (authorize, validate, delegate, respond). Actions own one use case and its transaction. Services hold stateless domain logic. DTOs are `readonly` classes.
+
+## Tenancy (ARCHITECTURE §4.2)
+
+- **Tenant** = a customer company: `App\Models\Tenant` (central table `tenants`), served from `{slug}.{TENANCY_CENTRAL_DOMAIN}`, e.g. `sunrise.resort365.test`. Statuses: `trial` and `active` can use the app. `suspended` shows the suspended page (403). `cancelled` and unknown subdomains get 404.
+- **Routes:**
+  - `routes/web.php` holds the **central** domain (welcome page, `/ui-kit`).
+  - `routes/tenant.php` and every module's routes are **tenant** routes, with the `web` and `tenant` middleware on `{tenant}.` domains.
+  - `IdentifyTenant` sets the tenant **before** route-model binding, hides the `{tenant}` parameter from controllers, and makes `route()` fill it in.
+- **`TenantContext`** (scoped per request and per job) holds the current tenant: `id()`, `tenant()`, `tenantOrFail()`, and `run($tenant, fn)` for console commands, seeders and scripts.
+- **Tenant-owned models** use `App\Support\Tenancy\BelongsToTenant`, which **fails closed**: using the model with no current tenant throws `TenantContextMissing`. It fills `tenant_id` on create, and refuses to change `tenant_id` or to write another tenant's record (`TenantMismatch`). An architecture test requires the trait on every module model.
+- **Validation:** `TenantRule::exists('table')` and `TenantRule::unique('table', 'column')`, never plain `Rule::exists` or `Rule::unique`.
+- **Queued jobs** that touch tenant data implement `TenantAware` and use `InteractsWithTenant`, which restores the dispatching tenant. Dispatch as a statement inside `TenantContext::run()`; a returned `PendingDispatch` queues the job too late.
+- **Cache and files:** `TenantCache` (keys `t:{id}:…`) and `TenantStorage` (paths `tenants/{id}/…`).
+- **Isolation tests:** `tests/Tenancy/TenantIsolationTest.php` automatically runs every model that uses `BelongsToTenant` (found in `app/Models` and `Modules/*/app/Models`) through the list, find, route-binding, update, delete, create, move, reference and fail-closed checks. A new tenant model only needs a factory. Test-only tables live in `tests/Fixtures/Tenancy/migrations`.
+- **Development:** `php artisan tenant:create <slug> "<Name>" [--email=] [--status=trial|active|suspended|cancelled]`. `php artisan migrate:fresh --seed` creates the demo tenants `sunrise` and `greenvalley`.
 
 ## UI (ARCHITECTURE §10)
 

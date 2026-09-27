@@ -13,6 +13,9 @@
             <directory>tests/Feature</directory>
             <directory>Modules/*/tests/Feature</directory>
         </testsuite>
+        <testsuite name="Tenancy">
+            <directory>tests/Tenancy</directory>
+        </testsuite>
         <testsuite name="Architecture">
             <directory>tests/Architecture</directory>
         </testsuite>

@@ -271,6 +271,13 @@ flowchart TB
 
 **Central (non-tenant) tables:** `tenants`, `plans`, `subscriptions`, `platform_admins`, `platform_invoices`, `currencies`, `countries`, `timezones`.
 
+**Implementation notes (Step 0.4):**
+
+- The `Tenant` model and the tenancy base classes live in the application shell (`app/Models`, `app/Support/Tenancy`), not in a module, because every module depends on them and the shell must never depend on a module. The Platform module manages the tenant lifecycle through them.
+- Tenant scoping **fails closed**. Using a tenant-owned model without a current tenant throws, instead of returning every tenant's rows. Console commands, seeders and jobs set the tenant with `TenantContext::run()`, or through `TenantAware` job middleware.
+- `BelongsToTenant` also refuses to change `tenant_id` and to save or delete another tenant's record, because Eloquent's `save()` bypasses global scopes.
+- A suspended tenant gets the suspended page with HTTP 403. A cancelled tenant is treated as unknown (404).
+
 **Tenant onboarding flow:** sign up on the central domain → choose a plan (or start a trial) → create the tenant and owner user → setup wizard (company details, first property, currency, timezone, taxes, cottages and rooms) → seed defaults (roles, chart of accounts, document sequences, settings).
 
 ### 4.3 Modular Architecture

@@ -3,11 +3,21 @@
 use App\Support\Actions\Action;
 use App\Support\DTOs\Data;
 use App\Support\Enums\HasLabelAndColor;
+use App\Support\Tenancy\BelongsToTenant;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
 require_once __DIR__.'/helpers.php';
 
+/*
+| Module models are tenant-owned unless listed here (central tables, ARCHITECTURE §4.2).
+*/
+$centralModels = [];
+
 foreach (moduleNames() as $module) {
+    arch("{$module} models are tenant-owned", function () use ($module, $centralModels): void {
+        expect("Modules\\{$module}\\Models")->classes()->toUseTrait(BelongsToTenant::class)->ignoring($centralModels);
+    });
+
     arch("{$module} actions extend the base Action", function () use ($module): void {
         expect("Modules\\{$module}\\Actions")->classes()->toExtend(Action::class);
     });

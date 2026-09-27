@@ -29,22 +29,26 @@ class RouteServiceProvider extends ServiceProvider
     }
 
     /**
-     * Define the "web" routes for the application.
-     *
-     * These routes all receive session state, CSRF protection, etc.
+     * Web routes run on tenant subdomains with the `tenant` middleware group
+     * (ARCHITECTURE §4.2). A central module (e.g. Platform) maps its routes to
+     * config('tenancy.central_domain') instead.
      */
     protected function mapWebRoutes(): void
     {
-        Route::middleware('web')->group(module_path($this->name, '/routes/web.php'));
+        Route::domain('{tenant}.'.config('tenancy.central_domain'))
+            ->middleware(['web', 'tenant'])
+            ->group(module_path($this->name, '/routes/web.php'));
     }
 
     /**
-     * Define the "api" routes for the application.
-     *
-     * These routes are typically stateless.
+     * API routes: stateless, on tenant subdomains under /api.
      */
     protected function mapApiRoutes(): void
     {
-        Route::middleware('api')->prefix('api')->name('api.')->group(module_path($this->name, '/routes/api.php'));
+        Route::domain('{tenant}.'.config('tenancy.central_domain'))
+            ->middleware(['api', 'tenant'])
+            ->prefix('api')
+            ->name('api.')
+            ->group(module_path($this->name, '/routes/api.php'));
     }
 }
