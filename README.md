@@ -20,6 +20,9 @@ php artisan migrate
 npm install && npm run build
 ```
 
+For Redis without Herd Pro, Docker works:
+`docker run -d --name resort365-redis --restart unless-stopped -p 127.0.0.1:6379:6379 -v resort365-redis:/data redis:7-alpine redis-server --appendonly yes`
+
 Create the `resort365` and `resort365_testing` databases first, plus a `resort365` / `secret` user with full access to both (the defaults in `.env.example`).
 
 ## Quality checks

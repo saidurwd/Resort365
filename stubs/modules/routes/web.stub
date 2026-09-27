@@ -1,0 +1,18 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| $STUDLY_NAME$ web routes
+|--------------------------------------------------------------------------
+|
+| URLs are prefixed with /$KEBAB_NAME$ and route names follow
+| `$KEBAB_NAME$.resource.action`. Every route must be protected by
+| authentication and permission middleware (see docs/MODULE_GUIDE.md).
+|
+*/
+
+Route::prefix('$KEBAB_NAME$')->name('$KEBAB_NAME$.')->group(function (): void {
+    //
+});

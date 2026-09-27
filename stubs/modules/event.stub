@@ -1,0 +1,16 @@
+<?php
+
+namespace $NAMESPACE$;
+
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+/**
+ * Domain event: dispatched only after the surrounding transaction commits.
+ * Carry identifiers or DTOs, not another module's models.
+ */
+class $CLASS$ implements ShouldDispatchAfterCommit
+{
+    use Dispatchable, SerializesModels;
+}

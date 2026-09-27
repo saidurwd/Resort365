@@ -1,0 +1,17 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| $STUDLY_NAME$ API routes
+|--------------------------------------------------------------------------
+|
+| Loaded with the `api` middleware group under /api (names prefixed `api.`).
+| Versioned: /api/v1/$KEBAB_NAME$/..., names `api.v1.$KEBAB_NAME$.resource.action`.
+|
+*/
+
+Route::prefix('v1/$KEBAB_NAME$')->name('v1.$KEBAB_NAME$.')->group(function (): void {
+    //
+});

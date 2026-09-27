@@ -6,6 +6,7 @@ Resort365 is a multi-tenant SaaS resort management system: booking engine, front
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): **what** to build (requirements, design, data model, conventions).
 - [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md): **in what order** to build it. It is split into phases and steps, and has a progress tracker (§3).
+- [docs/MODULE_GUIDE.md](docs/MODULE_GUIDE.md): **how** to create a module and generate classes in it, what is public between modules, and what the architecture tests enforce.
 
 Work one plan step per session. Before planning, read the step and every ARCHITECTURE section it lists under "Read". If the implementation must differ from the documents, say so in the plan and update the document in the same step (rule R13).
 
@@ -28,7 +29,8 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 
 - **Laravel Herd** serves the app at `http://resort365.test` (the central domain). Tenants will use subdomains such as `sunrise.resort365.test` (Step 0.4).
 - **Database:** locally the Homebrew **MariaDB** service on port 3306, with user `resort365` / `secret` and the databases `resort365` (app) and `resort365_testing` (tests). CI and production run **MySQL 8.4**, so keep `DB_CONNECTION=mysql` and write SQL that works on both. CI is the authority on MySQL compatibility.
-- **Redis** runs as a Homebrew service (`redis`) on port 6379.
+- **Redis 7** runs in Docker as the container `resort365-redis` on `127.0.0.1:6379` (restart policy `unless-stopped`, data in the `resort365-redis` volume). Docker Desktop must be running. Herd Free has no Redis service, and Homebrew's Redis 8 has to be compiled with Rust/LLVM on this Intel Mac. Recreate it with:
+  `docker run -d --name resort365-redis --restart unless-stopped -p 127.0.0.1:6379:6379 -v resort365-redis:/data redis:7-alpine redis-server --appendonly yes`
 - First-time setup: `cp .env.example .env && php artisan key:generate && php artisan migrate`.
 
 ## Commands
@@ -41,6 +43,9 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `composer analyse` | Larastan static analysis, level 6 |
 | `php artisan test --filter=<name>` | Run a single test |
 | `php artisan migrate:fresh --seed` | Rebuild the local database with demo data |
+| `php artisan module:make <Name>` then `composer dump-autoload` | Create a module with the §11 structure |
+| `php artisan module:make-action <Class> <Module>` (also `-enum`, `-event`, `-model … -mf`, `-request`, `-interface`, …) | Generate a class inside a module; see MODULE_GUIDE §2 |
+| `php artisan test --testsuite=Architecture` | Run only the architecture tests |
 
 **Quality gate (R12):** before reporting a step as done, run `composer fix`, then make sure `composer lint`, `composer analyse` and `composer test` all pass. Generated stubs (`artisan make:*`) usually need `composer fix` to satisfy Rector, which adds closure return types.
 
@@ -92,7 +97,7 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
 
 ## Modules
 
-Modules live in `Modules/<Name>/` (the module system arrives in Step 0.2). Dependencies point one way only (ARCHITECTURE §4.3): a downstream module reacts to an upstream module's events, and an upstream module never calls a downstream one.
+Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through each module's `composer.json`). Only **Core** exists so far; each module is created by the plan step that first needs it. Dependencies point one way only (ARCHITECTURE §4.3): a downstream module reacts to an upstream module's events, and an upstream module never calls a downstream one.
 
 | Module | Purpose | Depends on |
 |---|---|---|
@@ -116,10 +121,11 @@ Modules live in `Modules/<Name>/` (the module system arrives in Step 0.2). Depen
 
 ## Project structure
 
-- `app/`: application shell only (middleware and `Support/` base classes for tenancy, money and actions). Business code goes in modules.
+- `app/`: application shell only. Business code goes in modules. `app/Support/` holds the shared base classes: `Actions\Action`, `DTOs\Data`, and `Enums\HasLabelAndColor` + `EnumHelpers`. Tenancy and money base classes are added in later steps.
 - `Modules/<Name>/`: a self-contained module (see ARCHITECTURE §11 for the internal layout).
 - `database/`: central (non-module) migrations and seeders.
-- `tests/`: cross-module and architecture tests. Module tests live in `Modules/<Name>/tests`.
+- `tests/`: cross-module tests, `tests/Architecture` (auto-discovers every module) and `tests/Fixtures`. Module tests live in `Modules/<Name>/tests`.
+- `stubs/modules/`: project stubs for the module generators. Edit these, not vendor, to change what `module:make*` produces.
 - `docs/adr/`: short Architecture Decision Records for changes of direction.
 
 ## Demo data

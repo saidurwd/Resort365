@@ -1,0 +1,13 @@
+<?php
+
+namespace $CLASS_NAMESPACE$;
+
+use App\Support\Actions\Action;
+
+class $CLASS$ extends Action
+{
+    public function handle(): void
+    {
+        //
+    }
+}
