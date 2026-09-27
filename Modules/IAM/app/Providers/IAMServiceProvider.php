@@ -2,6 +2,11 @@
 
 namespace Modules\IAM\Providers;
 
+use App\Support\Authorization\DefaultRole;
+use App\Support\Authorization\PermissionDefinition;
+use App\Support\Authorization\PermissionRegistry;
+use App\Support\Menu\MenuItem;
+use App\Support\Menu\MenuRegistry;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -18,9 +23,12 @@ use Modules\IAM\Actions\AuthenticateUser;
 use Modules\IAM\Actions\Fortify\ResetUserPassword;
 use Modules\IAM\Actions\Fortify\UpdateUserPassword;
 use Modules\IAM\Actions\Fortify\UpdateUserProfileInformation;
+use Modules\IAM\Console\SyncPermissionsCommand;
 use Modules\IAM\Http\Middleware\EnsureUserIsActive;
 use Modules\IAM\Http\Middleware\SetUserLocale;
+use Modules\IAM\Models\Role;
 use Modules\IAM\Models\User;
+use Modules\IAM\Policies\RolePolicy;
 use Modules\IAM\Policies\UserPolicy;
 use Modules\IAM\Support\TenantLoginRateLimiter;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -36,6 +44,15 @@ class IAMServiceProvider extends ModuleServiceProvider
      * The lowercase version of the module name.
      */
     protected string $nameLower = 'iam';
+
+    /**
+     * Command classes to register.
+     *
+     * @var string[]
+     */
+    protected array $commands = [
+        SyncPermissionsCommand::class,
+    ];
 
     /**
      * Provider classes to register.
@@ -66,6 +83,10 @@ class IAMServiceProvider extends ModuleServiceProvider
         $this->configureMiddleware();
 
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
+
+        $this->registerPermissions($this->app->make(PermissionRegistry::class));
+        $this->registerMenu($this->app->make(MenuRegistry::class));
 
         // Reset links carry the plain email; tokens are stored per tenant (User::getEmailForPasswordReset()).
         ResetPassword::createUrlUsing(fn (User $user, string $token): string => route('password.reset', ['token' => $token, 'email' => $user->email]));
@@ -138,5 +159,29 @@ class IAMServiceProvider extends ModuleServiceProvider
             $view->with('userTheme', $user->theme);
             $view->with('themeSaveUrl', route('iam.profile.preferences.update'));
         });
+    }
+
+    private function registerPermissions(PermissionRegistry $permissions): void
+    {
+        $managers = [DefaultRole::GeneralManager];
+
+        $permissions->register('Users & access', [
+            new PermissionDefinition('iam.user.view', 'View users', $managers),
+            new PermissionDefinition('iam.user.invite', 'Invite users', $managers),
+            new PermissionDefinition('iam.user.update', 'Change users (roles, activate, deactivate)', $managers),
+            new PermissionDefinition('iam.role.view', 'View roles', $managers),
+            new PermissionDefinition('iam.role.create', 'Create roles'),
+            new PermissionDefinition('iam.role.update', 'Change roles'),
+            new PermissionDefinition('iam.role.delete', 'Delete roles'),
+        ]);
+    }
+
+    private function registerMenu(MenuRegistry $menu): void
+    {
+        $menu->group('setup', 'Setup', 'bi-gear', order: 900);
+        $menu->add(new MenuItem('iam.users', 'Users', 'bi-people', route: 'iam.users.index', parent: 'setup', order: 10,
+            permission: 'iam.user.view', module: 'iam', active: 'iam.users.*'));
+        $menu->add(new MenuItem('iam.roles', 'Roles & permissions', 'bi-shield-check', route: 'iam.roles.index', parent: 'setup', order: 20,
+            permission: 'iam.role.view', module: 'iam', active: 'iam.roles.*'));
     }
 }

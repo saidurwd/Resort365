@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Tenant;
+use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\IAM\Enums\UserStatus;
@@ -14,9 +15,9 @@ use function Pest\Laravel\patch;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $sunrise = Tenant::factory()->create(['slug' => 'sunrise']);
-    Tenant::factory()->create(['slug' => 'greenvalley']);
-    tenantUser($sunrise, ['name' => 'Rahim Uddin', 'email' => 'owner@sunrise.test']);
+    $sunrise = withDefaultRoles(Tenant::factory()->create(['slug' => 'sunrise']));
+    withDefaultRoles(Tenant::factory()->create(['slug' => 'greenvalley']));
+    tenantUserAs($sunrise, DefaultRole::TenantOwner, ['name' => 'Rahim Uddin', 'email' => 'owner@sunrise.test']);
 });
 
 function statusOf(Tenant $tenant, User $user): UserStatus

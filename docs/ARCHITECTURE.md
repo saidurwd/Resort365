@@ -432,7 +432,7 @@ Shared infrastructure used by every module.
 - **Audit log:** every create, update and delete on business records, plus login history.
 - **Attachments:** a polymorphic file-attachment component usable by any module.
 - **Reference data:** countries (ISO 3166), currencies (ISO 4217), timezones, languages.
-- **Menu and permission registry:** modules register their sidebar items and permissions here.
+- **Menu and permission registry:** modules register their sidebar items and permissions here. *(Implemented in `app/Support/Menu` and `app/Support/Authorization` rather than the Core module, because the application shell registers its own items too and must not depend on a module. Every module uses them.)*
 
 ### 5.2 Platform (SaaS)
 

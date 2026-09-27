@@ -1,8 +1,12 @@
 {{-- Row actions in the users DataTable. --}}
 @php($status = $user->status)
+@can('update', $user)
+    <a href="{{ route('iam.users.edit', $user) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-shield-check"></i> {{ __('Roles') }}</a>
+@endcan
+
 @if ($user->is($actor))
     <span class="badge text-bg-secondary">{{ __('You') }}</span>
-@else
+@elseif ($actor->can('update', $user))
     @if ($status === \Modules\IAM\Enums\UserStatus::Invited)
         <form method="POST" action="{{ route('iam.users.invitation.resend', $user) }}" class="d-inline">
             @csrf

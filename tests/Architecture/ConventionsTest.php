@@ -5,6 +5,7 @@ use App\Support\DTOs\Data;
 use App\Support\Enums\HasLabelAndColor;
 use App\Support\Tenancy\BelongsToTenant;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
+use Modules\IAM\Models\Permission;
 use Modules\Platform\Models\PlatformAdmin;
 
 require_once __DIR__.'/helpers.php';
@@ -13,6 +14,7 @@ require_once __DIR__.'/helpers.php';
 | Module models are tenant-owned unless listed here (central tables, ARCHITECTURE §4.2).
 */
 $centralModels = [
+    Permission::class,
     PlatformAdmin::class,
 ];
 

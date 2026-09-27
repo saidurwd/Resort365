@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Modules\IAM\Database\Factories\UserFactory;
 use Modules\IAM\Enums\UserStatus;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * A person who signs in to one tenant (ARCHITECTURE §3.3). Email is unique per tenant.
@@ -59,6 +60,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
+    use HasRoles;
     use Notifiable;
     use TwoFactorAuthenticatable;
 
@@ -77,6 +79,11 @@ class User extends Authenticatable implements MustVerifyEmail
             'deactivated_at' => 'datetime',
         ];
     }
+
+    /**
+     * Roles are checked with the `web` guard (tenant users).
+     */
+    protected string $guard_name = 'web';
 
     public function isActive(): bool
     {

@@ -1,4 +1,4 @@
-{{-- $menu: see App\Support\Ui\SidebarMenu (TODO(step-0.6): menu registry). --}}
+{{-- $menu: rendered by App\Support\Menu\MenuRegistry (filtered by permission and enabled modules). --}}
 <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
     <div class="sidebar-brand">
         <a href="{{ url('/') }}" class="brand-link">

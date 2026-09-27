@@ -96,8 +96,20 @@ Run `composer fix` after generating anything, then the quality gate (§6).
 
 ## 5. Registering things
 
-- **Service provider** (`app/Providers/<Module>ServiceProvider.php`): extends `Nwidart\Modules\Support\ModuleServiceProvider`, which loads the module's config (`config('housekeeping.…')`), views (`view('housekeeping::…')`) and migrations. Translations in `lang/` load into the **shared** namespace, not a module namespace. Use JSON-style strings (`__('Room cleaned')`), or name PHP translation files after the module (`lang/en/housekeeping.php` → `__('housekeeping.key')`) to avoid collisions. Bind contracts here. Later steps also register permissions, menu items, settings and schedules here.
-- **Routes** are **tenant routes**. They're served on `{tenant}.<central domain>` with the `tenant` middleware group, which resolves the tenant before route-model binding. `routes/web.php` uses the `web` middleware, the prefix `/housekeeping` and route names `housekeeping.resource.action`. The prefix is the module's lowercase alias from `module.json`, such as `iam`, `hr` or `frontoffice`, which is also the permission prefix. `routes/api.php` is served under `/api/v1/housekeeping`, with names `api.v1.housekeeping.…`. Every route needs authentication and permission middleware (Standard Step Rule R8). A central module (Platform) maps its routes to `config('tenancy.central_domain')` instead.
+- **Service provider** (`app/Providers/<Module>ServiceProvider.php`): extends `Nwidart\Modules\Support\ModuleServiceProvider`, which loads the module's config (`config('housekeeping.…')`), views (`view('housekeeping::…')`) and migrations. Translations in `lang/` load into the **shared** namespace, not a module namespace. Use JSON-style strings (`__('Room cleaned')`), or name PHP translation files after the module (`lang/en/housekeeping.php` → `__('housekeeping.key')`) to avoid collisions. Bind contracts here, and register the module's **permissions** and **sidebar items**:
+
+  ```php
+  app(PermissionRegistry::class)->register('Housekeeping', [
+      new PermissionDefinition('housekeeping.task.view', 'View tasks', [DefaultRole::HousekeepingSupervisor]),
+  ]);
+  $menu = app(MenuRegistry::class);
+  $menu->group('housekeeping', 'Housekeeping', 'bi-stars', order: 500);
+  $menu->add(new MenuItem('housekeeping.tasks', 'Tasks', route: 'housekeeping.tasks.index', parent: 'housekeeping',
+      permission: 'housekeeping.task.view', module: 'housekeeping'));
+  ```
+
+  Then run `php artisan permissions:sync`. Protect each route with `can:<permission>` and a Policy. Later steps also register settings and schedules here.
+- **Routes** are **tenant routes**, and return 403 when the module is disabled for the tenant (the `module:<alias>` middleware added by the route provider). They're served on `{tenant}.<central domain>` with the `tenant` middleware group, which resolves the tenant before route-model binding. `routes/web.php` uses the `web` middleware, the prefix `/housekeeping` and route names `housekeeping.resource.action`. The prefix is the module's lowercase alias from `module.json`, such as `iam`, `hr` or `frontoffice`, which is also the permission prefix. `routes/api.php` is served under `/api/v1/housekeeping`, with names `api.v1.housekeeping.…`. Every route needs authentication and permission middleware (Standard Step Rule R8). A central module (Platform) maps its routes to `config('tenancy.central_domain')` instead.
 - **Models** that hold tenant data use `BelongsToTenant` (required by an architecture test) and need a factory, because the tenant-isolation harness finds and tests them automatically. Validation uses `TenantRule::exists()` and `TenantRule::unique()`.
 - **Events:** each module's `EventServiceProvider` discovers listeners in its own `app/Listeners` only. Laravel's default would scan the application's `app/Listeners` once per module.
 - **Middleware for all tenant routes:** append to the `tenant` group through the HTTP kernel (`appendMiddlewareToGroup`) and place it with `addToMiddlewarePriorityBefore(AuthenticatesRequests::class, …)`. See `IAMServiceProvider`.

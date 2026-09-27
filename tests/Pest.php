@@ -1,12 +1,16 @@
 <?php
 
 use App\Models\Tenant;
+use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Testing\TestView;
 use Illuminate\View\FileViewFinder;
+use Modules\IAM\Actions\SeedDefaultRoles;
+use Modules\IAM\Actions\SyncPermissions;
+use Modules\IAM\Models\Role;
 use Modules\IAM\Models\User;
 use Tests\TestCase;
 
@@ -109,5 +113,42 @@ function userIn(string $tenantSlug, string $email): User
     return app(TenantContext::class)->run(
         tenant($tenantSlug),
         fn (): User => User::query()->where('email', $email)->firstOrFail(),
+    );
+}
+
+/**
+ * Store registered permissions and create the tenant's default roles (as for a new tenant).
+ */
+function withDefaultRoles(Tenant $tenant): Tenant
+{
+    SyncPermissions::make()->handle();
+    app(TenantContext::class)->run($tenant, function (): void {
+        SeedDefaultRoles::make()->handle();
+    });
+
+    return $tenant;
+}
+
+/**
+ * A user of the tenant holding one default role (call withDefaultRoles() first).
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function tenantUserAs(Tenant $tenant, DefaultRole $role, array $attributes = []): User
+{
+    $user = tenantUser($tenant, $attributes);
+    app(TenantContext::class)->run($tenant, fn (): User => $user->assignRole($role->value));
+
+    return $user;
+}
+
+/**
+ * Id of a default role in the tenant.
+ */
+function roleId(Tenant $tenant, DefaultRole $role): int
+{
+    return app(TenantContext::class)->run(
+        $tenant,
+        fn (): int => Role::query()->where('name', $role->value)->value('id') ?? throw new RuntimeException("Role {$role->value} missing"),
     );
 }

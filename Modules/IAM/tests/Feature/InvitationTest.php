@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Tenant;
+use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -19,9 +20,9 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Notification::fake();
-    $sunrise = Tenant::factory()->create(['slug' => 'sunrise', 'name' => 'Sunrise Resorts Ltd']);
-    Tenant::factory()->create(['slug' => 'greenvalley']);
-    tenantUser($sunrise, ['name' => 'Rahim Uddin', 'email' => 'owner@sunrise.test']);
+    $sunrise = withDefaultRoles(Tenant::factory()->create(['slug' => 'sunrise', 'name' => 'Sunrise Resorts Ltd']));
+    withDefaultRoles(Tenant::factory()->create(['slug' => 'greenvalley']));
+    tenantUserAs($sunrise, DefaultRole::TenantOwner, ['name' => 'Rahim Uddin', 'email' => 'owner@sunrise.test']);
 });
 
 function invitee(Tenant $tenant, string $email): ?User
@@ -45,7 +46,7 @@ function invitationUrl(User $invitee): string
 it('invites a user by email', function (): void {
     actingAs(userIn('sunrise', 'owner@sunrise.test'));
 
-    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Nusrat Jahan', 'email' => 'Nusrat@Sunrise.test'])
+    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Nusrat Jahan', 'email' => 'Nusrat@Sunrise.test', 'roles' => [roleId(tenant('sunrise'), DefaultRole::FrontDeskAgent)]])
         ->assertRedirect(tenantUrl('sunrise', '/iam/users'))
         ->assertSessionHas('success');
 
@@ -66,10 +67,10 @@ it('invites a user by email', function (): void {
 it('rejects an email already used in the same tenant but allows it in another', function (): void {
     actingAs(userIn('sunrise', 'owner@sunrise.test'));
 
-    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Again', 'email' => 'owner@sunrise.test'])->assertSessionHasErrors('email');
+    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Again', 'email' => 'owner@sunrise.test', 'roles' => [roleId(tenant('sunrise'), DefaultRole::FrontDeskAgent)]])->assertSessionHasErrors('email');
 
-    actingAs(tenantUser(tenant('greenvalley')));
-    post(tenantUrl('greenvalley', '/iam/users'), ['name' => 'Rahim at Valley', 'email' => 'owner@sunrise.test'])->assertSessionHasNoErrors();
+    actingAs(tenantUserAs(tenant('greenvalley'), DefaultRole::TenantOwner));
+    post(tenantUrl('greenvalley', '/iam/users'), ['name' => 'Rahim at Valley', 'email' => 'owner@sunrise.test', 'roles' => [roleId(tenant('greenvalley'), DefaultRole::Auditor)]])->assertSessionHasNoErrors();
 
     expect(invitee(tenant('greenvalley'), 'owner@sunrise.test')?->status)->toBe(UserStatus::Invited);
 });
@@ -77,12 +78,12 @@ it('rejects an email already used in the same tenant but allows it in another', 
 it('validates the invitation form', function (): void {
     actingAs(userIn('sunrise', 'owner@sunrise.test'));
 
-    post(tenantUrl('sunrise', '/iam/users'), ['name' => '', 'email' => 'not-an-email'])->assertSessionHasErrors(['name', 'email']);
+    post(tenantUrl('sunrise', '/iam/users'), ['name' => '', 'email' => 'not-an-email'])->assertSessionHasErrors(['name', 'email', 'roles']);
 });
 
 it('lets the invitee set a password, activates the account and signs them in', function (): void {
     actingAs(userIn('sunrise', 'owner@sunrise.test'));
-    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Nusrat Jahan', 'email' => 'nusrat@sunrise.test']);
+    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Nusrat Jahan', 'email' => 'nusrat@sunrise.test', 'roles' => [roleId(tenant('sunrise'), DefaultRole::FrontDeskAgent)]]);
     post(tenantUrl('sunrise', '/logout'));
     $url = invitationUrl(invitee(tenant('sunrise'), 'nusrat@sunrise.test') ?? throw new RuntimeException('missing'));
 
@@ -102,7 +103,7 @@ it('lets the invitee set a password, activates the account and signs them in', f
 
 it('does not reuse an accepted invitation', function (): void {
     actingAs(userIn('sunrise', 'owner@sunrise.test'));
-    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Nusrat', 'email' => 'nusrat@sunrise.test']);
+    post(tenantUrl('sunrise', '/iam/users'), ['name' => 'Nusrat', 'email' => 'nusrat@sunrise.test', 'roles' => [roleId(tenant('sunrise'), DefaultRole::FrontDeskAgent)]]);
     post(tenantUrl('sunrise', '/logout'));
     $url = invitationUrl(invitee(tenant('sunrise'), 'nusrat@sunrise.test') ?? throw new RuntimeException('missing'));
 

@@ -2,8 +2,12 @@
 
 namespace Modules\IAM\Providers;
 
+use App\Support\Tenancy\Events\TenantCreated;
+use App\Support\Tenancy\Events\TenantSwitched;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Modules\IAM\Listeners\RecordLoginHistory;
+use Modules\IAM\Listeners\SeedRolesForNewTenant;
+use Modules\IAM\Listeners\UseTenantPermissionCache;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -12,7 +16,10 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<string, array<int, string>>
      */
-    protected $listen = [];
+    protected $listen = [
+        TenantSwitched::class => [UseTenantPermissionCache::class],
+        TenantCreated::class => [SeedRolesForNewTenant::class],
+    ];
 
     /**
      * @var array<int, class-string>

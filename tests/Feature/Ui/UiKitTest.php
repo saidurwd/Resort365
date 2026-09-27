@@ -1,6 +1,6 @@
 <?php
 
-use App\Support\Ui\SidebarMenu;
+use App\Support\Menu\MenuRegistry;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
@@ -45,6 +45,5 @@ it('is hidden outside the local environment', function (string $path): void {
 })->with(['/ui-kit', '/ui-kit/print', '/ui-kit/datatable']);
 
 it('is not linked from the sidebar outside the local environment', function (): void {
-    expect(SidebarMenu::items())->toHaveCount(1)
-        ->and(SidebarMenu::items()[0]['label'])->toBe(__('Home'));
+    expect(array_column(app(MenuRegistry::class)->forUser(null), 'label'))->toBe([__('Home')]);
 });

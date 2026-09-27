@@ -3,6 +3,7 @@
 namespace App\Support\Tenancy;
 
 use App\Models\Tenant;
+use App\Support\Tenancy\Events\TenantSwitched;
 use Illuminate\Support\Facades\Context;
 
 /**
@@ -24,6 +25,8 @@ class TenantContext
 
         Context::addHidden(self::CONTEXT_KEY, $tenant->id);
         Context::add('tenant', $tenant->slug);
+
+        TenantSwitched::dispatch($tenant);
     }
 
     public function forget(): void
@@ -32,6 +35,8 @@ class TenantContext
 
         Context::forgetHidden(self::CONTEXT_KEY);
         Context::forget('tenant');
+
+        TenantSwitched::dispatch(null);
     }
 
     public function check(): bool

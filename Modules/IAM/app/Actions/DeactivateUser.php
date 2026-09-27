@@ -21,6 +21,10 @@ class DeactivateUser extends Action
             throw ValidationException::withMessages(['user' => __('You cannot deactivate your own account.')]);
         }
 
+        if (AssignRoles::isLastOwner($user)) {
+            throw ValidationException::withMessages(['user' => __('The last Tenant Owner cannot be deactivated.')]);
+        }
+
         $user->forceFill(['status' => UserStatus::Inactive, 'deactivated_at' => now()])->save();
 
         return $user;

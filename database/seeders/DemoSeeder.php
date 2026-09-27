@@ -4,8 +4,11 @@ namespace Database\Seeders;
 
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
+use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
+use Modules\IAM\Actions\SeedDefaultRoles;
+use Modules\IAM\Actions\SyncPermissions;
 use Modules\IAM\Enums\UserStatus;
 use Modules\IAM\Models\User;
 use Modules\Platform\Models\PlatformAdmin;
@@ -26,13 +29,16 @@ class DemoSeeder extends Seeder
         $sunrise = $this->tenant('sunrise', 'Sunrise Resorts Ltd', 'info@sunrise.test');
         $greenValley = $this->tenant('greenvalley', 'Green Valley Resort', 'info@greenvalley.test');
 
-        // TODO(step-0.6): one demo user per default role, with roles assigned.
-        $this->users($sunrise, [
-            'owner@sunrise.test' => 'Rahim Uddin',
-            'frontdesk@sunrise.test' => 'Nusrat Jahan',
+        app(SyncPermissions::class)->handle();
+
+        // One demo user per default role, e.g. frontdesk@sunrise.test (ARCHITECTURE §3.2).
+        $this->usersPerRole($sunrise, 'sunrise.test', [
+            DefaultRole::TenantOwner->value => 'Rahim Uddin',
+            DefaultRole::FrontDeskAgent->value => 'Nusrat Jahan',
+            DefaultRole::Accountant->value => 'Farzana Akter',
         ]);
-        $this->users($greenValley, [
-            'owner@greenvalley.test' => 'Tanvir Ahmed',
+        $this->usersPerRole($greenValley, 'greenvalley.test', [
+            DefaultRole::TenantOwner->value => 'Tanvir Ahmed',
         ]);
 
         PlatformAdmin::query()->updateOrCreate(
@@ -44,15 +50,20 @@ class DemoSeeder extends Seeder
     }
 
     /**
-     * @param  array<string, string>  $users  email => name
+     * Default roles for the tenant, then one active user per role.
+     *
+     * @param  array<string, string>  $names  role value => person name (others use the role label)
      */
-    private function users(Tenant $tenant, array $users): void
+    private function usersPerRole(Tenant $tenant, string $domain, array $names): void
     {
-        app(TenantContext::class)->run($tenant, function () use ($users): void {
-            foreach ($users as $email => $name) {
-                $user = User::query()->firstOrNew(['email' => $email]);
-                $user->fill(['name' => $name, 'password' => self::PASSWORD, 'status' => UserStatus::Active]);
+        app(TenantContext::class)->run($tenant, function () use ($domain, $names): void {
+            app(SeedDefaultRoles::class)->handle();
+
+            foreach (DefaultRole::cases() as $role) {
+                $user = User::query()->firstOrNew(['email' => $role->demoMailbox().'@'.$domain]);
+                $user->fill(['name' => $names[$role->value] ?? $role->label(), 'password' => self::PASSWORD, 'status' => UserStatus::Active]);
                 $user->forceFill(['email_verified_at' => now()])->save();
+                $user->syncRoles([$role->value]);
             }
         });
     }

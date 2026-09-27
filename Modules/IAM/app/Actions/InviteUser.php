@@ -14,15 +14,24 @@ use Modules\IAM\Models\User;
  */
 class InviteUser extends Action
 {
-    public function __construct(private readonly SendInvitation $sendInvitation) {}
+    public function __construct(
+        private readonly SendInvitation $sendInvitation,
+        private readonly AssignRoles $assignRoles,
+    ) {}
 
     /**
+     * @param  list<int>  $roleIds
      * @return Invitation
      */
-    public function handle(string $name, string $email, User $inviter): array
+    public function handle(string $name, string $email, User $inviter, array $roleIds = []): array
     {
-        $user = new User(['name' => $name, 'email' => strtolower($email), 'status' => UserStatus::Invited]);
-        $user->forceFill(['invited_by' => $inviter->id])->save();
+        $user = $this->transaction(function () use ($name, $email, $inviter, $roleIds): User {
+            $user = new User(['name' => $name, 'email' => strtolower($email), 'status' => UserStatus::Invited]);
+            $user->forceFill(['invited_by' => $inviter->id])->save();
+            $this->assignRoles->handle($user, $roleIds);
+
+            return $user;
+        });
 
         return ['user' => $user, 'url' => $this->sendInvitation->handle($user)];
     }

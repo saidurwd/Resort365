@@ -46,6 +46,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `php artisan migrate:fresh --seed` | Rebuild the local database with demo data (tenants `sunrise`, `greenvalley`) |
 | `php artisan tenant:create <slug> "<Name>"` | Create a tenant; open `http://<slug>.resort365.test` |
 | `php artisan platform:create-admin <email> "<Name>"` | Create a platform super admin (prompts for the password) |
+| `php artisan permissions:sync [--prune]` | Store registered permissions and update every tenant's default roles |
 | `php artisan module:make <Name>` then `composer dump-autoload` | Create a module with the §11 structure |
 | `php artisan module:make-action <Class> <Module>` (also `-enum`, `-event`, `-model … -mf`, `-request`, `-interface`, …) | Generate a class inside a module; see MODULE_GUIDE §2 |
 | `php artisan test --testsuite=Architecture` | Run only the architecture tests |
@@ -126,8 +127,17 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
   - Every sign-in event is recorded in `login_histories`.
 - **Profile** (`/iam/profile`): details, password, language, colour mode (saved to the user, including from the navbar toggle), 2FA setup and recent sign-ins.
 - **Platform admins** (`Modules\Platform\Models\PlatformAdmin`, the `platform` guard) sign in on the central domain at `/platform/login`. Create one with `php artisan platform:create-admin <email> "<Name>"`.
-- **Demo logins** (password `password`): `owner@sunrise.test` and `frontdesk@sunrise.test` at `http://sunrise.resort365.test`, `owner@greenvalley.test` at `http://greenvalley.resort365.test`, and the platform admin `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
-- **Permissions:** `TODO(step-0.6)` adds `iam.user.*` permissions and roles. Until then, any active user can manage the tenant's users.
+- **Demo logins** (password `password`): one user per default role in each tenant, named `<mailbox>@sunrise.test` at `http://sunrise.resort365.test` and `<mailbox>@greenvalley.test` at `http://greenvalley.resort365.test`. Mailboxes: `owner`, `gm`, `fomanager`, `frontdesk`, `reservations`, `housekeeping`, `maintenance`, `fnb`, `cashier`, `waiter`, `chef`, `bartender`, `store`, `procurement`, `accountant`, `hr`, `payroll`, `auditor` (see `DefaultRole::demoMailbox()`). The platform admin is `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
+
+## Roles, permissions and the sidebar (ARCHITECTURE §3, §10.2)
+
+- **Permissions** are named `module.resource.action`. Each module registers its permissions in its service provider through `App\Support\Authorization\PermissionRegistry`, as `PermissionDefinition(name, label, defaultRoles)`. Tenant Owner gets every permission and Auditor every `*.view`, automatically.
+- **After adding or changing permissions**, run `php artisan permissions:sync [--prune]`. It stores them and updates every tenant's **default roles**: the 18 roles from §3.2, which are read-only system roles. Tenants build **custom roles** at `/iam/roles`, and new tenants get the default roles automatically (`TenantCreated`).
+- **Roles belong to a tenant:** spatie/laravel-permission with teams = tenants (`TenantTeamResolver`), and a per-tenant permission cache (`UseTenantPermissionCache`).
+- **Enforce permissions twice:** with `can:<permission>` route middleware and with a Policy in the controller (R8). Default roles get their permissions from the registry, never by hand.
+- **Sidebar:** each module registers groups and items in `App\Support\Menu\MenuRegistry` (label, icon, route, order, permission, module). The sidebar shows only what the user may see in enabled modules. Shared groups such as `setup` are created with `$menu->group()`.
+- **Modules per tenant:** the `tenant_modules` table (no row means enabled; plans come in Phase 7). Module routes get `module:<alias>` middleware from the route-provider stub, so a disabled module returns 403 and its menu disappears. `core`, `iam` and `platform` are always on.
+- **Tests:** `withDefaultRoles($tenant)`, `tenantUserAs($tenant, DefaultRole::X)` and `roleId(...)` in `tests/Pest.php`.
 
 ## UI (ARCHITECTURE §10)
 

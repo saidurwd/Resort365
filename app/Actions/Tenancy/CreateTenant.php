@@ -5,6 +5,7 @@ namespace App\Actions\Tenancy;
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
 use App\Support\Actions\Action;
+use App\Support\Tenancy\Events\TenantCreated;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -25,13 +26,18 @@ class CreateTenant extends Action
             ['slug.not_in' => __('The subdomain ":input" is reserved.')],
         )->validate();
 
-        return Tenant::query()->create([
+        $tenant = Tenant::query()->create([
             'slug' => $data['slug'],
             'name' => $data['name'],
             'email' => $data['email'],
             'status' => $status,
             'trial_ends_at' => $status === TenantStatus::Trial ? now()->addDays(14) : null,
         ]);
+
+        // Modules seed their per-tenant defaults (e.g. IAM's default roles).
+        TenantCreated::dispatch($tenant);
+
+        return $tenant;
     }
 
     /**

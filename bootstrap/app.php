@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\IdentifyTenant;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -24,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias(['module' => EnsureModuleEnabled::class]);
+
         // Modules append to this group (e.g. IAM adds EnsureUserIsActive and SetUserLocale).
         $middleware->group('tenant', [
             IdentifyTenant::class,
