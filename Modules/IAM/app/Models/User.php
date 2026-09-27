@@ -2,6 +2,8 @@
 
 namespace Modules\IAM\Models;
 
+use App\Models\DatabaseNotification;
+use App\Support\Audit\RecordsActivity;
 use App\Support\Tenancy\BelongsToTenant;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -10,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -62,6 +65,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     use HasRoles;
     use Notifiable;
+    use RecordsActivity;
     use TwoFactorAuthenticatable;
 
     /**
@@ -84,6 +88,26 @@ class User extends Authenticatable implements MustVerifyEmail
      * Roles are checked with the `web` guard (tenant users).
      */
     protected string $guard_name = 'web';
+
+    /**
+     * In-app notifications, stored with the tenant (App\Models\DatabaseNotification).
+     *
+     * @return MorphMany<DatabaseNotification, $this>
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(DatabaseNotification::class, 'notifiable')->latest();
+    }
+
+    /**
+     * Sign-in bookkeeping is in login_histories, not the audit log.
+     *
+     * @return list<string>
+     */
+    protected function activityLogExcept(): array
+    {
+        return ['last_login_at', 'last_login_ip'];
+    }
 
     public function isActive(): bool
     {

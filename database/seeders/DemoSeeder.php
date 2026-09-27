@@ -7,6 +7,11 @@ use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
+use Modules\Core\Contracts\DocumentNumbers;
+use Modules\Core\Database\Seeders\ReferenceDataSeeder;
+use Modules\Core\Models\ExchangeRate;
+use Modules\Core\Notifications\WelcomeNotification;
 use Modules\IAM\Actions\SeedDefaultRoles;
 use Modules\IAM\Actions\SyncPermissions;
 use Modules\IAM\Enums\UserStatus;
@@ -26,6 +31,12 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
+        // A fresh demo database reuses tenant ids, so drop cached settings and permissions
+        // (the cache is a separate Redis database from sessions).
+        Cache::flush();
+
+        $this->call(ReferenceDataSeeder::class);
+
         $sunrise = $this->tenant('sunrise', 'Sunrise Resorts Ltd', 'info@sunrise.test');
         $greenValley = $this->tenant('greenvalley', 'Green Valley Resort', 'info@greenvalley.test');
 
@@ -56,15 +67,29 @@ class DemoSeeder extends Seeder
      */
     private function usersPerRole(Tenant $tenant, string $domain, array $names): void
     {
-        app(TenantContext::class)->run($tenant, function () use ($domain, $names): void {
+        app(TenantContext::class)->run($tenant, function (Tenant $tenant) use ($domain, $names): void {
             app(SeedDefaultRoles::class)->handle();
+
+            $numbers = app(DocumentNumbers::class);
+            foreach (array_keys($numbers->types()) as $type) {
+                $numbers->ensure($type);
+            }
 
             foreach (DefaultRole::cases() as $role) {
                 $user = User::query()->firstOrNew(['email' => $role->demoMailbox().'@'.$domain]);
                 $user->fill(['name' => $names[$role->value] ?? $role->label(), 'password' => self::PASSWORD, 'status' => UserStatus::Active]);
                 $user->forceFill(['email_verified_at' => now()])->save();
                 $user->syncRoles([$role->value]);
+
+                if (! $user->notifications()->exists()) {
+                    $user->notify(new WelcomeNotification($user->name, $tenant->name));
+                }
             }
+
+            ExchangeRate::query()->updateOrCreate(
+                ['base_currency' => 'USD', 'quote_currency' => 'BDT', 'effective_date' => now()->startOfYear()->toDateString()],
+                ['rate' => '122.00000000', 'source' => 'demo'],
+            );
         });
     }
 

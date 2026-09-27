@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
+use Modules\Core\Contracts\AuditTrail;
 use Modules\IAM\Actions\DeleteRole;
 use Modules\IAM\Actions\SaveRole;
 use Modules\IAM\Http\Requests\SaveRoleRequest;
@@ -47,6 +48,7 @@ class RoleController extends Controller
             'role' => $role,
             'granted' => $role->permissions()->pluck('name')->all(),
             'groups' => $this->permissions->grouped(),
+            'history' => app(AuditTrail::class)->for($role),
         ]);
     }
 
@@ -58,6 +60,7 @@ class RoleController extends Controller
             'role' => $role,
             'granted' => $role->permissions()->pluck('name')->all(),
             'groups' => $this->permissions->grouped(),
+            'history' => app(AuditTrail::class)->for($role),
         ]);
     }
 

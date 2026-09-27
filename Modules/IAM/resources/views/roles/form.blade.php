@@ -24,4 +24,8 @@
             </x-slot:footer>
         </x-card>
     </form>
+
+    @if ($role)
+        <x-audit-trail :entries="$history" />
+    @endif
 </x-layouts::app>

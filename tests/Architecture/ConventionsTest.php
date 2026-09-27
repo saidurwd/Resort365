@@ -5,6 +5,9 @@ use App\Support\DTOs\Data;
 use App\Support\Enums\HasLabelAndColor;
 use App\Support\Tenancy\BelongsToTenant;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
+use Modules\Core\Models\Country;
+use Modules\Core\Models\Currency;
+use Modules\Core\Models\Timezone;
 use Modules\IAM\Models\Permission;
 use Modules\Platform\Models\PlatformAdmin;
 
@@ -14,6 +17,9 @@ require_once __DIR__.'/helpers.php';
 | Module models are tenant-owned unless listed here (central tables, ARCHITECTURE §4.2).
 */
 $centralModels = [
+    Country::class,
+    Currency::class,
+    Timezone::class,
     Permission::class,
     PlatformAdmin::class,
 ];

@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * File storage with paths prefixed `tenants/{tenant_id}/` (ARCHITECTURE §4.2).
- * Files are served only through signed, authorized routes (TODO(step-0.7): attachments).
+ * Files are served only through authorized routes; for files attached to records use Core attachments
+ * (App\Support\Attachments\HasAttachments).
  */
 class TenantStorage
 {

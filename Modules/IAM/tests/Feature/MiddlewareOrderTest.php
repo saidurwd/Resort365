@@ -6,12 +6,13 @@ use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Modules\IAM\Http\Middleware\EnsureTwoFactorEnabled;
 use Modules\IAM\Http\Middleware\EnsureUserIsActive;
 use Modules\IAM\Http\Middleware\SetUserLocale;
 
 it('resolves the tenant and checks the user before authentication and route binding', function (): void {
     $priority = array_flip(app(Kernel::class)->getMiddlewarePriority());
-    $expected = [StartSession::class, IdentifyTenant::class, EnsureUserBelongsToTenant::class, EnsureUserIsActive::class, SetUserLocale::class, AuthenticatesRequests::class, SubstituteBindings::class];
+    $expected = [StartSession::class, IdentifyTenant::class, EnsureUserBelongsToTenant::class, EnsureUserIsActive::class, SetUserLocale::class, EnsureTwoFactorEnabled::class, AuthenticatesRequests::class, SubstituteBindings::class];
 
     $positions = array_map(fn (string $middleware): int => $priority[$middleware] ?? PHP_INT_MAX, $expected);
 
@@ -26,5 +27,6 @@ it('adds the IAM checks to the tenant middleware group', function (): void {
         EnsureUserBelongsToTenant::class,
         EnsureUserIsActive::class,
         SetUserLocale::class,
+        EnsureTwoFactorEnabled::class,
     ]);
 });

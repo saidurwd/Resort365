@@ -9,4 +9,6 @@
     <x-card :title="__('Permissions')" icon="bi-shield-check">
         @include('iam::roles.partials.permissions', ['editable' => false])
     </x-card>
+
+    <x-audit-trail :entries="$history" />
 </x-layouts::app>

@@ -28,7 +28,15 @@ class AssignRoles extends Action
             throw ValidationException::withMessages(['roles' => __('The last Tenant Owner must keep that role.')]);
         }
 
+        $before = $user->getRoleNames()->sort()->values()->all();
         $user->syncRoles($roles);
+        $after = $roles->pluck('name')->sort()->values()->all();
+
+        if ($before !== $after) {
+            activity()->performedOn($user)->event('updated')
+                ->withProperties(['old' => ['roles' => implode(', ', $before)], 'attributes' => ['roles' => implode(', ', $after)]])
+                ->log('User roles changed');
+        }
 
         return $user;
     }

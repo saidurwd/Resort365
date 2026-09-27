@@ -14,5 +14,8 @@
                 </form>
             </x-card>
         </div>
+        <div class="col-lg-6">
+            <x-audit-trail :entries="$history" />
+        </div>
     </div>
 </x-layouts::app>

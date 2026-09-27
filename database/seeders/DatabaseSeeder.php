@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Modules\Core\Database\Seeders\ReferenceDataSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -11,6 +12,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(DemoSeeder::class);
+        $this->call([
+            ReferenceDataSeeder::class,
+            DemoSeeder::class,
+        ]);
     }
 }

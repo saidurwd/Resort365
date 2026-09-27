@@ -4,7 +4,7 @@
 ])
 
 {{--
-    Change history, newest first. Presentational until the audit log service (TODO(step-0.7)).
+    Change history, newest first. Feed it from Core: app(\Modules\Core\Contracts\AuditTrail::class)->for($model).
     entries: list of ['description', 'causer' (?string), 'at' (Carbon), 'changes' => [field => [old, new]]].
 --}}
 <x-card :title="$title ?? __('History')" icon="bi-clock-history" {{ $attributes }}>

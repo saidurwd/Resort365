@@ -10,7 +10,38 @@
         </ul>
 
         <ul class="navbar-nav ms-auto">
-            {{-- TODO(step-1.2): quick search; TODO(step-0.7): notifications. --}}
+            {{-- TODO(step-1.2): quick search. $notificationBell is shared by the Core module. --}}
+            @isset($notificationBell)
+                <li class="nav-item dropdown">
+                    <a class="nav-link position-relative" href="#" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('Notifications') }}" data-notification-bell>
+                        <i class="bi bi-bell"></i>
+                        @if ($notificationBell['unread'] > 0)
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger" data-unread-count>{{ $notificationBell['unread'] }}</span>
+                        @endif
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end dropdown-menu-lg p-0">
+                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                            <strong class="small">{{ __('Notifications') }}</strong>
+                            @if ($notificationBell['unread'] > 0)
+                                <form method="POST" action="{{ $notificationBell['readAllUrl'] }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-link btn-sm p-0">{{ __('Mark all as read') }}</button>
+                                </form>
+                            @endif
+                        </div>
+                        @forelse ($notificationBell['latest'] as $notification)
+                            <div @class(['px-3 py-2 border-bottom small', 'fw-semibold' => $notification->read_at === null])>
+                                <i class="bi {{ $notification->data['icon'] ?? 'bi-bell' }} me-1 text-primary"></i>{{ $notification->data['title'] ?? '' }}
+                                <div class="text-body-secondary fw-normal">{{ \Illuminate\Support\Str::limit((string) ($notification->data['body'] ?? ''), 90) }}</div>
+                            </div>
+                        @empty
+                            <div class="px-3 py-3 small text-body-secondary">{{ __('No notifications') }}</div>
+                        @endforelse
+                        <a href="{{ $notificationBell['indexUrl'] }}" class="dropdown-item text-center small py-2">{{ __('See all notifications') }}</a>
+                    </div>
+                </li>
+            @endisset
+
 
             <li class="nav-item dropdown">
                 <button class="btn btn-link nav-link dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('Colour mode') }}">

@@ -19,11 +19,15 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\LoginRateLimiter;
+use Modules\Core\Contracts\Settings;
+use Modules\Core\DTOs\SettingDefinition;
+use Modules\Core\Enums\SettingType;
 use Modules\IAM\Actions\AuthenticateUser;
 use Modules\IAM\Actions\Fortify\ResetUserPassword;
 use Modules\IAM\Actions\Fortify\UpdateUserPassword;
 use Modules\IAM\Actions\Fortify\UpdateUserProfileInformation;
 use Modules\IAM\Console\SyncPermissionsCommand;
+use Modules\IAM\Http\Middleware\EnsureTwoFactorEnabled;
 use Modules\IAM\Http\Middleware\EnsureUserIsActive;
 use Modules\IAM\Http\Middleware\SetUserLocale;
 use Modules\IAM\Models\Role;
@@ -86,6 +90,10 @@ class IAMServiceProvider extends ModuleServiceProvider
         Gate::policy(Role::class, RolePolicy::class);
 
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
+        $this->app->make(Settings::class)->define(new SettingDefinition(
+            'iam.require_two_factor', 'Require two-factor authentication for owners and general managers', SettingType::Boolean, false,
+            group: 'Security', help: 'They are asked to turn it on before they can continue.',
+        ));
         $this->registerMenu($this->app->make(MenuRegistry::class));
 
         // Reset links carry the plain email; tokens are stored per tenant (User::getEmailForPasswordReset()).
@@ -132,8 +140,10 @@ class IAMServiceProvider extends ModuleServiceProvider
         $kernel = $this->app->make(HttpKernel::class);
         $kernel->appendMiddlewareToGroup('tenant', EnsureUserIsActive::class);
         $kernel->appendMiddlewareToGroup('tenant', SetUserLocale::class);
+        $kernel->appendMiddlewareToGroup('tenant', EnsureTwoFactorEnabled::class);
         $kernel->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, EnsureUserIsActive::class);
         $kernel->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, SetUserLocale::class);
+        $kernel->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, EnsureTwoFactorEnabled::class);
     }
 
     /**

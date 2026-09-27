@@ -425,7 +425,7 @@ Shared infrastructure used by every module.
 
 - Tenancy context, `BelongsToTenant` / `BelongsToProperty` traits, tenant-aware jobs.
 - **Settings engine:** typed key/value settings at tenant and property level, for example `checkin_time`, `checkout_time`, `default_deposit_percent`, `currency`, `timezone`, `date_format`.
-- **Document numbering:** configurable sequences per tenant, property and document type, e.g. `RSV-2026-00001`, `INV-…`, `PO-…`, `GRN-…`, `JV-…`, `PAY-…`. Generated under a row lock and optionally reset each year.
+- **Document numbering:** configurable sequences per tenant, property and document type, e.g. `RSV-2026-00001`, `INV-…`, `PO-…`, `GRN-…`, `JV-…`, `PAY-…`. Generated under a row lock and optionally reset each year. *(Every registered sequence is created when the tenant is created, so taking a number is always a single row lock. Creating a sequence on first use under concurrent load can deadlock on gap locks.)*
 - **Approval workflow engine:** a generic multi-level approval process for any "approvable" document (PR, PO, vendor bill, leave, payroll, refund) with amount-based thresholds. Example: PO < 50,000 → Purchase Manager; ≥ 50,000 → General Manager.
 - **Notifications:** email, SMS and in-app channels; per-tenant templates with placeholders; a WhatsApp channel can be added later.
 - **Tax engine:** configurable taxes and charges (VAT, service charge, tourism levy, city tax) with percentage or fixed amount, inclusive or exclusive, compound flag, and tax categories. Shared by Rates (room pricing), Billing (extras) and Restaurant (bills).

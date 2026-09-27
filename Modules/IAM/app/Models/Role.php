@@ -2,6 +2,7 @@
 
 namespace Modules\IAM\Models;
 
+use App\Support\Audit\RecordsActivity;
 use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -29,6 +30,8 @@ class Role extends SpatieRole
 
     /** @use HasFactory<RoleFactory> */
     use HasFactory;
+
+    use RecordsActivity;
 
     /**
      * @return array<string, string>

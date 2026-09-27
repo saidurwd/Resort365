@@ -38,6 +38,16 @@ return [
             'report' => false,
         ],
 
+        // Attachments (Core). Private: served only through authorized routes. Use ATTACHMENTS_DISK=s3
+        // for S3-compatible storage (AWS S3, DigitalOcean Spaces, Cloudflare R2).
+        'attachments' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/attachments'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
+use Modules\Core\Contracts\AuditTrail;
 use Modules\IAM\Actions\ActivateUser;
 use Modules\IAM\Actions\AssignRoles;
 use Modules\IAM\Actions\DeactivateUser;
@@ -55,6 +56,7 @@ class UserController extends Controller
             'user' => $user,
             'roles' => $this->roleOptions(),
             'assigned' => $user->roles()->pluck('roles.id')->all(),
+            'history' => app(AuditTrail::class)->for($user),
         ]);
     }
 

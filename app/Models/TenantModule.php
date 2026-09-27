@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Audit\RecordsActivity;
 use App\Support\Tenancy\BelongsToTenant;
 use Database\Factories\TenantModuleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -25,6 +26,8 @@ class TenantModule extends Model
 
     /** @use HasFactory<TenantModuleFactory> */
     use HasFactory;
+
+    use RecordsActivity;
 
     /**
      * @return array<string, string>

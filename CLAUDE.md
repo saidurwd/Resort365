@@ -43,7 +43,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `composer analyse` | Larastan static analysis, level 6 |
 | `npm run dev` / `npm run build` | Vite dev server / production build of `resources/scss` and `resources/js` |
 | `php artisan test --filter=<name>` | Run a single test |
-| `php artisan migrate:fresh --seed` | Rebuild the local database with demo data (tenants `sunrise`, `greenvalley`) |
+| `php artisan migrate:fresh --seed` | Rebuild the local database with reference data and demo data (tenants `sunrise`, `greenvalley`); also flushes the cache |
 | `php artisan tenant:create <slug> "<Name>"` | Create a tenant; open `http://<slug>.resort365.test` |
 | `php artisan platform:create-admin <email> "<Name>"` | Create a platform super admin (prompts for the password) |
 | `php artisan permissions:sync [--prune]` | Store registered permissions and update every tenant's default roles |
@@ -128,6 +128,19 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
 - **Profile** (`/iam/profile`): details, password, language, colour mode (saved to the user, including from the navbar toggle), 2FA setup and recent sign-ins.
 - **Platform admins** (`Modules\Platform\Models\PlatformAdmin`, the `platform` guard) sign in on the central domain at `/platform/login`. Create one with `php artisan platform:create-admin <email> "<Name>"`.
 - **Demo logins** (password `password`): one user per default role in each tenant, named `<mailbox>@sunrise.test` at `http://sunrise.resort365.test` and `<mailbox>@greenvalley.test` at `http://greenvalley.resort365.test`. Mailboxes: `owner`, `gm`, `fomanager`, `frontdesk`, `reservations`, `housekeeping`, `maintenance`, `fnb`, `cashier`, `waiter`, `chef`, `bartender`, `store`, `procurement`, `accountant`, `hr`, `payroll`, `auditor` (see `DefaultRole::demoMailbox()`). The platform admin is `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
+
+## Core services (ARCHITECTURE §5.1, §9.2)
+
+Other modules use these through Core's **contracts** (`Modules\Core\Contracts\*`), never Core's models.
+
+- **Settings** (`Settings`): register a `SettingDefinition` (`module.name`, a `SettingType`, a default, a scope of tenant or property, a group) in your provider. Read it with `Settings::get('core.checkin_time', $propertyId)`: the property value wins, then the tenant value, then the default, cast to the type. Values are cached per tenant and edited at `/core/settings`. Property overrides get their screen in Step 0.8.
+- **Document numbers** (`DocumentNumbers`): register a `DocumentType` (key, prefix, format such as `{PREFIX}-{YYYY}-{SEQ:5}`, yearly reset or never), then call `next('reservation', $propertyId)` **inside the transaction that saves the document**. Numbers are taken under a row lock and are gap-free. New tenants get every sequence up front (`CreateDocumentSequences`). If you wrap `next()` in your own transaction, pass retry attempts, because a lock conflict rolls back the whole transaction. Sequences are set up at `/core/document-sequences`.
+- **Audit log:** add `App\Support\Audit\RecordsActivity` to every business model (R4). It records create, update and delete with old and new values and who made the change, and never the hidden attributes, keys or timestamps. For pivot or other changes model events don't see, log explicitly with `activity()->performedOn($model)->withProperties(['old' => …, 'attributes' => …])->log('…')`. Show history with `<x-audit-trail :entries="app(AuditTrail::class)->for($model)" />`. The whole tenant's log is at `/core/audit-log` (`core.audit.view`).
+- **Attachments:** a model implements `Spatie\MediaLibrary\HasMedia`, uses `App\Support\Attachments\HasAttachments`, has a morph-map alias and a policy (`view` to download, `update` to upload or delete). Render `<x-attachments :subject="$model" />`. Files live on the private `attachments` disk under `tenants/{id}/media/…` and are served only through Core's authorized routes. `ATTACHMENTS_DISK=s3` switches to S3-compatible storage.
+- **Reference data:** central `countries`, `currencies` and `timezones` tables (ISO codes, `ReferenceDataSeeder`). Exchange rates are per tenant, through `ExchangeRates::rate('USD', 'BDT', $date)`, as decimal strings.
+- **Notifications:** notifiable models return `App\Models\DatabaseNotification` from `notifications()`, so in-app notifications carry `tenant_id`. The navbar bell shows them, with all of them at `/core/notifications`. Use `database` channel data keys `title`, `body`, `icon` and `url`. For wording, register a `NotificationTemplateDefinition` and render it with `NotificationTemplates::render(key, channel, data)`. Tenants may override a template (`notification_templates`); an editor screen comes later.
+- **Mandatory 2FA:** the `iam.require_two_factor` setting (Settings → Security) sends Tenant Owners and General Managers without 2FA to their profile.
+- **Local MariaDB note:** MariaDB has snapshot isolation on, so a locking read of a row changed after the transaction's first plain read fails with error 1020. Laravel retries it as a concurrency error. MySQL 8.4 (CI and production) behaves normally.
 
 ## Roles, permissions and the sidebar (ARCHITECTURE §3, §10.2)
 

@@ -24,8 +24,17 @@ class SaveRole extends Action
 
         return $this->transaction(function () use ($role, $name, $description, $permissions): Role {
             $role ??= new Role(['guard_name' => 'web']);
+            $before = $role->exists ? $role->permissions()->pluck('name')->sort()->values()->all() : [];
             $role->fill(['name' => $name, 'description' => $description])->save();
             $role->syncPermissions($permissions);
+
+            $after = collect($permissions)->sort()->values()->all();
+
+            if ($before !== $after) {
+                activity()->performedOn($role)->event('updated')
+                    ->withProperties(['old' => ['permissions' => implode(', ', $before)], 'attributes' => ['permissions' => implode(', ', $after)]])
+                    ->log('Role permissions changed');
+            }
 
             return $role;
         });
