@@ -27,7 +27,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 ## Local environment
 
 - **Laravel Herd** serves the app at `http://resort365.test` (the central domain). Tenants will use subdomains such as `sunrise.resort365.test` (Step 0.4).
-- **MySQL 8.4** runs as a Homebrew service (`mysql@8.4`) on **port 3307**, because MariaDB occupies 3306 on this machine. Databases: `resort365` (app) and `resort365_testing` (tests).
+- **Database:** locally the Homebrew **MariaDB** service on port 3306, with user `resort365` / `secret` and the databases `resort365` (app) and `resort365_testing` (tests). CI and production run **MySQL 8.4**, so keep `DB_CONNECTION=mysql` and write SQL that works on both. CI is the authority on MySQL compatibility.
 - **Redis** runs as a Homebrew service (`redis`) on port 6379.
 - First-time setup: `cp .env.example .env && php artisan key:generate && php artisan migrate`.
 
@@ -35,7 +35,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 
 | Command | What it does |
 |---|---|
-| `composer test` | Run the Pest suite (`php artisan test`) against the `resort365_testing` MySQL database |
+| `composer test` | Run the Pest suite (`php artisan test`) against the `resort365_testing` database |
 | `composer lint` | Check code style (Pint) and Rector rules without changing files |
 | `composer fix` | Apply Rector refactorings, then Pint formatting |
 | `composer analyse` | Larastan static analysis, level 6 |

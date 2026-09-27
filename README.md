@@ -8,7 +8,7 @@ Multi-tenant SaaS resort management system: booking engine, front office, billin
 
 ## Requirements
 
-PHP 8.4, Composer, Node 22, MySQL 8.4, Redis 7. Locally, [Laravel Herd](https://herd.laravel.com) serves the app at `http://resort365.test`.
+PHP 8.4, Composer, Node 22, MySQL 8.4 (MariaDB works for local development), Redis 7. Locally, [Laravel Herd](https://herd.laravel.com) serves the app at `http://resort365.test`.
 
 ## Setup
 
@@ -20,7 +20,7 @@ php artisan migrate
 npm install && npm run build
 ```
 
-Create the `resort365` and `resort365_testing` databases first. The default `.env.example` expects MySQL on port 3307.
+Create the `resort365` and `resort365_testing` databases first, plus a `resort365` / `secret` user with full access to both (the defaults in `.env.example`).
 
 ## Quality checks
 
