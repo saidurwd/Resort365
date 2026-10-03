@@ -976,6 +976,8 @@ sequenceDiagram
     end
 ```
 
+*(Implemented in Step 1.6 as `CreateReservation`, which prices the booking with `BookingQuoter` first — the wizard shows the same quote — and then writes everything in one transaction with deadlock retries. The booking wizard keeps its progress in the session and re-prices on the server at every step. A test runs two parallel PHP processes for the same room-night (and a whole cottage against one of its rooms) ten times each: exactly one booking wins every time.)*
+
 Locks are bulk-inserted in one statement. Correctness relies on the **database constraint**, not on the "check then insert" pattern, which has race conditions.
 
 ### 6.7 Modifications, Cancellations & No-Shows
@@ -1147,6 +1149,7 @@ Unique: `(reservation_item_id, stay_date)`
 
 **`reservation_guests`** — occupants per item
 `id, tenant_id, reservation_id, reservation_item_id, guest_id, is_primary`
+*(Step 1.6 implementation notes: `reservations` also has `rate_plan_id` (the plan whose deposit and cancellation policies apply — the first item's), `auto_cancel_unpaid` (copied from the deposit policy for the hold-expiry job), `deposit_override_by` (who allowed a deposit outside the policy), `balance_due_on` and `promotion_id`; reservations are cancelled, never deleted. `reservation_items`, `reservation_item_nights` and `reservation_guests` carry `property_id` (property-level models). `reservation_item_nights` also stores `rate_source`. `inventory_locks.reservation_id` / `reservation_item_id` are foreign keys. A booking with no deposit due is Confirmed at once. Quotes and waitlists are not built yet.)*
 
 **`deposit_policies`**
 `id, tenant_id, property_id, name, type, min_percent, default_percent, max_percent, fixed_amount, due_within_hours, auto_cancel_unpaid, balance_due_rule, balance_due_days, is_default`

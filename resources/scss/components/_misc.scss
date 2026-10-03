@@ -41,3 +41,8 @@
 .ui-kit-section + .ui-kit-section {
     margin-top: 2rem;
 }
+
+// Alpine: keep x-cloak elements hidden until Alpine starts.
+[x-cloak] {
+    display: none !important;
+}

@@ -58,4 +58,30 @@ trait ResolvesRoom
 
         return DB::table('rooms')->insertGetId([...$base, 'cottage_id' => $cottage, 'room_type_id' => $roomType, 'number' => (string) fake()->unique()->numberBetween(1000, 99999)]);
     }
+
+    protected function cottageIdOf(int $roomId): int
+    {
+        return (int) DB::table('rooms')->where('id', $roomId)->value('cottage_id');
+    }
+
+    protected function guestId(int $propertyId): int
+    {
+        $tenantId = (int) DB::table('properties')->where('id', $propertyId)->value('tenant_id');
+        $existing = DB::table('guests')->where('tenant_id', $tenantId)->orderBy('id')->value('id');
+
+        return is_numeric($existing) ? (int) $existing : DB::table('guests')->insertGetId([
+            'tenant_id' => $tenantId, 'first_name' => fake()->firstName(), 'last_name' => fake()->lastName(), 'vip_level' => 'none',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    protected function ratePlanId(int $propertyId): int
+    {
+        $existing = DB::table('rate_plans')->where('property_id', $propertyId)->orderBy('id')->value('id');
+
+        return is_numeric($existing) ? (int) $existing : DB::table('rate_plans')->insertGetId([
+            'tenant_id' => (int) DB::table('properties')->where('id', $propertyId)->value('tenant_id'), 'property_id' => $propertyId,
+            'code' => 'RO'.fake()->unique()->numberBetween(1, 99999), 'name' => 'Room Only', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
 }

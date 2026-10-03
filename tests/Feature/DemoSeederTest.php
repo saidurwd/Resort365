@@ -27,6 +27,8 @@ use Modules\Rates\Models\DepositPolicy;
 use Modules\Rates\Models\Promotion;
 use Modules\Rates\Models\RatePlan;
 use Modules\Rates\Services\RateCalendar;
+use Modules\Reservation\Models\InventoryLock;
+use Modules\Reservation\Models\Reservation;
 
 use function Pest\Laravel\seed;
 
@@ -128,4 +130,17 @@ it('seeds taxes, seasons, rate plans and rates (Step 1.3)', function (): void {
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(RatePlan::query()->pluck('code')->sort()->values()->all())->toBe(['BB', 'RO']));
+});
+
+it('seeds two tentative bookings that lock their rooms (Step 1.6)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('sunrise'), function (): void {
+        $bookings = Reservation::query()->with('items')->orderBy('check_in')->get();
+
+        expect($bookings)->toHaveCount(2)
+            ->and($bookings->pluck('status')->map->value->all())->toBe(['tentative', 'tentative'])
+            ->and($bookings[0]->deposit_percent)->toBe('50.00')
+            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 3 * 3);
+    });
 });

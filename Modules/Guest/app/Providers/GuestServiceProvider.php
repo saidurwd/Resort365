@@ -16,6 +16,7 @@ use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingType;
 use Modules\Guest\Contracts\GuestLookup;
+use Modules\Guest\Contracts\GuestRegistry;
 use Modules\Guest\Models\Company;
 use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
@@ -23,6 +24,7 @@ use Modules\Guest\Policies\CompanyPolicy;
 use Modules\Guest\Policies\GuestPolicy;
 use Modules\Guest\Policies\TravelAgentPolicy;
 use Modules\Guest\Services\GuestLookupService;
+use Modules\Guest\Services\GuestRegistryService;
 use Modules\Guest\Services\IdNumberHasher;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -53,6 +55,7 @@ class GuestServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->singleton(GuestLookup::class, GuestLookupService::class);
+        $this->app->singleton(GuestRegistry::class, GuestRegistryService::class);
         $this->app->singleton(IdNumberHasher::class, fn (): IdNumberHasher => new IdNumberHasher('guest-id|'.config('app.key')));
     }
 

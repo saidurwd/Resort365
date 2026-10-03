@@ -99,6 +99,9 @@ class DemoSeeder extends Seeder
         // Step 1.5: a few inventory locks so availability shows their effect.
         DemoLocks::seed($sunrise, $coxsBazar);
 
+        // Step 1.6: two tentative bookings made through CreateReservation.
+        DemoBookings::seed($sunrise, $coxsBazar);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

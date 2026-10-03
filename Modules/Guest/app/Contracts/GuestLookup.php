@@ -24,6 +24,13 @@ interface GuestLookup
     public function isBlacklisted(int $guestId): bool;
 
     /**
+     * Guests with the same phone or email (as the guest form's duplicate warning finds them).
+     *
+     * @return list<GuestSummary>
+     */
+    public function findDuplicates(?string $phone, ?string $email): array;
+
+    /**
      * Active companies whose name starts with the term.
      *
      * @return list<CompanySummary>

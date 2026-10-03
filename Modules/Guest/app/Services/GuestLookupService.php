@@ -12,7 +12,15 @@ use Modules\Guest\Models\TravelAgent;
 
 class GuestLookupService implements GuestLookup
 {
-    public function __construct(private readonly GuestSearch $guestSearch) {}
+    public function __construct(
+        private readonly GuestSearch $guestSearch,
+        private readonly DuplicateGuestFinder $duplicates,
+    ) {}
+
+    public function findDuplicates(?string $phone, ?string $email): array
+    {
+        return $this->duplicates->find($phone, $email, null, null)->map(fn (Guest $guest): GuestSummary => $this->guest($guest))->values()->all();
+    }
 
     public function search(string $term, int $limit = 10): array
     {

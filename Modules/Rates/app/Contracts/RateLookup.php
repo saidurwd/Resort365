@@ -3,6 +3,8 @@
 namespace Modules\Rates\Contracts;
 
 use Carbon\CarbonImmutable;
+use Modules\Rates\DTOs\DepositPolicySummary;
+use Modules\Rates\DTOs\DepositQuote;
 use Modules\Rates\DTOs\NightlyRate;
 use Modules\Rates\DTOs\PromotionDiscount;
 use Modules\Rates\DTOs\RatePlanSummary;
@@ -42,4 +44,31 @@ interface RateLookup
      * The best promotion of the property for a stay (code promotions only with their code).
      */
     public function bestPromotion(int $propertyId, StayRequest $stay): ?PromotionDiscount;
+
+    /**
+     * The deposit policy of a rate plan: its own, else the property's default (null = none set).
+     */
+    public function depositPolicy(int $ratePlanId): ?DepositPolicySummary;
+
+    /**
+     * The deposit of a booking under the plan's deposit policy (no policy = nothing due in advance).
+     *
+     * @param  string|null  $percent  negotiated percent, null = the policy's default
+     */
+    public function depositQuote(int $ratePlanId, string $grandTotal, string $firstNight, ?string $percent, CarbonImmutable $bookedAt, CarbonImmutable $arrivalAt): DepositQuote;
+
+    /**
+     * Whether the percent is within the plan's deposit policy limits (no override needed).
+     */
+    public function depositAllows(int $ratePlanId, string $percent): bool;
+
+    /**
+     * The cancellation policy of a rate plan: its own, else the property's default.
+     */
+    public function cancellationPolicyId(int $ratePlanId): ?int;
+
+    /**
+     * Counts one use of a promotion (a booking that got its discount).
+     */
+    public function usePromotion(int $promotionId): void;
 }
