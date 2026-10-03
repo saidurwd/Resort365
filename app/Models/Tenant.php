@@ -48,7 +48,7 @@ class Tenant extends Model
     }
 
     /**
-     * The tenant's own host, e.g. sunrise.resort365.test.
+     * The tenant's own host, e.g. rodela.resort365.test.
      */
     public function domain(): string
     {

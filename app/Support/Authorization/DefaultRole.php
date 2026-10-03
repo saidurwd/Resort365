@@ -77,7 +77,7 @@ enum DefaultRole: string
     }
 
     /**
-     * Local part of the demo user's email, e.g. frontdesk@sunrise.test.
+     * Local part of the demo user's email, e.g. frontdesk@rodelaresort.com.
      */
     public function demoMailbox(): string
     {

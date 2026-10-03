@@ -57,6 +57,6 @@ it('seeds the two demo tenants idempotently', function (): void {
 
     expect(Tenant::query()->orderBy('slug')->pluck('name', 'slug')->all())->toBe([
         'greenvalley' => 'Green Valley Resort',
-        'sunrise' => 'Sunrise Resorts Ltd',
+        'rodela' => 'Rodela Eco Resort',
     ]);
 });

@@ -42,6 +42,11 @@ class DemoSeeder extends Seeder
      */
     public const string PASSWORD = 'password';
 
+    /**
+     * @var array<string, string> tenant slug => email domain (others use {slug}.test)
+     */
+    private const array DOMAINS = ['rodela' => 'rodelaresort.com'];
+
     public function run(): void
     {
         // A fresh demo database reuses tenant ids, so drop cached settings and permissions
@@ -50,57 +55,49 @@ class DemoSeeder extends Seeder
 
         $this->call(ReferenceDataSeeder::class);
 
-        $sunrise = $this->tenant('sunrise', 'Sunrise Resorts Ltd', 'info@sunrise.test');
+        $rodela = $this->tenant('rodela', 'Rodela Eco Resort', 'info@rodelaresort.com');
         $greenValley = $this->tenant('greenvalley', 'Green Valley Resort', 'info@greenvalley.test');
 
-        $coxsBazar = $this->property($sunrise, 'CXB', "Sunrise Cox's Bazar", 'Marine Drive, Kolatoli', "Cox's Bazar");
-        $sylhet = $this->property($sunrise, 'SYL', 'Sunrise Sylhet', 'Airport Road', 'Sylhet');
+        $resort = $this->property($rodela, 'CXB', 'Rodela Eco Resort', 'Marine Drive, Kolatoli', "Cox's Bazar");
         $valley = $this->property($greenValley, 'GVR', 'Green Valley', 'Sreemangal Road', 'Sreemangal');
 
         app(SyncPermissions::class)->handle();
 
-        // One demo user per default role, e.g. frontdesk@sunrise.test (ARCHITECTURE §3.2).
-        $this->usersPerRole($sunrise, 'sunrise.test', [
+        // One demo user per default role, e.g. frontdesk@rodelaresort.com (ARCHITECTURE §3.2).
+        $this->usersPerRole($rodela, [
             DefaultRole::TenantOwner->value => 'Rahim Uddin',
             DefaultRole::FrontDeskAgent->value => 'Nusrat Jahan',
             DefaultRole::Accountant->value => 'Farzana Akter',
         ]);
-        $this->extraUser($sunrise, 'frontdesk.sylhet@sunrise.test', 'Sabbir Hossain', DefaultRole::FrontDeskAgent);
-        $this->usersPerRole($greenValley, 'greenvalley.test', [
+        $this->usersPerRole($greenValley, [
             DefaultRole::TenantOwner->value => 'Tanvir Ahmed',
         ]);
 
-        // Property access: front desk works in Cox's Bazar only; a second front desk user in Sylhet only;
-        // everyone else in both. Owner and Auditor see every property through their role.
-        $this->assign($sunrise, [
-            $coxsBazar => fn (string $email): bool => $email !== 'frontdesk.sylhet@sunrise.test',
-            $sylhet => fn (string $email): bool => $email !== 'frontdesk@sunrise.test',
-        ]);
+        // Property access: each tenant has one property, and every user works in it.
+        $this->assign($rodela, [$resort => fn (): bool => true]);
         $this->assign($greenValley, [$valley => fn (): bool => true]);
 
         // Step 1.1: amenities and departments per tenant; cottage types, room types, cottages and rooms per property.
-        $this->catalogue($sunrise);
+        $this->catalogue($rodela);
         $this->catalogue($greenValley);
-        $this->cottages($sunrise, $coxsBazar, DemoResorts::coxsBazar());
-        $this->cottages($sunrise, $sylhet, DemoResorts::sylhet());
+        $this->cottages($rodela, $resort, DemoResorts::rodela());
         $this->cottages($greenValley, $valley, DemoResorts::greenValley());
 
-        // Step 1.2: guests (10,000 for Sunrise, to try search at scale), companies and travel agents.
-        DemoGuests::seed($sunrise, 10_000);
+        // Step 1.2: guests (10,000 for Rodela, to try search at scale), companies and travel agents.
+        DemoGuests::seed($rodela, 10_000);
         DemoGuests::seed($greenValley, 200);
 
         // Step 1.3: taxes per tenant; seasons, rate plans and rates per property.
-        DemoRates::taxes($sunrise);
+        DemoRates::taxes($rodela);
         DemoRates::taxes($greenValley);
-        DemoRates::rates($sunrise, $coxsBazar, full: true);
-        DemoRates::rates($sunrise, $sylhet, full: false);
+        DemoRates::rates($rodela, $resort, full: true);
         DemoRates::rates($greenValley, $valley, full: false);
 
         // Step 1.5: a few inventory locks so availability shows their effect.
-        DemoLocks::seed($sunrise, $coxsBazar);
+        DemoLocks::seed($rodela, $resort);
 
         // Step 1.6: two tentative bookings made through CreateReservation.
-        DemoBookings::seed($sunrise, $coxsBazar);
+        DemoBookings::seed($rodela, $resort);
 
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
@@ -114,8 +111,10 @@ class DemoSeeder extends Seeder
      *
      * @param  array<string, string>  $names  role value => person name (others use the role label)
      */
-    private function usersPerRole(Tenant $tenant, string $domain, array $names): void
+    private function usersPerRole(Tenant $tenant, array $names): void
     {
+        $domain = $this->domainOf($tenant);
+
         app(TenantContext::class)->run($tenant, function (Tenant $tenant) use ($domain, $names): void {
             app(SeedDefaultRoles::class)->handle();
 
@@ -159,23 +158,12 @@ class DemoSeeder extends Seeder
         });
     }
 
+    /**
+     * Email domain of the tenant's demo users and property mailboxes: Rodela uses its real domain.
+     */
     private function domainOf(Tenant $tenant): string
     {
-        return $tenant->slug.'.test';
-    }
-
-    private function extraUser(Tenant $tenant, string $email, string $name, DefaultRole $role): void
-    {
-        app(TenantContext::class)->run($tenant, function () use ($email, $name, $role, $tenant): void {
-            $user = User::query()->firstOrNew(['email' => $email]);
-            $user->fill(['name' => $name, 'password' => self::PASSWORD, 'status' => UserStatus::Active]);
-            $user->forceFill(['email_verified_at' => now()])->save();
-            $user->syncRoles([$role->value]);
-
-            if (! $user->notifications()->exists()) {
-                $user->notify(new WelcomeNotification($user->name, $tenant->name));
-            }
-        });
+        return self::DOMAINS[$tenant->slug] ?? $tenant->slug.'.test';
     }
 
     /**

@@ -100,10 +100,10 @@ These apply to **every** step. Step 0.1 copies them into `CLAUDE.md`, so the AI 
 
 | Tenant | Subdomain (local) | Properties |
 |---|---|---|
-| Sunrise Resorts Ltd | `sunrise.resort365.test` | *Sunrise Cox's Bazar* (8 cottages, mixed single- and multi-room), *Sunrise Sylhet* (4 cottages) |
+| Rodela Eco Resort | `rodela.resort365.test` | *Rodela Eco Resort*, Cox's Bazar (8 cottages, mixed single- and multi-room) |
 | Green Valley Resort | `greenvalley.resort365.test` | *Green Valley* (5 cottages) |
 
-Each tenant gets one demo user per default role (e.g. `frontdesk@sunrise.test` / `password`). The two tenants must never see each other's data. This is the living proof of isolation.
+Each tenant gets one demo user per default role (e.g. `frontdesk@rodelaresort.com` / `password`). The two tenants must never see each other's data. This is the living proof of isolation.
 
 ---
 
@@ -181,7 +181,7 @@ The AI ticks a step here when it commits the step.
   - `EnsureUserBelongsToTenant` middleware; login history; session timeout; user profile page (name, language, theme, password, 2FA).
   - Users management screens (list, invite by email, activate/deactivate).
   - Separate `platform_admins` table and `platform` guard, with a minimal login on the central domain.
-- **Done when:** a Sunrise user can log in only on `sunrise.resort365.test`; 2FA works end to end; invitations work; a deactivated user cannot log in.
+- **Done when:** a Rodela user can log in only on `rodela.resort365.test`; 2FA works end to end; invitations work; a deactivated user cannot log in.
 
 ### Step 0.6 — Roles, permissions & menu registry
 
@@ -213,7 +213,7 @@ The AI ticks a step here when it commits the step.
   - `property_user` access pivot and a user-properties assignment screen.
   - `BelongsToProperty` trait; **property switcher** in the navbar; current property in session; business-date badge in the navbar.
   - `DemoSeeder` with the two demo tenants, their properties and one user per role.
-- **Done when:** a user assigned only to *Sunrise Sylhet* can never see *Sunrise Cox's Bazar* data; the switcher changes the context everywhere; `migrate:fresh --seed` produces the full demo.
+- **Done when:** a user assigned to only one property can never see another property's data; the switcher changes the context everywhere; `migrate:fresh --seed` produces the full demo.
 
 **Phase 0 exit criteria:** two demo tenants fully isolated (tests prove it); login with 2FA; permission-filtered menu; settings, numbering and audit log working; CI green.
 

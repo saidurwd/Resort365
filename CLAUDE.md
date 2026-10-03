@@ -27,7 +27,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 
 ## Local environment
 
-- **Laravel Herd** serves the app at `http://resort365.test` (the central domain). Tenants will use subdomains such as `sunrise.resort365.test` (Step 0.4).
+- **Laravel Herd** serves the app at `http://resort365.test` (the central domain). Tenants will use subdomains such as `rodela.resort365.test` (Step 0.4).
 - **Database:** locally the Homebrew **MariaDB** service on port 3306, with user `resort365` / `secret` and the databases `resort365` (app) and `resort365_testing` (tests). CI and production run **MySQL 8.4**, so keep `DB_CONNECTION=mysql` and write SQL that works on both. CI is the authority on MySQL compatibility.
 - **Redis 7** runs in Docker as the container `resort365-redis` on `127.0.0.1:6379` (restart policy `unless-stopped`, data in the `resort365-redis` volume). Docker Desktop must be running. Herd Free has no Redis service, and Homebrew's Redis 8 has to be compiled with Rust/LLVM on this Intel Mac. Recreate it with:
   `docker run -d --name resort365-redis --restart unless-stopped -p 127.0.0.1:6379:6379 -v resort365-redis:/data redis:7-alpine redis-server --appendonly yes`
@@ -43,7 +43,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `composer analyse` | Larastan static analysis, level 6 |
 | `npm run dev` / `npm run build` | Vite dev server / production build of `resources/scss` and `resources/js` |
 | `php artisan test --filter=<name>` | Run a single test |
-| `php artisan migrate:fresh --seed` | Rebuild the local database with reference data and demo data (tenants `sunrise`, `greenvalley`); also flushes the cache |
+| `php artisan migrate:fresh --seed` | Rebuild the local database with reference data and demo data (tenants `rodela`, `greenvalley`); also flushes the cache |
 | `php artisan tenant:create <slug> "<Name>"` | Create a tenant; open `http://<slug>.resort365.test` |
 | `php artisan platform:create-admin <email> "<Name>"` | Create a platform super admin (prompts for the password) |
 | `php artisan permissions:sync [--prune]` | Store registered permissions and update every tenant's default roles |
@@ -101,7 +101,7 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
 
 ## Tenancy (ARCHITECTURE §4.2)
 
-- **Tenant** = a customer company: `App\Models\Tenant` (central table `tenants`), served from `{slug}.{TENANCY_CENTRAL_DOMAIN}`, e.g. `sunrise.resort365.test`. Statuses: `trial` and `active` can use the app. `suspended` shows the suspended page (403). `cancelled` and unknown subdomains get 404.
+- **Tenant** = a customer company: `App\Models\Tenant` (central table `tenants`), served from `{slug}.{TENANCY_CENTRAL_DOMAIN}`, e.g. `rodela.resort365.test`. Statuses: `trial` and `active` can use the app. `suspended` shows the suspended page (403). `cancelled` and unknown subdomains get 404.
 - **Routes:**
   - `routes/web.php` holds the **central** domain (welcome page, `/ui-kit`).
   - `routes/tenant.php` and every module's routes are **tenant** routes, with the `web` and `tenant` middleware on `{tenant}.` domains.
@@ -121,7 +121,7 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
 - **Queued jobs** that touch tenant data implement `TenantAware` and use `InteractsWithTenant`, which restores the dispatching tenant. Dispatch as a statement inside `TenantContext::run()`; a returned `PendingDispatch` queues the job too late.
 - **Cache and files:** `TenantCache` (keys `t:{id}:…`) and `TenantStorage` (paths `tenants/{id}/…`).
 - **Isolation tests:** `tests/Tenancy/TenantIsolationTest.php` automatically runs every model that uses `BelongsToTenant` (found in `app/Models` and `Modules/*/app/Models`) through the list, find, route-binding, update, delete, create, move, reference and fail-closed checks. A new tenant model only needs a factory. Test-only tables live in `tests/Fixtures/Tenancy/migrations`.
-- **Development:** `php artisan tenant:create <slug> "<Name>" [--email=] [--status=trial|active|suspended|cancelled]`. `php artisan migrate:fresh --seed` creates the demo tenants `sunrise` and `greenvalley`.
+- **Development:** `php artisan tenant:create <slug> "<Name>" [--email=] [--status=trial|active|suspended|cancelled]`. `php artisan migrate:fresh --seed` creates the demo tenants `rodela` and `greenvalley`.
 
 ## Users and authentication (IAM, Platform)
 
@@ -136,7 +136,7 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
   - Every sign-in event is recorded in `login_histories`.
 - **Profile** (`/iam/profile`): details, password, language, colour mode (saved to the user, including from the navbar toggle), 2FA setup and recent sign-ins.
 - **Platform admins** (`Modules\Platform\Models\PlatformAdmin`, the `platform` guard) sign in on the central domain at `/platform/login`. Create one with `php artisan platform:create-admin <email> "<Name>"`.
-- **Demo logins** (password `password`): one user per default role in each tenant, named `<mailbox>@sunrise.test` at `http://sunrise.resort365.test` and `<mailbox>@greenvalley.test` at `http://greenvalley.resort365.test`. Mailboxes: `owner`, `gm`, `fomanager`, `frontdesk` (Cox's Bazar only), `reservations`, `housekeeping`, `maintenance`, `fnb`, `cashier`, `waiter`, `chef`, `bartender`, `store`, `procurement`, `accountant`, `hr`, `payroll`, `auditor` (see `DefaultRole::demoMailbox()`), plus `frontdesk.sylhet@sunrise.test` (Sunrise Sylhet only). The platform admin is `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
+- **Demo logins** (password `password`): one user per default role in each tenant, named `<mailbox>@rodelaresort.com` at `http://rodela.resort365.test` and `<mailbox>@greenvalley.test` at `http://greenvalley.resort365.test`. Mailboxes: `owner`, `gm`, `fomanager`, `frontdesk`, `reservations`, `housekeeping`, `maintenance`, `fnb`, `cashier`, `waiter`, `chef`, `bartender`, `store`, `procurement`, `accountant`, `hr`, `payroll`, `auditor` (see `DefaultRole::demoMailbox()`). The platform admin is `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
 
 ## Core services (ARCHITECTURE §5.1, §9.2)
 
@@ -212,7 +212,7 @@ Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through
 
 | Tenant | Subdomain (local) | Properties |
 |---|---|---|
-| Sunrise Resorts Ltd | `sunrise.resort365.test` | Sunrise Cox's Bazar (`CXB`: 8 cottages, 15 rooms: 3 single-room honeymoon cottages, 3 two-room garden cottages, 2 three-room family villas booked whole only), Sunrise Sylhet (`SYL`: 4 cottages, 10 rooms) |
+| Rodela Eco Resort | `rodela.resort365.test` | Rodela Eco Resort (`CXB`, Cox's Bazar: 8 cottages, 15 rooms: 3 single-room honeymoon cottages, 3 two-room garden cottages, 2 three-room family villas booked whole only) |
 | Green Valley Resort | `greenvalley.resort365.test` | Green Valley (`GVR`: 5 cottages, 9 rooms) |
 
-Each tenant gets one demo user per default role (e.g. `frontdesk@sunrise.test` / `password`), 15 amenities, 11 departments, 8 companies and 5 travel agents. Sunrise has 10,000 guests (Green Valley 200), including a duplicate pair (two "Rahim Uddin" with phone 01711-000001) and a blacklisted guest (Kamal Hossain); see `database/seeders/DemoGuests.php`. Taxes (service charge 10% then VAT 15%, compound) and rates come from `DemoRates.php`: Cox's Bazar has Peak, Shoulder and Monsoon seasons, Room Only / Bed & Breakfast / Half Board plans, a New Year's Eve date price, a 2-night minimum over New Year and a stop-sell date for the family villas; every property has a *Standard advance* deposit policy (30%, negotiable, 30 minutes to pay) and the *Flexible* cancellation policy; Cox's Bazar also has *Non-refundable* (used by the *Non-refundable saver* plan) and the promotions *Long stay* (automatic, 7+ nights), **MONSOON20** and **EARLYBIRD**. `DemoLocks.php`: room 702 (Lagoon Villa) is out of order from 7 to 13 days ahead and room 401 has an owner block 3–5 days ahead, so availability shows their effect. `DemoBookings.php`: two tentative bookings (Sunset Villa whole in 20 days for Rahim Uddin; room 501 in 5 days for Ayesha Siddique, 50% deposit). Layouts live in `database/seeders/DemoResorts.php`. The two tenants must never see each other's data.
+Each tenant gets one demo user per default role (e.g. `frontdesk@rodelaresort.com` / `password`), 15 amenities, 11 departments, 8 companies and 5 travel agents. Rodela has 10,000 guests (Green Valley 200), including a duplicate pair (two "Rahim Uddin" with phone 01711-000001) and a blacklisted guest (Kamal Hossain); see `database/seeders/DemoGuests.php`. Taxes (service charge 10% then VAT 15%, compound) and rates come from `DemoRates.php`: Rodela has Peak, Shoulder and Monsoon seasons, Room Only / Bed & Breakfast / Half Board plans, a New Year's Eve date price, a 2-night minimum over New Year and a stop-sell date for the family villas; every property has a *Standard advance* deposit policy (30%, negotiable, 30 minutes to pay) and the *Flexible* cancellation policy; Rodela also has *Non-refundable* (used by the *Non-refundable saver* plan) and the promotions *Long stay* (automatic, 7+ nights), **MONSOON20** and **EARLYBIRD**. `DemoLocks.php`: room 702 (Lagoon Villa) is out of order from 7 to 13 days ahead and room 401 has an owner block 3–5 days ahead, so availability shows their effect. `DemoBookings.php`: two tentative bookings (Sunset Villa whole in 20 days for Rahim Uddin; room 501 in 5 days for Ayesha Siddique, 50% deposit). Layouts live in `database/seeders/DemoResorts.php`. Each tenant has one property, so the property switcher and per-property access are covered by tests rather than demo data. The two tenants must never see each other's data.

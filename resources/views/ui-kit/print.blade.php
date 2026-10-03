@@ -1,7 +1,7 @@
 <x-layouts::print :title="__('Invoice INV-2026-00108')">
     <div class="d-flex justify-content-between align-items-start mb-4 avoid-break">
         <div>
-            <h4 class="mb-1">{{ __('Sunrise Cox\'s Bazar') }}</h4>
+            <h4 class="mb-1">{{ __('Rodela Eco Resort') }}</h4>
             <div class="text-body-secondary">{{ __('Marine Drive, Cox\'s Bazar, Bangladesh') }}</div>
         </div>
         <div class="text-end">

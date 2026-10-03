@@ -49,7 +49,7 @@ final class DemoResorts
     /**
      * @return array{roomTypes: array<string, array<string, mixed>>, cottageTypes: array<string, array<string, mixed>>, cottages: list<array<string, mixed>>}
      */
-    public static function coxsBazar(): array
+    public static function rodela(): array
     {
         return [
             'roomTypes' => [
@@ -72,29 +72,6 @@ final class DemoResorts
                 self::cottage('C06', 'Hibiscus', 'GC', 'Garden', 'rooms_only', '601', ['DK', 'DK']),
                 self::cottage('C07', 'Lagoon Villa', 'FV', 'Lagoon', 'whole_only', '701', ['FS', 'DK', 'TW']),
                 self::cottage('C08', 'Sunset Villa', 'FV', 'Lagoon', 'whole_only', '801', ['FS', 'DK', 'TW']),
-            ],
-        ];
-    }
-
-    /**
-     * @return array{roomTypes: array<string, array<string, mixed>>, cottageTypes: array<string, array<string, mixed>>, cottages: list<array<string, mixed>>}
-     */
-    public static function sylhet(): array
-    {
-        return [
-            'roomTypes' => [
-                'DK' => self::roomType('Deluxe King', '1 king', 2, 2, 1, 3, 30, 1, ['Air conditioning', 'Wi-Fi', 'Smart TV', 'Tea & coffee', 'Hot water', 'Toiletries']),
-                'TW' => self::roomType('Twin', '2 single', 2, 2, 1, 3, 26, 2, ['Air conditioning', 'Wi-Fi', 'Hot water', 'Toiletries']),
-            ],
-            'cottageTypes' => [
-                'TB' => self::cottageType('Tea Garden Bungalow', 2, 6, 'A two-bedroom bungalow facing the tea estate.', 1, ['Balcony', 'Daily housekeeping']),
-                'HV' => self::cottageType('Hill Villa', 3, 9, 'A three-bedroom villa on the hillside.', 2, ['Private garden', 'BBQ area', 'Daily housekeeping']),
-            ],
-            'cottages' => [
-                self::cottage('S01', 'Malnicherra', 'TB', 'Tea garden', 'rooms_only', '101', ['DK', 'TW']),
-                self::cottage('S02', 'Lakkatura', 'TB', 'Tea garden', 'both', '201', ['DK', 'TW']),
-                self::cottage('S03', 'Jaflong Villa', 'HV', 'Hillside', 'both', '301', ['DK', 'DK', 'TW']),
-                self::cottage('S04', 'Ratargul Villa', 'HV', 'Hillside', 'whole_only', '401', ['DK', 'TW', 'TW']),
             ],
         ];
     }

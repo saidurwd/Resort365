@@ -30,7 +30,7 @@ use Modules\Rates\Support\DaysOfWeek;
  * Taxes and rates for DemoSeeder (Steps 1.3–1.4): service charge 10% then VAT 15% (compound) on
  * rooms and food; seasons, rate plans and rates per property, with weekend uplifts, a New Year's
  * Eve date price, a minimum stay over New Year and one stop-sell date; deposit and cancellation
- * policies; promotions (long stay, MONSOON20, EARLYBIRD) and a non-refundable plan in Cox's Bazar.
+ * policies; promotions (long stay, MONSOON20, EARLYBIRD) and a non-refundable plan at Rodela.
  */
 final class DemoRates
 {
@@ -62,7 +62,7 @@ final class DemoRates
     }
 
     /**
-     * @param  bool  $full  Cox's Bazar gets every season, plan and special; the others a simpler set
+     * @param  bool  $full  Rodela gets every season, plan and special; the others a simpler set
      */
     public static function rates(Tenant $tenant, int $propertyId, bool $full): void
     {
@@ -145,7 +145,7 @@ final class DemoRates
 
     /**
      * A default deposit policy (30%, negotiable, 30 minutes to pay) and the Flexible cancellation
-     * policy of ARCHITECTURE §5.5 for every property; Cox's Bazar also gets Non-refundable.
+     * policy of ARCHITECTURE §5.5 for every property; Rodela also gets Non-refundable.
      */
     private static function policies(int $propertyId, bool $full): void
     {

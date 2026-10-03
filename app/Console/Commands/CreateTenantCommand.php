@@ -9,7 +9,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Validation\ValidationException;
 
-#[Signature('tenant:create {slug : Subdomain, e.g. sunrise} {name : Company name} {--email= : Contact email} {--status=active : trial, active, suspended or cancelled}')]
+#[Signature('tenant:create {slug : Subdomain, e.g. rodela} {name : Company name} {--email= : Contact email} {--status=active : trial, active, suspended or cancelled}')]
 #[Description('Create a tenant (development helper)')]
 class CreateTenantCommand extends Command
 {

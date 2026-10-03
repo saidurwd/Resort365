@@ -37,18 +37,17 @@ uses(RefreshDatabase::class);
 it('produces the full demo: tenants, properties, one user per role and property access', function (): void {
     seed(DatabaseSeeder::class);
 
-    expect(Tenant::query()->orderBy('slug')->pluck('slug')->all())->toBe(['greenvalley', 'sunrise']);
+    expect(Tenant::query()->orderBy('slug')->pluck('slug')->all())->toBe(['greenvalley', 'rodela'])
+        ->and(tenant('rodela')->name)->toBe('Rodela Eco Resort');
 
-    app(TenantContext::class)->run(tenant('sunrise'), function (): void {
-        expect(Property::query()->orderBy('code')->pluck('name', 'code')->all())->toBe(['CXB' => "Sunrise Cox's Bazar", 'SYL' => 'Sunrise Sylhet'])
-            ->and(User::query()->count())->toBe(19);
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        expect(Property::query()->pluck('name', 'code')->all())->toBe(['CXB' => 'Rodela Eco Resort'])
+            ->and(User::query()->count())->toBe(18);
 
         $access = fn (string $email): array => array_values(app(PropertyAccess::class)->accessibleProperties(User::query()->where('email', $email)->firstOrFail()));
 
-        expect($access('frontdesk.sylhet@sunrise.test'))->toBe(['Sunrise Sylhet'])
-            ->and($access('frontdesk@sunrise.test'))->toBe(["Sunrise Cox's Bazar"])
-            ->and($access('owner@sunrise.test'))->toBe(["Sunrise Cox's Bazar", 'Sunrise Sylhet'])
-            ->and($access('gm@sunrise.test'))->toBe(["Sunrise Cox's Bazar", 'Sunrise Sylhet']);
+        expect($access('frontdesk@rodelaresort.com'))->toBe(['Rodela Eco Resort'])
+            ->and($access('owner@rodelaresort.com'))->toBe(['Rodela Eco Resort']);
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
@@ -64,9 +63,8 @@ it('sets up each resort with single-room and multi-room cottages (Step 1.1)', fu
         ->whereHas('property', fn ($query) => $query->where('code', $code))->orderBy('sort_order')->get()
         ->map(fn (Cottage $cottage): int => $cottage->rooms->count())->all();
 
-    app(TenantContext::class)->run(tenant('sunrise'), function () use ($layout): void {
+    app(TenantContext::class)->run(tenant('rodela'), function () use ($layout): void {
         expect($layout('CXB'))->toBe([1, 1, 1, 2, 2, 2, 3, 3])
-            ->and($layout('SYL'))->toBe([2, 2, 3, 3])
             ->and(Amenity::query()->count())->toBe(15)
             ->and(Department::query()->count())->toBe(11);
 
@@ -84,7 +82,7 @@ it('sets up each resort with single-room and multi-room cottages (Step 1.1)', fu
 it('seeds guests to search at scale, with a duplicate pair and a blacklisted guest (Step 1.2)', function (): void {
     seed(DatabaseSeeder::class);
 
-    app(TenantContext::class)->run(tenant('sunrise'), function (): void {
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
         expect(Guest::query()->count())->toBe(10_000)
             ->and(Company::query()->count())->toBe(8)
             ->and(TravelAgent::query()->count())->toBe(5)
@@ -104,7 +102,7 @@ it('seeds guests to search at scale, with a duplicate pair and a blacklisted gue
 it('seeds taxes, seasons, rate plans and rates (Step 1.3)', function (): void {
     seed(DatabaseSeeder::class);
 
-    app(TenantContext::class)->run(tenant('sunrise'), function (): void {
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
         $room = TaxCategory::query()->where('code', 'ROOM')->sole();
         $cxb = Property::query()->where('code', 'CXB')->sole();
         $plan = RatePlan::query()->where('property_id', $cxb->id)->where('code', 'RO')->sole();
@@ -135,7 +133,7 @@ it('seeds taxes, seasons, rate plans and rates (Step 1.3)', function (): void {
 it('seeds two tentative bookings that lock their rooms (Step 1.6)', function (): void {
     seed(DatabaseSeeder::class);
 
-    app(TenantContext::class)->run(tenant('sunrise'), function (): void {
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
         $bookings = Reservation::query()->with('items')->orderBy('check_in')->get();
 
         expect($bookings)->toHaveCount(2)
