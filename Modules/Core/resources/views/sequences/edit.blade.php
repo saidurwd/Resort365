@@ -1,7 +1,9 @@
-<x-layouts::app :title="__($type->label)" :breadcrumbs="[__('Document numbering') => route('core.sequences.index'), __($type->label) => null]">
+@php($title = __($type->label).($propertyName ? ' — '.$propertyName : ''))
+
+<x-layouts::app :title="$title" :breadcrumbs="[__('Document numbering') => route('core.sequences.index', array_filter(['property' => $propertyId])), $title => null]">
     <div class="row">
         <div class="col-lg-7">
-            <form method="POST" action="{{ route('core.sequences.update', $type->key) }}">
+            <form method="POST" action="{{ route('core.sequences.update', array_filter(['type' => $type->key, 'property' => $propertyId])) }}">
                 @csrf
                 @method('PUT')
                 <x-card :title="__('Numbering')" icon="bi-123">
@@ -13,7 +15,7 @@
                     </div>
                     <x-slot:footer>
                         <div class="d-flex justify-content-end gap-2">
-                            <a href="{{ route('core.sequences.index') }}" class="btn btn-outline-secondary">{{ __('Cancel') }}</a>
+                            <a href="{{ route('core.sequences.index', array_filter(['property' => $propertyId])) }}" class="btn btn-outline-secondary">{{ __('Cancel') }}</a>
                             <button type="submit" class="btn btn-primary">{{ __('Save numbering') }}</button>
                         </div>
                     </x-slot:footer>

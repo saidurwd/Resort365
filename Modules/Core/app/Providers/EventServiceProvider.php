@@ -2,6 +2,7 @@
 
 namespace Modules\Core\Providers;
 
+use App\Support\Tenancy\Events\PropertyCreated;
 use App\Support\Tenancy\Events\TenantCreated;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Modules\Core\Listeners\CreateDocumentSequences;
@@ -15,6 +16,7 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         TenantCreated::class => [CreateDocumentSequences::class],
+        PropertyCreated::class => [CreateDocumentSequences::class.'@handlePropertyCreated'],
     ];
 
     /**

@@ -12,6 +12,7 @@ use Modules\Core\Contracts\AuditTrail;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\ExchangeRates;
 use Modules\Core\Contracts\NotificationTemplates;
+use Modules\Core\Contracts\ReferenceData;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\NotificationTemplateDefinition;
@@ -22,6 +23,7 @@ use Modules\Core\Services\AuditTrailService;
 use Modules\Core\Services\DocumentNumberService;
 use Modules\Core\Services\ExchangeRateService;
 use Modules\Core\Services\NotificationTemplateService;
+use Modules\Core\Services\ReferenceDataService;
 use Modules\Core\Services\SettingsService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -57,6 +59,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->app->singleton(NotificationTemplates::class, NotificationTemplateService::class);
         $this->app->singleton(AuditTrail::class, AuditTrailService::class);
         $this->app->singleton(ExchangeRates::class, ExchangeRateService::class);
+        $this->app->singleton(ReferenceData::class, ReferenceDataService::class);
     }
 
     public function boot(): void
@@ -82,8 +85,9 @@ class CoreServiceProvider extends ModuleServiceProvider
         $settings->define(new SettingDefinition('core.date_format', 'Date format', SettingType::Select, 'd M Y', group: 'General',
             options: ['d M Y' => '27 Sep 2026', 'd/m/Y' => '27/09/2026', 'Y-m-d' => '2026-09-27', 'm/d/Y' => '09/27/2026']));
 
-        $settings->define(new SettingDefinition('core.checkin_time', 'Check-in time', SettingType::Time, '14:00', SettingScope::Property, 'Operations'));
-        $settings->define(new SettingDefinition('core.checkout_time', 'Check-out time', SettingType::Time, '12:00', SettingScope::Property, 'Operations'));
+        // Check-in/out times are property columns (Property module), not settings.
+        $settings->define(new SettingDefinition('core.night_audit_time', 'Night audit time', SettingType::Time, '02:00', SettingScope::Property, 'Operations',
+            help: 'When the automatic night audit runs, in the property\'s timezone.'));
         $settings->define(new SettingDefinition('core.default_deposit_percent', 'Default deposit %', SettingType::Integer, 30, SettingScope::Property, 'Operations',
             help: 'Advance deposit asked for new bookings (30–50%).', rules: ['min:0', 'max:100']));
     }

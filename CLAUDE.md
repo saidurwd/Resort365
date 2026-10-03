@@ -108,6 +108,11 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
   - `IdentifyTenant` sets the tenant **before** route-model binding, hides the `{tenant}` parameter from controllers, and makes `route()` fill it in.
 - **`TenantContext`** (scoped per request and per job) holds the current tenant: `id()`, `tenant()`, `tenantOrFail()`, and `run($tenant, fn)` for console commands, seeders and scripts.
 - **Tenant-owned models** use `App\Support\Tenancy\BelongsToTenant`, which **fails closed**: using the model with no current tenant throws `TenantContextMissing`. It fills `tenant_id` on create, and refuses to change `tenant_id` or to write another tenant's record (`TenantMismatch`). An architecture test requires the trait on every module model.
+- **Properties (resorts):** `Modules\Property\Models\Property`. A user works in the properties assigned in `property_user` (screen: `/property/access`), or in every property with `property.property.access-all` (Tenant Owner, Auditor).
+  - **`PropertyContext`** (app shell, per request): set by `SetCurrentProperty`, which also picks the **current property** (session; navbar switcher posts to `/property/switch/{id}`). The navbar also shows the current property's **business date**.
+  - **Property-level models** use `App\Support\Tenancy\BelongsToProperty` together with `BelongsToTenant`. Queries only return the user's properties, `property_id` comes from the current property on create, and writes to other properties are refused (`PropertyAccessDenied`). Screens about "this property" add `where('property_id', $context->currentId())`. Outside a user request (console, jobs), only the tenant scope applies.
+  - **Property harness:** `tests/Tenancy/PropertyIsolationTest.php` runs every `BelongsToProperty` model automatically.
+  - **Other modules** read property details through `Modules\Property\Contracts\PropertyDirectory`, never the model; a new property fires `App\Support\Tenancy\Events\PropertyCreated` (ids only).
 - **Validation:** `TenantRule::exists('table')` and `TenantRule::unique('table', 'column')`, never plain `Rule::exists` or `Rule::unique`.
 - **Queued jobs** that touch tenant data implement `TenantAware` and use `InteractsWithTenant`, which restores the dispatching tenant. Dispatch as a statement inside `TenantContext::run()`; a returned `PendingDispatch` queues the job too late.
 - **Cache and files:** `TenantCache` (keys `t:{id}:…`) and `TenantStorage` (paths `tenants/{id}/…`).
@@ -118,7 +123,7 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
 
 - **Tenant users** (`Modules\IAM\Models\User`, the `web` guard) belong to one tenant, with email unique per tenant. Sign-in, password reset, email verification and TOTP 2FA come from **Laravel Fortify**, whose routes are served on tenant subdomains only (`config/fortify.php`, with views in `Modules/IAM/resources/views/auth`). There's no self-registration; users join by **invitation**, a signed link valid for 7 days (`/iam/users`).
 - **Statuses:** `invited`, `active`, `inactive`. Only active users can sign in. `EnsureUserIsActive` signs out a deactivated user on their next request, and `EnsureUserBelongsToTenant` ends a session presented on another tenant's subdomain.
-- **Middleware order** in the `tenant` group matters, and is pinned by a test: `IdentifyTenant`, `EnsureUserBelongsToTenant`, `EnsureUserIsActive`, `SetUserLocale`, then `auth`. Modules add to the group through the HTTP kernel (`appendMiddlewareToGroup`), not the router.
+- **Middleware order** in the `tenant` group matters, and is pinned by a test: `IdentifyTenant`, `EnsureUserBelongsToTenant`, `SetCurrentProperty`, `EnsureUserIsActive`, `SetUserLocale`, `EnsureTwoFactorEnabled`, then `auth`. Modules add to the group through the HTTP kernel (`appendMiddlewareToGroup`), not the router.
 - **Security:**
   - Password policy: `Password::defaults()` in `AppServiceProvider`.
   - Lockout: 5 failed sign-ins per tenant, email and IP (Fortify with `TenantLoginRateLimiter`).
@@ -127,13 +132,13 @@ Inside a module, keep to the layering in ARCHITECTURE §4.4. Controllers are thi
   - Every sign-in event is recorded in `login_histories`.
 - **Profile** (`/iam/profile`): details, password, language, colour mode (saved to the user, including from the navbar toggle), 2FA setup and recent sign-ins.
 - **Platform admins** (`Modules\Platform\Models\PlatformAdmin`, the `platform` guard) sign in on the central domain at `/platform/login`. Create one with `php artisan platform:create-admin <email> "<Name>"`.
-- **Demo logins** (password `password`): one user per default role in each tenant, named `<mailbox>@sunrise.test` at `http://sunrise.resort365.test` and `<mailbox>@greenvalley.test` at `http://greenvalley.resort365.test`. Mailboxes: `owner`, `gm`, `fomanager`, `frontdesk`, `reservations`, `housekeeping`, `maintenance`, `fnb`, `cashier`, `waiter`, `chef`, `bartender`, `store`, `procurement`, `accountant`, `hr`, `payroll`, `auditor` (see `DefaultRole::demoMailbox()`). The platform admin is `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
+- **Demo logins** (password `password`): one user per default role in each tenant, named `<mailbox>@sunrise.test` at `http://sunrise.resort365.test` and `<mailbox>@greenvalley.test` at `http://greenvalley.resort365.test`. Mailboxes: `owner`, `gm`, `fomanager`, `frontdesk` (Cox's Bazar only), `reservations`, `housekeeping`, `maintenance`, `fnb`, `cashier`, `waiter`, `chef`, `bartender`, `store`, `procurement`, `accountant`, `hr`, `payroll`, `auditor` (see `DefaultRole::demoMailbox()`), plus `frontdesk.sylhet@sunrise.test` (Sunrise Sylhet only). The platform admin is `admin@resort365.test` at `http://resort365.test/platform/login`. Mail uses the `log` driver: invitation and reset emails appear in `storage/logs/laravel.log`. Locally, the invitation link is also shown after sending.
 
 ## Core services (ARCHITECTURE §5.1, §9.2)
 
 Other modules use these through Core's **contracts** (`Modules\Core\Contracts\*`), never Core's models.
 
-- **Settings** (`Settings`): register a `SettingDefinition` (`module.name`, a `SettingType`, a default, a scope of tenant or property, a group) in your provider. Read it with `Settings::get('core.checkin_time', $propertyId)`: the property value wins, then the tenant value, then the default, cast to the type. Values are cached per tenant and edited at `/core/settings`. Property overrides get their screen in Step 0.8.
+- **Settings** (`Settings`): register a `SettingDefinition` (`module.name`, a `SettingType`, a default, a scope of tenant or property, a group) in your provider. Read it with `Settings::get('core.night_audit_time', $propertyId)`: the property value wins, then the tenant value, then the default, cast to the type. Values are cached per tenant and edited at `/core/settings`, company-wide or per property (`?property=`).
 - **Document numbers** (`DocumentNumbers`): register a `DocumentType` (key, prefix, format such as `{PREFIX}-{YYYY}-{SEQ:5}`, yearly reset or never), then call `next('reservation', $propertyId)` **inside the transaction that saves the document**. Numbers are taken under a row lock and are gap-free. New tenants get every sequence up front (`CreateDocumentSequences`). If you wrap `next()` in your own transaction, pass retry attempts, because a lock conflict rolls back the whole transaction. Sequences are set up at `/core/document-sequences`.
 - **Audit log:** add `App\Support\Audit\RecordsActivity` to every business model (R4). It records create, update and delete with old and new values and who made the change, and never the hidden attributes, keys or timestamps. For pivot or other changes model events don't see, log explicitly with `activity()->performedOn($model)->withProperties(['old' => …, 'attributes' => …])->log('…')`. Show history with `<x-audit-trail :entries="app(AuditTrail::class)->for($model)" />`. The whole tenant's log is at `/core/audit-log` (`core.audit.view`).
 - **Attachments:** a model implements `Spatie\MediaLibrary\HasMedia`, uses `App\Support\Attachments\HasAttachments`, has a morph-map alias and a policy (`view` to download, `update` to upload or delete). Render `<x-attachments :subject="$model" />`. Files live on the private `attachments` disk under `tenants/{id}/media/…` and are served only through Core's authorized routes. `ATTACHMENTS_DISK=s3` switches to S3-compatible storage.
@@ -163,19 +168,18 @@ Other modules use these through Core's **contracts** (`Modules\Core\Contracts\*`
   - `data-confirm="Title"` on a form or button opens the global confirm dialog; `data-confirm-text`, `data-confirm-variant` and the other `data-confirm-*` attributes customise it.
   - After inserting HTML, call `window.initUi(element)`.
 - **Colour mode:** light, dark or auto through AdminLTE's colour mode (`localStorage` key `lte-theme`, applied before first paint). Enum `color()` values are `primary`, `secondary`, `success`, `danger`, `warning` or `info`, because `light` and `dark` are unreadable in one of the modes.
-- **Sidebar menu:** `App\Support\Ui\SidebarMenu` is a placeholder until the menu registry (Step 0.6).
 - **`/ui-kit`** (local only; 404 elsewhere) shows every layout piece and component. Add new shared components to it, and check it in light and dark mode and at tablet width.
 
 ## Modules
 
-Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through each module's `composer.json`). So far: **Core**, **IAM** and **Platform**. Each module is created by the plan step that first needs it. Dependencies point one way only (ARCHITECTURE §4.3): a downstream module reacts to an upstream module's events, and an upstream module never calls a downstream one.
+Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through each module's `composer.json`). So far: **Core**, **IAM**, **Platform** and **Property**. Each module is created by the plan step that first needs it. Dependencies point one way only (ARCHITECTURE §4.3): a downstream module reacts to an upstream module's events, and an upstream module never calls a downstream one.
 
 | Module | Purpose | Depends on |
 |---|---|---|
 | Core | Tenancy context, settings, document numbering, approval workflow, notifications, tax engine, audit log, attachments, reference data, menu and permission registry | — |
 | Platform | SaaS: tenant lifecycle, plans and module entitlements, subscriptions, super-admin console | Core |
 | IAM | Users, invitations, login, 2FA, roles and permissions, property access | Core |
-| Property | Properties, cottage types, cottages, room types, rooms, amenities, departments, business date | Core |
+| Property | Properties, property access (`property_user`), switcher and business date; later cottage types, cottages, room types, rooms, amenities, departments | Core, IAM (`UserDirectory` contract) |
 | Guest | Guest profiles (CRM), companies, travel agents | Core |
 | Rates | Seasons, rate plans, rates, deposit and cancellation policies, promotions | Property |
 | Reservation | Booking engine: availability, pricing, reservations, inventory locks, holds | Property, Rates, Guest |
@@ -192,7 +196,7 @@ Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through
 
 ## Project structure
 
-- `app/`: application shell only. Business code goes in modules. `app/Support/` holds the shared base classes: `Actions\Action`, `DTOs\Data`, and `Enums\HasLabelAndColor` + `EnumHelpers`. Tenancy and money base classes are added in later steps.
+- `app/`: application shell only. Business code goes in modules. `app/Support/` holds the shared foundations: `Actions\Action`, `DTOs\Data`, `Enums\HasLabelAndColor` + `EnumHelpers`, `Tenancy\*` (tenant and property context), `Authorization\*`, `Menu\*`, `Audit\RecordsActivity` and `Attachments\*`. Money helpers come with the first money feature.
 - `Modules/<Name>/`: a self-contained module (see ARCHITECTURE §11 for the internal layout).
 - `database/`: central (non-module) migrations and seeders.
 - `tests/`: cross-module tests, `tests/Architecture` (auto-discovers every module) and `tests/Fixtures`. Module tests live in `Modules/<Name>/tests`.
@@ -203,7 +207,7 @@ Modules live in `Modules/<Name>/` (`nwidart/laravel-modules`, autoloaded through
 
 | Tenant | Subdomain (local) | Properties |
 |---|---|---|
-| Sunrise Resorts Ltd | `sunrise.resort365.test` | Sunrise Cox's Bazar (8 cottages), Sunrise Sylhet (4 cottages) |
-| Green Valley Resort | `greenvalley.resort365.test` | Green Valley (5 cottages) |
+| Sunrise Resorts Ltd | `sunrise.resort365.test` | Sunrise Cox's Bazar (`CXB`), Sunrise Sylhet (`SYL`); cottages come in Step 1.1 (8 and 4) |
+| Green Valley Resort | `greenvalley.resort365.test` | Green Valley (`GVR`); 5 cottages in Step 1.1 |
 
 Each tenant gets one demo user per default role (e.g. `frontdesk@sunrise.test` / `password`). The two tenants must never see each other's data.

@@ -5,6 +5,7 @@ namespace Modules\Core\Database\Seeders;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Intl\Countries;
 use Symfony\Component\Intl\Currencies;
@@ -63,5 +64,9 @@ class ReferenceDataSeeder extends Seeder
             ];
         }
         DB::table('timezones')->upsert($timezones, ['name'], ['country_code', 'utc_offset', 'updated_at']);
+
+        foreach (['countries', 'currencies', 'timezones'] as $list) {
+            Cache::forget('core.reference.'.$list);
+        }
     }
 }

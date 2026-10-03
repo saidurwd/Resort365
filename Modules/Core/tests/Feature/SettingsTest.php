@@ -32,15 +32,15 @@ it('saves settings and reads them back per property', function (): void {
     $settings = app(Settings::class);
 
     inTenant('sunrise', function () use ($settings): void {
-        $settings->set('core.checkin_time', '13:00');
-        $settings->set('core.checkin_time', '15:30', propertyId: 1);
-        $settings->set('core.checkin_time', '12:00', propertyId: 2);
+        $settings->set('core.night_audit_time', '13:00');
+        $settings->set('core.night_audit_time', '15:30', propertyId: 1);
+        $settings->set('core.night_audit_time', '12:00', propertyId: 2);
 
-        expect($settings->get('core.checkin_time'))->toBe('13:00')
-            ->and($settings->get('core.checkin_time', 1))->toBe('15:30')
-            ->and($settings->get('core.checkin_time', 2))->toBe('12:00')
-            ->and($settings->get('core.checkin_time', 3))->toBe('13:00')
-            ->and($settings->stored('core.checkin_time', 3))->toBeNull();
+        expect($settings->get('core.night_audit_time'))->toBe('13:00')
+            ->and($settings->get('core.night_audit_time', 1))->toBe('15:30')
+            ->and($settings->get('core.night_audit_time', 2))->toBe('12:00')
+            ->and($settings->get('core.night_audit_time', 3))->toBe('13:00')
+            ->and($settings->stored('core.night_audit_time', 3))->toBeNull();
     });
 });
 
@@ -69,7 +69,7 @@ it('casts values to their type', function (): void {
 it('validates values and scope', function (mixed $key, mixed $value, ?int $property): void {
     inTenant('sunrise', fn () => app(Settings::class)->set($key, $value, $property));
 })->with([
-    'bad time' => ['core.checkin_time', '25:99', null],
+    'bad time' => ['core.night_audit_time', '25:99', null],
     'unknown currency' => ['core.currency', 'XYZ', null],
     'unknown timezone' => ['core.timezone', 'Mars/Olympus', null],
     'deposit above 100' => ['core.default_deposit_percent', 150, null],
@@ -84,10 +84,10 @@ it('removes a value with null, falling back again', function (): void {
     $settings = app(Settings::class);
 
     inTenant('sunrise', function () use ($settings): void {
-        $settings->set('core.checkout_time', '11:00', 1);
-        $settings->set('core.checkout_time', null, 1);
+        $settings->set('core.night_audit_time', '11:00', 1);
+        $settings->set('core.night_audit_time', null, 1);
 
-        expect($settings->get('core.checkout_time', 1))->toBe('12:00');
+        expect($settings->get('core.night_audit_time', 1))->toBe('02:00');
     });
 });
 
@@ -120,7 +120,7 @@ it('saves a settings group from the screen and audits the change', function (): 
             ->and(Activity::query()->where('log_name', 'setting')->count())->toBeGreaterThan(0);
     });
 
-    put(tenantUrl('sunrise', '/core/settings/Operations'), ['core__checkin_time' => 'noon'])->assertSessionHasErrors('core__checkin_time');
+    put(tenantUrl('sunrise', '/core/settings/Operations'), ['core__night_audit_time' => 'noon'])->assertSessionHasErrors('core__night_audit_time');
 });
 
 it('protects the settings screen with permissions', function (): void {

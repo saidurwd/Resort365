@@ -38,10 +38,14 @@ it('stores registered permissions and creates default roles for every tenant', f
     }
 
     expect(rolePermissions($a, 'tenant-owner'))->toBe(app(PermissionRegistry::class)->names())
-        ->and(rolePermissions($a, 'auditor'))->toBe(['core.audit.view', 'core.sequence.view', 'core.setting.view', 'iam.role.view', 'iam.user.view'])
+        ->and(rolePermissions($a, 'auditor'))->toBe([
+            'core.audit.view', 'core.sequence.view', 'core.setting.view', 'iam.role.view', 'iam.user.view',
+            'property.property.access-all', 'property.property.view',
+        ])
         ->and(rolePermissions($a, 'general-manager'))->toBe([
             'core.audit.view', 'core.sequence.update', 'core.sequence.view', 'core.setting.update', 'core.setting.view',
             'iam.role.view', 'iam.user.invite', 'iam.user.update', 'iam.user.view',
+            'property.property.update', 'property.property.view',
         ])
         ->and(rolePermissions($a, 'front-desk-agent'))->toBe([]);
 });

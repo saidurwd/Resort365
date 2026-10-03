@@ -1,0 +1,24 @@
+{
+    "name": "resort365/property",
+    "description": "Resort365 Property module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Property\\": "app/",
+            "Modules\\Property\\Database\\Factories\\": "database/factories/",
+            "Modules\\Property\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Property\\Tests\\": "tests/"
+        }
+    }
+}

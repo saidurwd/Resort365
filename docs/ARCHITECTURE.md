@@ -317,6 +317,8 @@ flowchart LR
     Reports --> Core
 ```
 
+Property also depends on IAM's `UserDirectory` contract (to assign users to properties); IAM does not depend on Property.
+
 Restaurant depends on Billing's contract (for charge to room). It depends on Inventory only **optionally**: if a tenant has not enabled Inventory, recipe-based stock deduction is simply switched off and the POS still works.
 
 Accounting has **no compile-time dependency** on Billing, Restaurant, Procurement, Inventory or Payroll. It only *listens* to their events and maps them to journal entries. So a tenant can run Accounting without Procurement, and the reverse.
@@ -1085,6 +1087,7 @@ erDiagram
 
 **`properties`**
 `id, tenant_id, code, name, legal_name, email, phone, address_line1, address_line2, city, state, postal_code, country_code, timezone, currency_code, check_in_time, check_out_time, business_date, tax_registration_no, logo_path, status, settings(json)`
+*(Implemented in Step 0.8 without `settings(json)`: property-level settings live in Core's `settings` table. Check-in/out times are these columns, not settings. The logo is stored with the media library, not `logo_path`. `property_user` is owned by the Property module, which uses IAM only through its `UserDirectory` contract. Core's `settings.property_id` and `document_sequences.property_id` have no foreign key by design: Core sits below the Property module, and properties are deactivated, never deleted. This resolves the `TODO(step-0.8)` notes in those Step 0.7 migrations.)*
 
 **`cottage_types`**
 `id, tenant_id, property_id, code, name, description, max_occupancy, bedrooms, is_active`

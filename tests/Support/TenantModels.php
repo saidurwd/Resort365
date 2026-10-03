@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Support\Tenancy\BelongsToProperty;
 use App\Support\Tenancy\BelongsToTenant;
 use FilesystemIterator;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
 use Tests\Fixtures\Tenancy\IsolationProbe;
+use Tests\Fixtures\Tenancy\PropertyProbe;
 
 /**
  * The tenant-isolation dataset: every model using BelongsToTenant in app/Models and
@@ -22,6 +24,25 @@ class TenantModels
      * @var list<class-string<Model>>
      */
     private const array FIXTURES = [IsolationProbe::class];
+
+    /**
+     * Property-level fixture models that always run through the property harness.
+     *
+     * @var list<class-string<Model>>
+     */
+    private const array PROPERTY_FIXTURES = [PropertyProbe::class];
+
+    /**
+     * The property-access dataset: every model using BelongsToProperty, plus fixtures.
+     *
+     * @return list<class-string<Model>>
+     */
+    public static function propertyLevel(): array
+    {
+        $models = array_filter(self::discover(), fn (string $model): bool => in_array(BelongsToProperty::class, class_uses_recursive($model), true));
+
+        return array_values(array_unique([...$models, ...self::PROPERTY_FIXTURES]));
+    }
 
     /**
      * @return list<class-string<Model>>

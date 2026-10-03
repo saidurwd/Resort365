@@ -6,7 +6,39 @@
                     <i class="bi bi-list"></i>
                 </a>
             </li>
-            {{-- TODO(step-0.8): property switcher and business date badge. --}}
+            {{-- $propertySwitcher is shared by the Property module for signed-in tenant users. --}}
+            @isset($propertySwitcher)
+                @if ($propertySwitcher['options'] === [])
+                    <li class="nav-item"><span class="nav-link text-warning small"><i class="bi bi-exclamation-triangle me-1"></i>{{ __('No property access') }}</span></li>
+                @else
+                    <li class="nav-item dropdown">
+                        <a href="#" class="nav-link dropdown-toggle fw-semibold" data-bs-toggle="dropdown" aria-expanded="false" data-property-switcher>
+                            <i class="bi bi-building me-1"></i><span data-current-property>{{ $propertySwitcher['current']?->name }}</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">{{ __('Switch property') }}</h6></li>
+                            @foreach ($propertySwitcher['options'] as $propertyId => $propertyName)
+                                <li>
+                                    <form method="POST" action="{{ ($propertySwitcher['switchUrl'])($propertyId) }}">
+                                        @csrf
+                                        <button type="submit" @class(['dropdown-item d-flex align-items-center', 'active' => $propertySwitcher['current']?->id === $propertyId]) data-property-option="{{ $propertyId }}">
+                                            {{ $propertyName }}
+                                            @if ($propertySwitcher['current']?->id === $propertyId)<i class="bi bi-check-lg ms-auto"></i>@endif
+                                        </button>
+                                    </form>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </li>
+                    @if ($propertySwitcher['businessDate'])
+                        <li class="nav-item d-none d-md-flex align-items-center">
+                            <span class="badge text-bg-light border" title="{{ __('Business date') }}" data-business-date>
+                                <i class="bi bi-calendar-event me-1"></i>{{ $propertySwitcher['businessDate'] }}
+                            </span>
+                        </li>
+                    @endif
+                @endif
+            @endisset
         </ul>
 
         <ul class="navbar-nav ms-auto">

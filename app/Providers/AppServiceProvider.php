@@ -6,6 +6,7 @@ use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use App\Support\Tenancy\ModuleAccess;
+use App\Support\Tenancy\PropertyContext;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
@@ -22,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
         // One tenant per request / queued job; reset between them.
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(ModuleAccess::class);
+        $this->app->scoped(PropertyContext::class);
 
         // Filled by modules' service providers at boot.
         $this->app->singleton(PermissionRegistry::class);

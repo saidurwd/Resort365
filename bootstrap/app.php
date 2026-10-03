@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\IdentifyTenant;
+use App\Http\Middleware\SetCurrentProperty;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->group('tenant', [
             IdentifyTenant::class,
             EnsureUserBelongsToTenant::class,
+            SetCurrentProperty::class,
         ]);
 
         // The tenant must be known before authentication, throttling and route-model binding
@@ -38,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // (Laravel applies priority appends before prepends, so anchor both to AuthenticatesRequests.)
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: IdentifyTenant::class);
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: EnsureUserBelongsToTenant::class);
+        $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: SetCurrentProperty::class);
 
         $middleware->redirectGuestsTo(fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.login') : route('login'));
         $middleware->redirectUsersTo(fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.console') : route('dashboard'));

@@ -68,7 +68,7 @@ it('shows Front Desk and Accountant different sidebars', function (): void {
 it('shows the Tenant Owner everything, including setup', function (): void {
     expect(sidebarOf(DefaultRole::TenantOwner))->toBe([
         'Dashboard', 'Front Office', 'Front Desk', 'Accounting', 'Journal Entries',
-        'Setup', 'Users', 'Roles & permissions', 'Settings', 'Document numbering', 'Audit log',
+        'Setup', 'Properties', 'Users', 'Property access', 'Roles & permissions', 'Settings', 'Document numbering', 'Audit log',
     ]);
 });
 
