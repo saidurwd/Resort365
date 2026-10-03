@@ -19,6 +19,7 @@
                             <th>{{ __('Meals') }}</th>
                             <th class="text-end">{{ __('Meal value / adult') }}</th>
                             <th>{{ __('Taxes') }}</th>
+                            <th>{{ __('Policies') }}</th>
                             <th>{{ __('Valid') }}</th>
                             <th class="text-end">{{ __('Rates') }}</th>
                             <th>{{ __('Status') }}</th>
@@ -37,6 +38,10 @@
                                 <td>
                                     {{ $plan->tax_category_id ? ($categoryNames[$plan->tax_category_id] ?? '—') : __('None') }}
                                     <div class="small text-body-secondary">{{ $plan->prices_include_tax ? __('Prices include tax') : __('Tax added on top') }}</div>
+                                </td>
+                                <td class="small">
+                                    <div>{{ $plan->depositPolicy?->name ?? ($defaultDeposit ? $defaultDeposit.' ('.__('default').')' : '—') }}</div>
+                                    <div class="text-body-secondary">{{ $plan->cancellationPolicy?->name ?? ($defaultCancellation ? $defaultCancellation.' ('.__('default').')' : '—') }}</div>
                                 </td>
                                 <td class="small text-nowrap">
                                     @if ($plan->valid_from || $plan->valid_to)

@@ -1,6 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Rates\Http\Controllers\CancellationPolicyController;
+use Modules\Rates\Http\Controllers\DepositPolicyController;
+use Modules\Rates\Http\Controllers\PolicyController;
+use Modules\Rates\Http\Controllers\PromotionController;
 use Modules\Rates\Http\Controllers\RateGridController;
 use Modules\Rates\Http\Controllers\RatePlanController;
 use Modules\Rates\Http\Controllers\RateSheetController;
@@ -29,6 +33,15 @@ Route::prefix('rates')->name('rates.')->middleware(['auth', 'verified'])->group(
 
     Route::resource('rate-plans', RatePlanController::class)->only($write)->middleware('can:rates.rate-plan.manage');
     Route::get('/rate-plans', [RatePlanController::class, 'index'])->middleware('can:rates.rate-plan.view')->name('rate-plans.index');
+
+    Route::middleware('can:rates.policy.manage')->group(function () use ($write): void {
+        Route::resource('deposit-policies', DepositPolicyController::class)->only($write);
+        Route::resource('cancellation-policies', CancellationPolicyController::class)->only($write);
+    });
+    Route::get('/policies', [PolicyController::class, 'index'])->middleware('can:rates.policy.view')->name('policies.index');
+
+    Route::resource('promotions', PromotionController::class)->only($write)->middleware('can:rates.promotion.manage');
+    Route::get('/promotions', [PromotionController::class, 'index'])->middleware('can:rates.promotion.view')->name('promotions.index');
 
     Route::resource('seasons', SeasonController::class)->only($write)->middleware('can:rates.season.manage');
     Route::get('/seasons', [SeasonController::class, 'index'])->middleware('can:rates.season.view')->name('seasons.index');

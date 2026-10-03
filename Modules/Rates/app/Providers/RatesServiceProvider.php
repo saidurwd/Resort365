@@ -13,12 +13,19 @@ use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
+use Modules\Rates\Models\CancellationPolicy;
+use Modules\Rates\Models\CancellationPolicyRule;
+use Modules\Rates\Models\DepositPolicy;
+use Modules\Rates\Models\Promotion;
 use Modules\Rates\Models\Rate;
 use Modules\Rates\Models\RateOverride;
 use Modules\Rates\Models\RatePlan;
 use Modules\Rates\Models\RateRestriction;
 use Modules\Rates\Models\Season;
 use Modules\Rates\Models\SeasonPeriod;
+use Modules\Rates\Policies\CancellationPolicyPolicy;
+use Modules\Rates\Policies\DepositPolicyPolicy;
+use Modules\Rates\Policies\PromotionPolicy;
 use Modules\Rates\Policies\RatePlanPolicy;
 use Modules\Rates\Policies\SeasonPolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -56,10 +63,17 @@ class RatesServiceProvider extends ModuleServiceProvider
             'rate' => Rate::class,
             'rate_override' => RateOverride::class,
             'rate_restriction' => RateRestriction::class,
+            'deposit_policy' => DepositPolicy::class,
+            'cancellation_policy' => CancellationPolicy::class,
+            'cancellation_policy_rule' => CancellationPolicyRule::class,
+            'promotion' => Promotion::class,
         ]);
 
         Gate::policy(Season::class, SeasonPolicy::class);
         Gate::policy(RatePlan::class, RatePlanPolicy::class);
+        Gate::policy(DepositPolicy::class, DepositPolicyPolicy::class);
+        Gate::policy(CancellationPolicy::class, CancellationPolicyPolicy::class);
+        Gate::policy(Promotion::class, PromotionPolicy::class);
 
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));
@@ -80,6 +94,10 @@ class RatesServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('rates.rate-plan.manage', 'Change rate plans', $manage),
             new PermissionDefinition('rates.season.view', 'View seasons', $view),
             new PermissionDefinition('rates.season.manage', 'Change seasons', $manage),
+            new PermissionDefinition('rates.policy.view', 'View deposit and cancellation policies', $view),
+            new PermissionDefinition('rates.policy.manage', 'Change deposit and cancellation policies', $manage),
+            new PermissionDefinition('rates.promotion.view', 'View promotions', $view),
+            new PermissionDefinition('rates.promotion.manage', 'Change promotions', $manage),
         ]);
     }
 
@@ -92,5 +110,9 @@ class RatesServiceProvider extends ModuleServiceProvider
             permission: 'rates.rate-plan.view', module: 'rates', active: 'rates.rate-plans.*'));
         $menu->add(new MenuItem('rates.seasons', 'Seasons', route: 'rates.seasons.index', parent: 'rates', order: 30,
             permission: 'rates.season.view', module: 'rates', active: 'rates.seasons.*'));
+        $menu->add(new MenuItem('rates.policies', 'Policies', route: 'rates.policies.index', parent: 'rates', order: 40,
+            permission: 'rates.policy.view', module: 'rates', active: 'rates.*policies.*'));
+        $menu->add(new MenuItem('rates.promotions', 'Promotions', route: 'rates.promotions.index', parent: 'rates', order: 50,
+            permission: 'rates.promotion.view', module: 'rates', active: 'rates.promotions.*'));
     }
 }

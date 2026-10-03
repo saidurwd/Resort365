@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -31,6 +32,8 @@ use Modules\Rates\Enums\MealPlan;
  * @property bool $is_refundable
  * @property bool $prices_include_tax
  * @property int|null $tax_category_id
+ * @property int|null $deposit_policy_id
+ * @property int|null $cancellation_policy_id
  * @property Carbon|null $valid_from
  * @property Carbon|null $valid_to
  * @property list<string>|null $channels
@@ -40,7 +43,7 @@ use Modules\Rates\Enums\MealPlan;
 #[UseFactory(RatePlanFactory::class)]
 #[Fillable([
     'property_id', 'code', 'name', 'description', 'meal_plan', 'meal_adult_amount', 'meal_child_amount', 'is_refundable',
-    'prices_include_tax', 'tax_category_id', 'valid_from', 'valid_to', 'channels', 'is_active', 'sort_order',
+    'prices_include_tax', 'tax_category_id', 'deposit_policy_id', 'cancellation_policy_id', 'valid_from', 'valid_to', 'channels', 'is_active', 'sort_order',
 ])]
 class RatePlan extends Model
 {
@@ -70,6 +73,26 @@ class RatePlan extends Model
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    /**
+     * Empty means the property's default deposit policy.
+     *
+     * @return BelongsTo<DepositPolicy, $this>
+     */
+    public function depositPolicy(): BelongsTo
+    {
+        return $this->belongsTo(DepositPolicy::class)->withTrashed();
+    }
+
+    /**
+     * Empty means the property's default cancellation policy.
+     *
+     * @return BelongsTo<CancellationPolicy, $this>
+     */
+    public function cancellationPolicy(): BelongsTo
+    {
+        return $this->belongsTo(CancellationPolicy::class)->withTrashed();
     }
 
     /**

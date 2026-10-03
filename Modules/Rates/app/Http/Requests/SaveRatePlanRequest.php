@@ -43,6 +43,8 @@ class SaveRatePlanRequest extends FormRequest
             'is_refundable' => ['boolean'],
             'prices_include_tax' => ['boolean'],
             'tax_category_id' => ['nullable', 'integer', TenantRule::exists('tax_categories')],
+            'deposit_policy_id' => ['nullable', 'integer', TenantRule::exists('deposit_policies')->where('property_id', $this->propertyId($plan))->withoutTrashed()],
+            'cancellation_policy_id' => ['nullable', 'integer', TenantRule::exists('cancellation_policies')->where('property_id', $this->propertyId($plan))->withoutTrashed()],
             'valid_from' => ['nullable', 'date_format:Y-m-d'],
             'valid_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:valid_from'],
             'channels' => ['required', 'array', 'min:1'],

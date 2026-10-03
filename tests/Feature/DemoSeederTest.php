@@ -21,6 +21,9 @@ use Modules\Property\Models\Cottage;
 use Modules\Property\Models\Department;
 use Modules\Property\Models\Property;
 use Modules\Property\Services\OccupancyCalculator;
+use Modules\Rates\Models\CancellationPolicy;
+use Modules\Rates\Models\DepositPolicy;
+use Modules\Rates\Models\Promotion;
 use Modules\Rates\Models\RatePlan;
 use Modules\Rates\Services\RateCalendar;
 
@@ -107,7 +110,11 @@ it('seeds taxes, seasons, rate plans and rates (Step 1.3)', function (): void {
         $days = fn (string $from, string $to): array => app(RateCalendar::class)->rates($plan, $units, CarbonImmutable::parse($from), CarbonImmutable::parse($to));
 
         expect(app(TaxEngine::class)->calculate('1000', $room->id)->gross)->toBe('1265.00')
-            ->and(RatePlan::query()->where('property_id', $cxb->id)->pluck('code')->sort()->values()->all())->toBe(['BB', 'HB', 'RO']);
+            ->and(RatePlan::query()->where('property_id', $cxb->id)->pluck('code')->sort()->values()->all())->toBe(['BB', 'HB', 'NRF', 'RO'])
+            ->and(DepositPolicy::query()->where('property_id', $cxb->id)->where('is_default', true)->value('name'))->toBe('Standard advance')
+            ->and(CancellationPolicy::query()->where('property_id', $cxb->id)->pluck('name')->sort()->values()->all())->toBe(['Flexible', 'Non-refundable'])
+            ->and(RatePlan::query()->where('code', 'NRF')->sole()->cancellationPolicy?->name)->toBe('Non-refundable')
+            ->and(Promotion::query()->where('property_id', $cxb->id)->pluck('code')->filter()->sort()->values()->all())->toBe(['EARLYBIRD', 'MONSOON20']);
 
         $villaKey = collect($units)->firstWhere('code', 'FV')?->key();
         $kingKey = collect($units)->firstWhere('code', 'DK')?->key();

@@ -60,7 +60,10 @@
                         @endforeach
                         @error('channels')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>
-                    {{-- TODO(step-1.4): deposit policy and cancellation policy. --}}
+                    <div class="row mt-3">
+                        <div class="col-md-6"><x-form.select name="deposit_policy_id" :label="__('Deposit policy')" :options="$depositPolicies" :value="$plan?->deposit_policy_id" :placeholder="__('Property default')" :search="false" /></div>
+                        <div class="col-md-6"><x-form.select name="cancellation_policy_id" :label="__('Cancellation policy')" :options="$cancellationPolicies" :value="$plan?->cancellation_policy_id" :placeholder="__('Property default')" :search="false" /></div>
+                    </div>
                 </x-card>
 
                 <div class="d-flex justify-content-end gap-2 mb-4">

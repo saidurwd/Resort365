@@ -13,6 +13,8 @@ use Modules\Rates\Actions\DeleteRatePlan;
 use Modules\Rates\Actions\SaveRatePlan;
 use Modules\Rates\Http\Controllers\Concerns\UsesCurrentProperty;
 use Modules\Rates\Http\Requests\SaveRatePlanRequest;
+use Modules\Rates\Models\CancellationPolicy;
+use Modules\Rates\Models\DepositPolicy;
 use Modules\Rates\Models\RatePlan;
 
 class RatePlanController extends Controller
@@ -28,7 +30,10 @@ class RatePlanController extends Controller
 
         return view('rates::rate-plans.index', [
             'propertyName' => $this->currentPropertyName(),
-            'plans' => RatePlan::query()->where('property_id', $propertyId)->withCount('rates')->orderBy('sort_order')->orderBy('name')->get(),
+            'plans' => RatePlan::query()->where('property_id', $propertyId)->with(['depositPolicy', 'cancellationPolicy'])->withCount('rates')
+                ->orderBy('sort_order')->orderBy('name')->get(),
+            'defaultDeposit' => DepositPolicy::query()->where('property_id', $propertyId)->where('is_default', true)->value('name'),
+            'defaultCancellation' => CancellationPolicy::query()->where('property_id', $propertyId)->where('is_default', true)->value('name'),
             'taxCategories' => $this->taxCategories(false),
             'currency' => $this->currency($propertyId),
         ]);
@@ -80,6 +85,10 @@ class RatePlanController extends Controller
             'taxCategories' => collect($this->taxCategories(! $plan instanceof RatePlan))
                 ->mapWithKeys(fn (TaxCategorySummary $category): array => [$category->id => $category->name.($category->taxes !== [] ? ' ('.implode(' + ', $category->taxes).')' : '')])->all(),
             'currency' => $this->currency($propertyId),
+            'depositPolicies' => DepositPolicy::query()->where('property_id', $propertyId)->orderBy('name')->get()
+                ->mapWithKeys(fn (DepositPolicy $policy): array => [$policy->id => $policy->name.($policy->is_default ? ' ('.__('default').')' : '')])->all(),
+            'cancellationPolicies' => CancellationPolicy::query()->where('property_id', $propertyId)->orderBy('name')->get()
+                ->mapWithKeys(fn (CancellationPolicy $policy): array => [$policy->id => $policy->name.($policy->is_default ? ' ('.__('default').')' : '')])->all(),
             'history' => [],
         ];
     }

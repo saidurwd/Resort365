@@ -906,15 +906,16 @@ Item-level statuses allow partial operations, such as one room of a group checki
 
 ### 6.5 Advance Deposit
 
-**Deposit policy** (defined per property, overridable per rate plan or cottage type):
+**Deposit policy** (defined per property, with one default, overridable per rate plan; Step 1.4 dropped the per-cottage-type override, since Rates may not write Property's tables — use a rate plan for the cottage type instead):
 
 | Field | Example | Meaning |
 |---|---|---|
 | `type` | `percentage` | `percentage` \| `fixed_amount` \| `first_night` \| `none` |
-| `min_percent` | 30 | Minimum deposit to confirm the booking |
+| `min_percent` | 30 | Optional lowest deposit staff may ask without the override permission (empty = no limit) |
 | `default_percent` | 30 | Amount requested by default (online bookings pay this) |
-| `max_percent` | 50 | The most staff may request as deposit |
-| `due_within_hours` | 48 | Deadline to pay the deposit after booking |
+| `max_percent` | 50 | Optional highest deposit staff may ask (empty = no limit) |
+| `due_within_minutes` | 30 | Deadline to pay the deposit after booking (Q7: 30 minutes by default, set per resort) |
+| `full_payment_within_hours` | 24 | Ask for the whole stay when arrival is closer than this (rule 6) |
 | `auto_cancel_unpaid` | true | Release the hold automatically if the deposit is not paid on time |
 | `balance_due` | `at_check_in` | `at_check_in` \| `days_before_arrival` (with `balance_due_days`) |
 | `refundable` | per cancellation policy | Linked to the cancellation policy tiers |
@@ -922,7 +923,7 @@ Item-level statuses allow partial operations, such as one room of a group checki
 **Rules**
 
 1. `deposit_required = round(grand_total × deposit_percent / 100, currency precision)`.
-2. The staff member may choose any percentage between `min_percent` and `max_percent` (30–50%). Going below the minimum requires the permission `reservation.deposit.override`, and is logged.
+2. The deposit is negotiable per booking (Q7): staff may choose any percentage, within `min_percent` and `max_percent` when the policy sets them. Going below the minimum requires the permission `reservation.deposit.override`, and is logged.
 3. The booking stays **Tentative** until `amount_paid ≥ deposit_required`, then it is auto-**Confirmed** by the `PaymentReceived` listener.
 4. The hold-expiry job (runs every 5 minutes) cancels tentative bookings past `deposit_due_at` when `auto_cancel_unpaid` is on, releases their locks and notifies the guest and staff.
 5. Deposits are posted to a **Customer Advances (liability)** account, not to revenue (see [§7](#7-finance--accounting-integration)).
@@ -1150,6 +1151,7 @@ Unique: `(reservation_item_id, stay_date)`
 
 **`cancellation_policies`** + **`cancellation_policy_rules`**
 `rules: days_before_arrival_from, days_before_arrival_to, charge_type(percent_of_total|percent_of_deposit|nights|fixed), charge_value`
+*(Step 1.4: implemented per property in the Rates module. `deposit_policies` uses `due_within_minutes` instead of `due_within_hours`, optional min/max percent, `full_payment_within_hours` and `is_default`. `cancellation_policies` (name, description, `no_show_charge_type`, `no_show_charge_value`, `is_default`); rule columns are `days_before_from`, `days_before_to` (null = or more). The fee never exceeds the stay total (nor the deposit for percent_of_deposit). `rate_plans` gained `deposit_policy_id` and `cancellation_policy_id` (null = the property's default). `promotions`: code (null = automatic), name, discount_type (percent | fixed_per_night | fixed_per_stay), discount_value, stay_from/to, book_from/to, min_nights, max_nights, min_advance_days, rate_plan_ids (json), unit_keys (json), usage_limit, times_used, is_active; promotions do not combine — the best single discount wins (`PromotionMatcher`). Corporate rates are not built yet.)*
 
 **`seasons`**, **`rate_plans`**, **`rates`**, **`rate_overrides`**, **`rate_restrictions`**, **`taxes`**, **`promotions`**
 *(Step 1.3: `seasons` (name, colour, priority) with `season_periods` (season_id, start_date, end_date), so one season can cover several ranges. `rate_plans`: code, name, meal_plan (EP/CP/MAP/AP), meal_adult_amount, meal_child_amount, is_refundable, prices_include_tax, tax_category_id, valid_from, valid_to, channels (json), is_active, deleted_at. `rate_overrides`: one price per plan, type and date. `rate_restrictions`: per date, rate_plan_id and rateable null = all; rows combine (longest minimum stay, shortest maximum, any closure). `taxes` (code, name, type percent|fixed, rate, is_compound, sort_order, is_active), `tax_categories`, `tax_category_taxes`, all tenant-wide. A night's price: date override → highest-priority season rate (the most specific weekday set) → base rate; a season without a rate for the type falls back to the base rate. Weekend days per property: setting `rates.weekend_days`.)*
@@ -1594,7 +1596,7 @@ Please confirm or adjust. The document reflects the **assumed answer** in each c
 | Q4 | Which **payment gateways** are required (Stripe, PayPal, SSLCommerz, bKash…)? | A gateway abstraction in Phase 1; the first real gateway in Phase 8. | Answer: SSLCommerze, bKash is ok now but will need all in future
 | Q5 | Is **online guest self-booking** needed in the first release, or is staff-entered booking enough initially? | Staff-entered in v1; public booking engine in Phase 8. | Answer: online guest self-booking including staff-entered booking
 | Q6 | Should a specific **room number be assigned at booking**, or booked by room type and assigned at check-in? | Assigned at booking (auto-picked, changeable). Simpler and fully safe against overbooking. | Answer: assign the room number at booking.
-| Q7 | **Deposit:** is 30–50% fixed per resort, or negotiable per booking? Is the deposit refundable, and on what terms? Should unpaid bookings auto-cancel, and after how long? | Per-resort policy with a 30–50% range that staff can choose within; refund per cancellation policy; auto-cancel after 48 h. | Answer: Not fixed, negotiable per booking. Deposit may refundable. ld unpaid bookings auto-cancel, 30 mins (configureable) may vary from resort to resort. 
+| Q7 | **Deposit:** is 30–50% fixed per resort, or negotiable per booking? Is the deposit refundable, and on what terms? Should unpaid bookings auto-cancel, and after how long? | Per-resort policy with a 30–50% range that staff can choose within; refund per cancellation policy; auto-cancel after 48 h. | *(Built in Step 1.4: a default % per resort, negotiable per booking within optional limits; refunds follow the cancellation policy; unpaid deposits due in 30 minutes by default, set per resort.)* Answer: Not fixed, negotiable per booking. Deposit may refundable. ld unpaid bookings auto-cancel, 30 mins (configureable) may vary from resort to resort. 
 | Q8 | **Revenue recognition:** nightly at night audit (accrual, international standard) or at check-out (simpler)? | Nightly, with check-out mode as an option. |
 | Q9 | **Payroll:** which country's tax and statutory rules (provident fund, gratuity, social security)? Is **service charge distribution** required? | **Bangladesh** (confirmed in review). Rules stay configurable, but are seeded with Bangladesh defaults: income tax slabs, provident fund, gratuity, festival bonuses. Service charge distribution included. *Please confirm which statutory items apply to your resorts.* |
 | Q10 | ~~Is a restaurant/bar POS needed?~~ | **Resolved in v0.2:** full Restaurant module in scope ([§5.10](#510-restaurant-fb--pos)), delivered in Phase 3. |

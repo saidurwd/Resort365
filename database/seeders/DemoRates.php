@@ -12,20 +12,25 @@ use Modules\Core\Actions\SaveTaxCategory;
 use Modules\Core\Models\TaxCategory;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\DTOs\UnitTypeSummary;
+use Modules\Rates\Actions\SaveCancellationPolicy;
+use Modules\Rates\Actions\SaveDepositPolicy;
+use Modules\Rates\Actions\SavePromotion;
 use Modules\Rates\Actions\SaveRatePlan;
 use Modules\Rates\Actions\SaveRateSheet;
 use Modules\Rates\Actions\SaveSeason;
 use Modules\Rates\Actions\SetRateOverrides;
 use Modules\Rates\Actions\SetRestrictions;
 use Modules\Rates\DTOs\RestrictionSet;
+use Modules\Rates\Models\CancellationPolicy;
 use Modules\Rates\Models\RatePlan;
 use Modules\Rates\Models\Season;
 use Modules\Rates\Support\DaysOfWeek;
 
 /**
- * Taxes and rates for DemoSeeder (Step 1.3): service charge 10% then VAT 15% (compound) on rooms
- * and food; seasons, rate plans and rates per property, with weekend uplifts, a New Year's Eve
- * date price, a minimum stay over New Year and one stop-sell date.
+ * Taxes and rates for DemoSeeder (Steps 1.3–1.4): service charge 10% then VAT 15% (compound) on
+ * rooms and food; seasons, rate plans and rates per property, with weekend uplifts, a New Year's
+ * Eve date price, a minimum stay over New Year and one stop-sell date; deposit and cancellation
+ * policies; promotions (long stay, MONSOON20, EARLYBIRD) and a non-refundable plan in Cox's Bazar.
  */
 final class DemoRates
 {
@@ -65,6 +70,8 @@ final class DemoRates
             if (RatePlan::query()->where('property_id', $propertyId)->exists()) {
                 return;
             }
+
+            self::policies($propertyId, $full);
 
             $year = CarbonImmutable::now()->year;
             $roomTax = TaxCategory::query()->where('code', 'ROOM')->value('id');
@@ -121,8 +128,65 @@ final class DemoRates
             if ($full) {
                 SetRestrictions::make()->handle($propertyId, null, null, CarbonImmutable::parse("{$year}-12-30"), CarbonImmutable::parse(($year + 1).'-01-01'),
                     DaysOfWeek::EVERY_DAY, new RestrictionSet(minStay: 2));
+
+                // A cheaper plan that cannot be refunded (Step 1.4).
+                $saver = SaveRatePlan::make()->handle(null, [
+                    'property_id' => $propertyId, 'code' => 'NRF', 'name' => 'Non-refundable saver', 'meal_plan' => 'EP', 'meal_adult_amount' => '0',
+                    'meal_child_amount' => '0', 'is_refundable' => false, 'prices_include_tax' => false, 'tax_category_id' => $roomTax,
+                    'cancellation_policy_id' => CancellationPolicy::query()->where('property_id', $propertyId)->where('name', 'Non-refundable')->value('id'),
+                    'channels' => ['front_desk', 'online'], 'is_active' => true, 'sort_order' => 9,
+                ]);
+                SaveRateSheet::make()->handle($saver, null, self::sheet($units, '0.90', '0'), self::WEEKEND);
+
+                self::promotions($propertyId, $year);
             }
         });
+    }
+
+    /**
+     * A default deposit policy (30%, negotiable, 30 minutes to pay) and the Flexible cancellation
+     * policy of ARCHITECTURE §5.5 for every property; Cox's Bazar also gets Non-refundable.
+     */
+    private static function policies(int $propertyId, bool $full): void
+    {
+        SaveDepositPolicy::make()->handle(null, [
+            'property_id' => $propertyId, 'name' => 'Standard advance', 'type' => 'percentage', 'min_percent' => '20', 'default_percent' => '30',
+            'max_percent' => null, 'due_within_minutes' => 30, 'auto_cancel_unpaid' => true, 'balance_due_rule' => 'at_check_in',
+            'full_payment_within_hours' => 24, 'is_default' => true,
+        ]);
+
+        SaveCancellationPolicy::make()->handle(null, [
+            'property_id' => $propertyId, 'name' => 'Flexible', 'is_default' => true,
+            'description' => 'Free cancellation until 15 days before arrival; half the deposit is kept 7–14 days before; the deposit is kept after that and for no-shows.',
+            'no_show_charge_type' => 'percent_of_deposit', 'no_show_charge_value' => '100',
+            'rules' => [
+                ['days_before_from' => 15, 'days_before_to' => null, 'charge_type' => 'percent_of_deposit', 'charge_value' => '0'],
+                ['days_before_from' => 7, 'days_before_to' => 14, 'charge_type' => 'percent_of_deposit', 'charge_value' => '50'],
+                ['days_before_from' => 0, 'days_before_to' => 6, 'charge_type' => 'percent_of_deposit', 'charge_value' => '100'],
+            ],
+        ]);
+
+        if ($full) {
+            SaveCancellationPolicy::make()->handle(null, [
+                'property_id' => $propertyId, 'name' => 'Non-refundable', 'is_default' => false,
+                'description' => 'The whole stay is charged if cancelled at any time.',
+                'no_show_charge_type' => 'percent_of_total', 'no_show_charge_value' => '100',
+                'rules' => [['days_before_from' => 0, 'days_before_to' => null, 'charge_type' => 'percent_of_total', 'charge_value' => '100']],
+            ]);
+        }
+    }
+
+    private static function promotions(int $propertyId, int $year): void
+    {
+        foreach ([
+            ['code' => null, 'name' => 'Long stay', 'description' => '10% off stays of 7 nights or more.', 'discount_type' => 'percent', 'discount_value' => '10', 'min_nights' => 7],
+            ['code' => 'MONSOON20', 'name' => 'Monsoon offer', 'description' => '20% off monsoon stays.', 'discount_type' => 'percent', 'discount_value' => '20',
+                'stay_from' => "{$year}-06-01", 'stay_to' => "{$year}-08-31"],
+            ['code' => 'EARLYBIRD', 'name' => 'Early bird', 'description' => '1,000 off per night when booked 30 days ahead.', 'discount_type' => 'fixed_per_night',
+                'discount_value' => '1000', 'min_advance_days' => 30],
+        ] as $promotion) {
+            SavePromotion::make()->handle(null, ['property_id' => $propertyId, 'is_active' => true, ...$promotion]);
+        }
     }
 
     /**
