@@ -11,6 +11,7 @@ use Modules\Core\Contracts\TaxEngine;
 use Modules\Core\DTOs\TaxCategorySummary;
 use Modules\Rates\Actions\DeleteRatePlan;
 use Modules\Rates\Actions\SaveRatePlan;
+use Modules\Rates\Exceptions\RatePlanInUse;
 use Modules\Rates\Http\Controllers\Concerns\UsesCurrentProperty;
 use Modules\Rates\Http\Requests\SaveRatePlanRequest;
 use Modules\Rates\Models\CancellationPolicy;
@@ -70,7 +71,12 @@ class RatePlanController extends Controller
     public function destroy(RatePlan $ratePlan, DeleteRatePlan $delete): RedirectResponse
     {
         Gate::authorize('delete', $ratePlan);
-        $delete->handle($ratePlan);
+
+        try {
+            $delete->handle($ratePlan);
+        } catch (RatePlanInUse $exception) {
+            return to_route('rates.rate-plans.index')->with('error', $exception->getMessage());
+        }
 
         return to_route('rates.rate-plans.index')->with('success', __('Rate plan ":name" deleted.', ['name' => $ratePlan->name]));
     }

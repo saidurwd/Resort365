@@ -365,7 +365,7 @@ Route ─► Middleware ─► Controller (thin: authorize, validate, delegate, 
 | `ReservationCreated` | Reservation | Notifications → booking acknowledgement with deposit instructions |
 | `ReservationConfirmed` | Reservation | Notifications → confirmation voucher |
 | `ReservationCancelled` | Reservation | Billing → cancellation fee / refund; Notifications |
-| `PaymentReceived` | Billing | Reservation → update payment status, auto-confirm if deposit met; Accounting → post receipt |
+| `PaymentReceived` | Billing | Reservation → update payment status, auto-confirm if deposit met; Accounting → post receipt *(Step 1.7: the event carries the reservation's total paid, so Reservation sets it rather than adding to it)* |
 | `RefundIssued` | Billing | Accounting → post refund |
 | `GuestCheckedIn` | FrontOffice | Housekeeping → room status *Occupied* |
 | `GuestCheckedOut` | FrontOffice | Housekeeping → room *Dirty*, create cleaning task; Billing → finalize invoice |
@@ -523,7 +523,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - Stay history and lifetime value.
 - VIP level, tags and blacklist (with reason).
 - Companies and travel agents (shared with Reservation through the `GuestLookup` contract).
-- *Implemented in Step 1.2: profiles, encrypted ID with ID documents, duplicate detection (phone, email, ID document) and merge (`GuestsMerged` event), blacklist, VIP level, companies, travel agents, `GuestLookup`. Not yet scheduled: stay history and lifetime value (need reservations), tags, data export and anonymisation.*
+- *Implemented in Step 1.2: profiles, encrypted ID with ID documents, duplicate detection (phone, email, ID document) and merge (`GuestsMerged` event), blacklist, VIP level, companies, travel agents, `GuestLookup`. Not yet scheduled: stay history and lifetime value (need reservations), tags, data export and anonymisation. Since Step 1.7 a merge moves the merged guest's bookings to the kept profile (Reservation listens to `GuestsMerged`).*
 - Marketing consent (GDPR-style), data export and anonymization on request.
 
 ### 5.9 Billing & Payments
@@ -927,7 +927,7 @@ Item-level statuses allow partial operations, such as one room of a group checki
 1. `deposit_required = round(grand_total × deposit_percent / 100, currency precision)`.
 2. The deposit is negotiable per booking (Q7): staff may choose any percentage, within `min_percent` and `max_percent` when the policy sets them. Going below the minimum requires the permission `reservation.deposit.override`, and is logged.
 3. The booking stays **Tentative** until `amount_paid ≥ deposit_required`, then it is auto-**Confirmed** by the `PaymentReceived` listener.
-4. The hold-expiry job (runs every 5 minutes) cancels tentative bookings past `deposit_due_at` when `auto_cancel_unpaid` is on, releases their locks and notifies the guest and staff.
+4. The hold-expiry job (runs every 5 minutes) cancels tentative bookings past `deposit_due_at` when `auto_cancel_unpaid` is on, releases their locks and notifies the guest and staff. *(Step 1.7: `ExpireTentativeHolds`, scheduled in the scheduler process for every tenant that may use the app, also `php artisan reservation:expire-holds`; the cancellation is free and re-checks the deposit under a row lock, so a payment that arrived first wins. The notifications come with Step 1.8.)*
 5. Deposits are posted to a **Customer Advances (liability)** account, not to revenue (see [§7](#7-finance--accounting-integration)).
 6. If an arrival is closer than the deposit window (e.g. booking today for tomorrow), the policy can require full or immediate payment.
 
@@ -992,6 +992,8 @@ Locks are bulk-inserted in one statement. Correctness relies on the **database c
 | Early check-out | Release the future locks; re-price if the rate plan says so. |
 
 History of every change is kept in `reservation_logs` plus the activity log.
+
+*(Step 1.7: `ModifyReservation` replaces the booking's items, nights and locks in one transaction (the lock insert decides; a clash rolls back and keeps the original), keeps the negotiated deposit percent and the deposit due time, and confirms a tentative booking whose payments now cover the deposit. `CancelReservation` charges the cancellation policy's fee (`RateLookup::cancellationQuote`) and stores the fee; the refund of what was paid above it is paid in Step 2.6. `ChangeDeposit` renegotiates the percent (0% waives it), outside the policy only with `reservation.deposit.override`. Other modules add tabs to the reservation page through Reservation's `ReservationTabs` contract (Billing: Payments), since Reservation may not call them. Room moves, no-shows and early check-out come with the front office (Phase 2).)*
 
 ### 6.8 Tape Chart (Booking Calendar)
 
@@ -1170,6 +1172,11 @@ Unique: `(reservation_item_id, stay_date)`
 
 **`payments`**
 `id, tenant_id, property_id, receipt_no, reservation_id, folio_id, payment_type(deposit|payment|refund), method, amount, currency_code, exchange_rate, base_amount, reference, gateway, gateway_txn_id, status(pending|succeeded|failed|voided), received_by, received_at, cash_account_id`
+*(Step 1.7, Billing module: manual methods only (cash, card, bank transfer, mobile wallet), in the property's currency (exchange rate 1); also `notes`. `receipt_no` comes from Core's `payment` document type (PAY), unique per tenant. `folio_id` and `cash_account_id` have no foreign keys until folios (Step 2.1) and the chart of accounts (Phase 4) exist. `RecordPayment` refuses more than the balance due, so a booking cannot become overpaid yet; refunds and voids come in Step 2.6. A payment before check-in is a `deposit`.)*
+
+**`reservation_logs`** *(Step 1.7)*
+`id, tenant_id, property_id, reservation_id, action, description, changes(json: field → [old, new]), user_id (null = the system), timestamps`
+One row per change (created, stay changed, deposit changed, guest added/removed/made primary, payment received, confirmed, cancelled, hold expired), shown on the reservation's History tab next to the activity log.
 
 **`invoices`** + **`invoice_lines`**, **`credit_notes`**
 

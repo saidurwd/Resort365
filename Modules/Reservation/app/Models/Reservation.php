@@ -57,8 +57,14 @@ use Modules\Reservation\Enums\ReservationStatus;
  * @property string|null $special_requests
  * @property string|null $internal_notes
  * @property int|null $created_by
+ * @property Carbon|null $confirmed_at
+ * @property Carbon|null $cancelled_at
+ * @property string|null $cancellation_reason
+ * @property string|null $cancellation_fee
+ * @property Carbon|null $created_at
  * @property-read Collection<int, ReservationItem> $items
  * @property-read Collection<int, ReservationGuest> $guests
+ * @property-read Collection<int, ReservationLog> $logs
  */
 #[UseFactory(ReservationFactory::class)]
 #[Fillable([
@@ -132,6 +138,23 @@ class Reservation extends Model
     public function locks(): HasMany
     {
         return $this->hasMany(InventoryLock::class);
+    }
+
+    /**
+     * @return HasMany<ReservationLog, $this>
+     */
+    public function logs(): HasMany
+    {
+        return $this->hasMany(ReservationLog::class)->latest('id');
+    }
+
+    /**
+     * Whether the stay, guests and deposit may still be changed or the booking cancelled
+     * (before check-in; in-house changes come with the front office).
+     */
+    public function isChangeable(): bool
+    {
+        return in_array($this->status, [ReservationStatus::Tentative, ReservationStatus::Confirmed], true);
     }
 
     public function nights(): int

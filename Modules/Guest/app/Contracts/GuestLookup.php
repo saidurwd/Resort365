@@ -2,6 +2,7 @@
 
 namespace Modules\Guest\Contracts;
 
+use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
 use Modules\Guest\DTOs\CompanySummary;
 use Modules\Guest\DTOs\GuestSummary;
 use Modules\Guest\DTOs\TravelAgentSummary;
@@ -13,13 +14,25 @@ use Modules\Guest\DTOs\TravelAgentSummary;
 interface GuestLookup
 {
     /**
-     * Guests by phone, email, ID number or name.
+     * Guests by phone, email, ID number or name. $among narrows the search to some guest ids: a
+     * list, or a query selecting one column of ids (e.g. the guests of a property's bookings), so a
+     * module can search "its" guests without a long id list.
      *
+     * @param  list<int>|QueryBuilder|null  $among
      * @return list<GuestSummary>
      */
-    public function search(string $term, int $limit = 10): array;
+    public function search(string $term, int $limit = 10, array|QueryBuilder|null $among = null): array;
 
     public function find(int $guestId): ?GuestSummary;
+
+    /**
+     * Full names of several guests at once (for lists), keyed by the ids asked for. Merged guests
+     * show the kept profile's name; unknown ids are missing.
+     *
+     * @param  list<int>  $guestIds
+     * @return array<int, string>
+     */
+    public function names(array $guestIds): array;
 
     public function isBlacklisted(int $guestId): bool;
 

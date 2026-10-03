@@ -19,6 +19,7 @@ use Modules\Rates\Contracts\RateLookup;
 use Modules\Rates\DTOs\RatePlanSummary;
 use Modules\Reservation\Actions\CreateReservation;
 use Modules\Reservation\DTOs\BookingQuote;
+use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Exceptions\BookingNotPossible;
 use Modules\Reservation\Exceptions\DepositBelowMinimum;
 use Modules\Reservation\Exceptions\RoomNoLongerAvailable;
@@ -247,7 +248,10 @@ class BookingWizardController extends Controller
 
         $this->wizard->clear();
 
-        return to_route('reservation.bookings.show', $reservation)->with('success', __('Booking :code created.', ['code' => $reservation->code]));
+        // A booking waiting for its deposit opens on the Payments tab (Billing), to take it now.
+        $url = route('reservation.bookings.show', $reservation).($reservation->status === ReservationStatus::Tentative ? '#payments' : '');
+
+        return redirect()->to($url)->with('success', __('Booking :code created.', ['code' => $reservation->code]));
     }
 
     public function reset(): RedirectResponse

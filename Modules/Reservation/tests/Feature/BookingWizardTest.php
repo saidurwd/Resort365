@@ -74,7 +74,7 @@ it('books 2 whole cottages and a room for 3 nights through the wizard, with the 
     $response = post(tenantUrl('sunrise', '/reservation/bookings/new/confirm'))->assertSessionHas('success');
 
     $reservation = booking(fn (): Reservation => Reservation::query()->with('items')->sole());
-    $response->assertRedirect(tenantUrl('sunrise', '/reservation/bookings/'.$reservation->id));
+    $response->assertRedirect(tenantUrl('sunrise', '/reservation/bookings/'.$reservation->id.'#payments')); // tentative: take the deposit next
 
     expect($reservation->status)->toBe(ReservationStatus::Tentative)
         ->and($reservation->source)->toBe(ReservationSource::Phone)

@@ -1,4 +1,4 @@
-{{-- TODO(step-1.7): stay history and lifetime value, once reservations exist. --}}
+{{-- TODO: stay history and lifetime value — not yet scheduled (ARCHITECTURE §5.8); reservations exist since Step 1.6. --}}
 <x-layouts::app :title="$guest->full_name" :breadcrumbs="[__('Guests') => route('guest.guests.index'), $guest->full_name => null]">
     <x-slot:actions>
         @can('update', $guest)

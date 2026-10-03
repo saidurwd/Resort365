@@ -132,7 +132,7 @@ class MenuRegistry
             'label' => __($item->label),
             'icon' => $item->icon,
             'url' => route((string) $item->route),
-            'active' => request()->routeIs($item->active ?? (string) $item->route),
+            'active' => request()->routeIs(...(array) ($item->active ?? (string) $item->route)),
         ];
     }
 }

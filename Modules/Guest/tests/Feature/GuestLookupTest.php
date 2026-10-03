@@ -4,6 +4,7 @@
 | Step 1.2 "Done when": the lookup is fast with 10,000 seeded guests.
 */
 use App\Models\Tenant;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Modules\Guest\Contracts\GuestLookup;
@@ -28,6 +29,19 @@ function lookupNames(string $term): array
 {
     return GuestSetup::run(fn (): array => array_map(fn (GuestSummary $guest): string => $guest->name, app(GuestLookup::class)->search($term)));
 }
+
+it('narrows a search to some guests: a list of ids or a query selecting ids', function (): void {
+    $kept = GuestSetup::guest(['first_name' => 'Ayesha', 'last_name' => 'Siddique']);
+    GuestSetup::guest(['first_name' => 'Ayesha', 'last_name' => 'Akter']);
+
+    $names = fn (array|Builder $among): array => GuestSetup::run(fn (): array => array_map(
+        fn (GuestSummary $guest): string => $guest->name, app(GuestLookup::class)->search('ayesha', 10, $among)));
+
+    expect($names([$kept->id]))->toBe(['Ayesha Siddique'])
+        ->and($names(DB::table('guests')->select('id')->where('last_name', 'Siddique')))->toBe(['Ayesha Siddique'])
+        ->and($names([]))->toBe([])
+        ->and(lookupNames('ayesha'))->toHaveCount(2);
+});
 
 it('finds guests by phone (any format), email, ID number and name prefixes', function (): void {
     GuestSetup::guest(['title' => 'Mr', 'first_name' => 'Rahim', 'last_name' => 'Uddin', 'phone' => '01711000001', 'email' => 'rahim@example.com',

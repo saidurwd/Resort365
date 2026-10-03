@@ -15,7 +15,7 @@ final readonly class MenuItem
      * @param  string|null  $parent  key of the group this item belongs to
      * @param  string|null  $permission  permission the user needs to see it
      * @param  string|null  $module  module alias; hidden when the module is disabled for the tenant
-     * @param  string|null  $active  route-name pattern that marks it active (defaults to the route)
+     * @param  string|list<string>|null  $active  route-name pattern(s) that mark it active (defaults to the route)
      * @param  (Closure(): bool)|null  $visible  extra visibility rule
      */
     public function __construct(
@@ -27,7 +27,7 @@ final readonly class MenuItem
         public int $order = 500,
         public ?string $permission = null,
         public ?string $module = null,
-        public ?string $active = null,
+        public string|array|null $active = null,
         public ?Closure $visible = null,
     ) {}
 

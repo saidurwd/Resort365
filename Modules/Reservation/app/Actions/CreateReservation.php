@@ -5,30 +5,24 @@ namespace Modules\Reservation\Actions;
 use App\Support\Actions\Action;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
-use Carbon\CarbonPeriod;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Modules\Core\Contracts\DocumentNumbers;
-use Modules\Property\Contracts\InventoryCatalog;
-use Modules\Property\DTOs\RoomSummary;
 use Modules\Rates\Contracts\RateLookup;
 use Modules\Rates\DTOs\PromotionDiscount;
 use Modules\Reservation\DTOs\BookingItem;
 use Modules\Reservation\DTOs\BookingQuote;
 use Modules\Reservation\DTOs\NewReservation;
-use Modules\Reservation\DTOs\QuotedItem;
-use Modules\Reservation\Enums\ItemType;
-use Modules\Reservation\Enums\LockType;
 use Modules\Reservation\Enums\PaymentStatus;
+use Modules\Reservation\Enums\ReservationLogAction;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Events\ReservationCreated;
 use Modules\Reservation\Exceptions\BookingNotPossible;
 use Modules\Reservation\Exceptions\DepositBelowMinimum;
 use Modules\Reservation\Exceptions\RoomNoLongerAvailable;
-use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Reservation;
-use Modules\Reservation\Models\ReservationItemNight;
 use Modules\Reservation\Services\BookingQuoter;
+use Modules\Reservation\Services\ReservationLogger;
+use Modules\Reservation\Services\ReservationWriter;
 
 /**
  * Creates a reservation (ARCHITECTURE §6.6). The booking is priced first (BookingQuoter); then, in
@@ -38,16 +32,17 @@ use Modules\Reservation\Services\BookingQuoter;
  * rolls back and RoomNoLongerAvailable says which rooms and dates. The database constraint
  * decides, never a "check then insert".
  *
- * A new reservation is Tentative until its deposit is paid (Step 1.7), or Confirmed at once when
- * no deposit is due.
+ * A new reservation is Tentative until its deposit is paid (ApplyPayment), or Confirmed at once
+ * when no deposit is due.
  */
 class CreateReservation extends Action
 {
     public function __construct(
         private readonly BookingQuoter $quoter,
-        private readonly InventoryCatalog $catalog,
         private readonly RateLookup $rates,
         private readonly DocumentNumbers $numbers,
+        private readonly ReservationWriter $writer,
+        private readonly ReservationLogger $logger,
     ) {}
 
     /**
@@ -64,7 +59,7 @@ class CreateReservation extends Action
         try {
             return $this->transaction(fn (): Reservation => $this->save($data, $quote), attempts: 3);
         } catch (UniqueConstraintViolationException) {
-            throw new RoomNoLongerAvailable($this->takenRooms($data, $quote));
+            throw new RoomNoLongerAvailable($this->writer->takenRooms($data->propertyId, $data->checkIn, $data->checkOut, $quote));
         }
     }
 
@@ -112,89 +107,19 @@ class CreateReservation extends Action
             $reservation->forceFill(['confirmed_at' => now()])->save();
         }
 
-        $now = now();
-        $nights = [];
-        $locks = [];
-
-        foreach ($quote->items as $line) {
-            $item = $this->createItem($reservation, $data, $line);
-            $meals = count($line->quote->nights) > 0 ? bcdiv($line->quote->mealComponent, (string) count($line->quote->nights), 2) : '0.00';
-
-            foreach ($line->quote->nights as $night) {
-                $nights[] = [
-                    'tenant_id' => $reservation->tenant_id, 'property_id' => $data->propertyId, 'reservation_item_id' => $item, 'stay_date' => $night->date,
-                    'base_rate' => $night->base, 'extra_person_amount' => $night->extras, 'meal_amount' => $meals, 'discount' => $night->discount,
-                    'net_amount' => $night->net, 'tax_amount' => $night->tax, 'total_amount' => $night->total, 'rate_source' => $night->source,
-                    'created_at' => $now, 'updated_at' => $now,
-                ];
-
-                foreach ($line->roomIds as $roomId) {
-                    $locks[] = [
-                        'tenant_id' => $reservation->tenant_id, 'property_id' => $data->propertyId, 'room_id' => $roomId, 'stay_date' => $night->date,
-                        'lock_type' => LockType::Reservation->value, 'reservation_id' => $reservation->id, 'reservation_item_id' => $item,
-                        'created_at' => $now, 'updated_at' => $now,
-                    ];
-                }
-            }
-        }
-
-        ReservationItemNight::query()->insert($nights);
+        $this->writer->writeItems($reservation, $data->checkIn, $data->checkOut, $quote);
         $reservation->guests()->create(['property_id' => $data->propertyId, 'guest_id' => $data->primaryGuestId, 'is_primary' => true]);
-
-        // One statement: the unique (room_id, stay_date) index decides who gets the rooms.
-        InventoryLock::query()->insert($locks);
 
         if ($quote->promotion instanceof PromotionDiscount) {
             $this->rates->usePromotion($quote->promotion->promotionId);
         }
 
+        $this->logger->log($reservation, ReservationLogAction::Created, __(':source booking: :status, total :total, deposit :deposit.', [
+            'source' => $data->source->label(), 'status' => $reservation->status->label(), 'total' => $quote->total, 'deposit' => $quote->deposit->amount,
+        ]), userId: $data->createdBy);
+
         ReservationCreated::dispatch($reservation->tenant_id, $reservation->id);
 
         return $reservation->load('items');
-    }
-
-    /**
-     * @return int the item id
-     */
-    private function createItem(Reservation $reservation, NewReservation $data, QuotedItem $line): int
-    {
-        return $reservation->items()->create([
-            'property_id' => $data->propertyId,
-            'item_type' => $line->item->type,
-            'cottage_id' => $line->cottageId,
-            'room_id' => $line->item->type === ItemType::Room ? $line->item->unitId : null,
-            'room_type_id' => $line->roomTypeId,
-            'cottage_type_id' => $line->cottageTypeId,
-            'rate_plan_id' => $line->item->ratePlanId,
-            'check_in' => $data->checkIn->toDateString(),
-            'check_out' => $data->checkOut->toDateString(),
-            'adults' => $line->item->adults,
-            'children' => $line->item->children,
-            'status' => $reservation->status,
-            'subtotal' => $line->quote->subtotal,
-            'discount' => $line->quote->discount,
-            'tax' => $line->quote->tax,
-            'total' => $line->quote->total,
-            'meal_component' => $line->quote->mealComponent,
-        ])->id;
-    }
-
-    /**
-     * The rooms and nights of this booking that another booking holds now.
-     *
-     * @return array<string, list<string>>
-     */
-    private function takenRooms(NewReservation $data, BookingQuote $quote): array
-    {
-        $roomIds = array_merge(...array_map(fn (QuotedItem $item): array => $item->roomIds, $quote->items));
-        $dates = array_map(fn (CarbonInterface $date): string => $date->toDateString(), CarbonPeriod::create($data->checkIn, $data->checkOut->subDay())->toArray());
-        $numbers = collect($this->catalog->rooms($data->propertyId))->mapWithKeys(fn (RoomSummary $room): array => [$room->id => $room->number]);
-
-        $taken = InventoryLock::query()->whereIn('room_id', $roomIds)->whereIn('stay_date', $dates)->orderBy('stay_date')->get()
-            ->groupBy(fn (InventoryLock $lock): string => (string) $numbers->get($lock->room_id, '#'.$lock->room_id))
-            ->map(fn ($locks): array => $locks->map(fn (InventoryLock $lock): string => $lock->stay_date->toDateString())->values()->all())
-            ->all();
-
-        return $taken !== [] ? $taken : ['?' => $dates];
     }
 }

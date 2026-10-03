@@ -3,7 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Reservation\Http\Controllers\AvailabilityController;
 use Modules\Reservation\Http\Controllers\BookingWizardController;
+use Modules\Reservation\Http\Controllers\ReservationCancelController;
+use Modules\Reservation\Http\Controllers\ReservationChangeController;
 use Modules\Reservation\Http\Controllers\ReservationController;
+use Modules\Reservation\Http\Controllers\ReservationDepositController;
+use Modules\Reservation\Http\Controllers\ReservationGuestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,5 +37,25 @@ Route::prefix('reservation')->name('reservation.')->middleware(['auth', 'verifie
         Route::post('/reset', 'reset')->name('reset');
     });
 
-    Route::get('/bookings/{reservation}', [ReservationController::class, 'show'])->middleware('can:reservation.booking.view')->name('bookings.show');
+    Route::middleware('can:reservation.booking.view')->group(function (): void {
+        Route::get('/bookings', [ReservationController::class, 'index'])->name('bookings.index');
+        Route::get('/bookings/data', [ReservationController::class, 'data'])->name('bookings.data');
+        Route::get('/bookings/{reservation}', [ReservationController::class, 'show'])->whereNumber('reservation')->name('bookings.show');
+    });
+
+    // Changes to a booking: stay (edit → review → save), deposit, guests.
+    Route::prefix('bookings/{reservation}')->whereNumber('reservation')->name('bookings.')->middleware('can:reservation.booking.update')->scopeBindings()->group(function (): void {
+        Route::get('/edit', [ReservationChangeController::class, 'edit'])->name('edit');
+        Route::post('/edit', [ReservationChangeController::class, 'review'])->name('review');
+        Route::put('/', [ReservationChangeController::class, 'update'])->name('update');
+        Route::put('/deposit', [ReservationDepositController::class, 'update'])->name('deposit');
+        Route::post('/guests', [ReservationGuestController::class, 'store'])->name('guests.store');
+        Route::delete('/guests/{guest}', [ReservationGuestController::class, 'destroy'])->name('guests.destroy');
+        Route::put('/guests/{guest}/primary', [ReservationGuestController::class, 'primary'])->name('guests.primary');
+    });
+
+    Route::prefix('bookings/{reservation}')->whereNumber('reservation')->name('bookings.')->middleware('can:reservation.booking.cancel')->group(function (): void {
+        Route::get('/cancel', [ReservationCancelController::class, 'create'])->name('cancel');
+        Route::post('/cancel', [ReservationCancelController::class, 'store'])->name('cancel.store');
+    });
 });

@@ -25,4 +25,14 @@ class ReservationPolicy
     {
         return $user->can('reservation.booking.create');
     }
+
+    public function update(Authenticatable&Authorizable $user, Reservation $reservation): bool
+    {
+        return $user->can('reservation.booking.update');
+    }
+
+    public function cancel(Authenticatable&Authorizable $user, Reservation $reservation): bool
+    {
+        return $user->can('reservation.booking.cancel');
+    }
 }

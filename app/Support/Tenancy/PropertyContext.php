@@ -33,6 +33,27 @@ class PropertyContext
         $this->current = null;
     }
 
+    /**
+     * Run a tenant-wide system reaction (e.g. moving bookings after a guest merge) across every
+     * property of the tenant, then restore the user's restriction. The tenant scope still applies.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    public function unrestricted(callable $callback): mixed
+    {
+        [$accessible, $current] = [$this->accessible, $this->current];
+        $this->clear();
+
+        try {
+            return $callback();
+        } finally {
+            [$this->accessible, $this->current] = [$accessible, $current];
+        }
+    }
+
     public function isRestricted(): bool
     {
         return $this->accessible !== null;

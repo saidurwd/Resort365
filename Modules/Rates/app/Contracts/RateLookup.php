@@ -3,6 +3,7 @@
 namespace Modules\Rates\Contracts;
 
 use Carbon\CarbonImmutable;
+use Modules\Rates\DTOs\CancellationQuote;
 use Modules\Rates\DTOs\DepositPolicySummary;
 use Modules\Rates\DTOs\DepositQuote;
 use Modules\Rates\DTOs\NightlyRate;
@@ -66,6 +67,15 @@ interface RateLookup
      * The cancellation policy of a rate plan: its own, else the property's default.
      */
     public function cancellationPolicyId(int $ratePlanId): ?int;
+
+    /**
+     * What cancelling costs under a cancellation policy (null = no policy, free): the fee, the
+     * refund of what was paid above it and what is still owed (decimal strings).
+     *
+     * @param  list<string>  $nightlyTotals  the stay's nights in order
+     * @param  int|null  $daysBeforeArrival  whole days from today to arrival; null for a no-show
+     */
+    public function cancellationQuote(?int $policyId, string $stayTotal, array $nightlyTotals, string $deposit, string $paid, ?int $daysBeforeArrival): CancellationQuote;
 
     /**
      * Counts one use of a promotion (a booking that got its discount).

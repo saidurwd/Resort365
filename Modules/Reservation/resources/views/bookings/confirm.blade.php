@@ -50,5 +50,5 @@
         </div>
     @endif
     <a href="{{ route('reservation.bookings.pricing') }}" class="btn btn-outline-secondary mb-4"><i class="bi bi-arrow-left"></i> {{ __('Back') }}</a>
-    {{-- TODO(step-1.7): take the deposit here; TODO(step-8.3): send a payment link. --}}
+    {{-- The deposit is taken on the booking's Payments tab, which opens after creating it. TODO(step-8.3): send a payment link. --}}
 </x-layouts::app>

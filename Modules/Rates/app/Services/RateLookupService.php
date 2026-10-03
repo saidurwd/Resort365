@@ -4,6 +4,8 @@ namespace Modules\Rates\Services;
 
 use Carbon\CarbonImmutable;
 use Modules\Rates\Contracts\RateLookup;
+use Modules\Rates\DTOs\CancellationQuote;
+use Modules\Rates\DTOs\CancellationTerms;
 use Modules\Rates\DTOs\DepositPolicySummary;
 use Modules\Rates\DTOs\DepositQuote;
 use Modules\Rates\DTOs\DepositTerms;
@@ -24,6 +26,7 @@ class RateLookupService implements RateLookup
         private readonly RateCalendar $calendar,
         private readonly PromotionMatcher $promotions,
         private readonly DepositCalculator $deposits,
+        private readonly CancellationFeeCalculator $cancellations,
     ) {}
 
     public function ratePlans(int $propertyId, bool $activeOnly = true): array
@@ -102,6 +105,14 @@ class RateLookupService implements RateLookup
             ?? CancellationPolicy::query()->where('property_id', $plan->property_id)->where('is_default', true)->value('id');
 
         return is_numeric($id) ? (int) $id : null;
+    }
+
+    public function cancellationQuote(?int $policyId, string $stayTotal, array $nightlyTotals, string $deposit, string $paid, ?int $daysBeforeArrival): CancellationQuote
+    {
+        $policy = $policyId !== null ? CancellationPolicy::query()->with('rules')->find($policyId) : null;
+        $terms = $policy instanceof CancellationPolicy ? $policy->terms() : new CancellationTerms([]);
+
+        return $this->cancellations->quote($terms, $stayTotal, $nightlyTotals, $deposit, $paid, $daysBeforeArrival);
     }
 
     public function usePromotion(int $promotionId): void

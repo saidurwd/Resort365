@@ -2,6 +2,7 @@
 
 namespace Modules\Guest\Services;
 
+use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Guest\DTOs\CompanySummary;
 use Modules\Guest\DTOs\GuestSummary;
@@ -22,9 +23,11 @@ class GuestLookupService implements GuestLookup
         return $this->duplicates->find($phone, $email, null, null)->map(fn (Guest $guest): GuestSummary => $this->guest($guest))->values()->all();
     }
 
-    public function search(string $term, int $limit = 10): array
+    public function search(string $term, int $limit = 10, array|QueryBuilder|null $among = null): array
     {
-        return $this->guestSearch->apply(Guest::query(), $term)->orderBy('first_name')->orderBy('last_name')->limit($limit)->get()
+        return $this->guestSearch->apply(Guest::query(), $term)
+            ->when($among !== null, fn ($query) => $query->whereIn('id', $among))
+            ->orderBy('first_name')->orderBy('last_name')->limit($limit)->get()
             ->map(fn (Guest $guest): GuestSummary => $this->guest($guest))->values()->all();
     }
 
@@ -38,6 +41,18 @@ class GuestLookupService implements GuestLookup
         }
 
         return $guest instanceof Guest && ! $guest->trashed() ? $this->guest($guest) : null;
+    }
+
+    public function names(array $guestIds): array
+    {
+        $guests = Guest::withTrashed()->whereIn('id', array_unique($guestIds))->get(['id', 'title', 'first_name', 'last_name', 'merged_into_id', 'deleted_at'])->keyBy('id');
+        $names = [];
+
+        foreach ($guests as $id => $guest) {
+            $names[(int) $id] = $guest->merged_into_id !== null ? ($this->find($guest->id)->name ?? $guest->full_name) : $guest->full_name;
+        }
+
+        return $names;
     }
 
     public function isBlacklisted(int $guestId): bool
