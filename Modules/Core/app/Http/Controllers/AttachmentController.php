@@ -21,8 +21,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Files are only ever served here, after checking the attached record's policy
- * (`view` to download, `update` to upload or delete). Media is tenant-scoped, so
- * another tenant's file is a 404.
+ * (`view` to download, `update` to upload or delete). A policy with a `viewAttachments`
+ * method guards downloads more strictly than the record itself (e.g. guest ID scans).
+ * Media is tenant-scoped, so another tenant's file is a 404.
  */
 class AttachmentController extends Controller
 {
@@ -47,7 +48,7 @@ class AttachmentController extends Controller
      */
     public function show(Request $request, Media $media): StreamedResponse
     {
-        Gate::authorize('view', $media->model);
+        Gate::authorize($this->viewAbility($media->model), $media->model);
 
         if ($request->query('conversion') === Attachments::THUMB && $media->hasGeneratedConversion(Attachments::THUMB)) {
             return Storage::disk($media->conversions_disk ?: $media->disk)->response($media->getPathRelativeToRoot(Attachments::THUMB));
@@ -63,6 +64,13 @@ class AttachmentController extends Controller
         $deleteAttachment->handle($media);
 
         return back()->with('success', __('Attachment deleted.'));
+    }
+
+    private function viewAbility(mixed $subject): string
+    {
+        $policy = is_object($subject) ? Gate::getPolicyFor($subject) : null;
+
+        return is_object($policy) && method_exists($policy, 'viewAttachments') ? 'viewAttachments' : 'view';
     }
 
     /**

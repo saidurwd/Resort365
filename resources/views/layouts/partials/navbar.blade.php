@@ -42,7 +42,17 @@
         </ul>
 
         <ul class="navbar-nav ms-auto">
-            {{-- TODO(step-1.2): quick search. $notificationBell is shared by the Core module. --}}
+            {{-- $quickSearch is shared by the Guest module (guests; reservations join later), $notificationBell by Core. --}}
+            @isset($quickSearch)
+                <li class="nav-item d-none d-lg-flex align-items-center me-2">
+                    <form method="GET" action="{{ $quickSearch['url'] }}" role="search" data-quick-search>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" name="search" class="form-control" placeholder="{{ $quickSearch['placeholder'] }}" aria-label="{{ $quickSearch['placeholder'] }}" value="{{ request()->routeIs('guest.guests.index') ? request('search') : '' }}">
+                        </div>
+                    </form>
+                </li>
+            @endisset
             @isset($notificationBell)
                 <li class="nav-item dropdown">
                     <a class="nav-link position-relative" href="#" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('Notifications') }}" data-notification-bell>

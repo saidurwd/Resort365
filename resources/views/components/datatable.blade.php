@@ -5,12 +5,14 @@
     'order' => [[0, 'asc']],
     'pageLength' => 25,
     'emptyText' => null,
+    'search' => null,
 ])
 
 {{--
     Server-side DataTable backed by a yajra/laravel-datatables endpoint.
     columns: list of ['data' => 'code', 'title' => __('Code'), 'orderable' => true, 'searchable' => true, 'className' => 'text-end']
     <x-datatable id="rooms-table" :url="route('property.rooms.data')" :columns="$columns" />
+    `search` pre-fills the search box (e.g. from the navbar quick search).
 --}}
 @php
     $config = [
@@ -25,6 +27,10 @@
         'order' => $order,
         'pageLength' => $pageLength,
     ];
+
+    if ($search !== null && $search !== '') {
+        $config['search'] = ['search' => $search];
+    }
 @endphp
 
 <div class="table-responsive">

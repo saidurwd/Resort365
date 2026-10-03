@@ -522,7 +522,8 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - Duplicate detection and merge.
 - Stay history and lifetime value.
 - VIP level, tags and blacklist (with reason).
-- Companies and travel agents (shared with Reservation).
+- Companies and travel agents (shared with Reservation through the `GuestLookup` contract).
+- *Implemented in Step 1.2: profiles, encrypted ID with ID documents, duplicate detection (phone, email, ID document) and merge (`GuestsMerged` event), blacklist, VIP level, companies, travel agents, `GuestLookup`. Not yet scheduled: stay history and lifetime value (need reservations), tags, data export and anonymisation.*
 - Marketing consent (GDPR-style), data export and anonymization on request.
 
 ### 5.9 Billing & Payments
@@ -1117,6 +1118,14 @@ Unique: `(tenant_id, code)`
 
 **`guests`**
 `id, tenant_id, title, first_name, last_name, email, phone, nationality_code, date_of_birth, id_type, id_number(encrypted), id_expiry, address(json), company_id, vip_level, is_blacklisted, blacklist_reason, preferences(json), marketing_consent, notes`
+*(Step 1.2 implementation notes: guests are tenant-wide (shared by the tenant's properties) and soft-deleted. Extra columns: `id_number_hash` (keyed HMAC-SHA256 of the normalised ID type and number, so duplicates can be found while `id_number` stays encrypted; derived from APP_KEY), `blacklisted_at`, `blacklisted_by` and `merged_into_id` (set on the profile removed by a merge). `phone` is stored in international format (`+8801711000000`; local numbers get the `guest.default_calling_code` setting) and `email` in lower case. Indexes start with `tenant_id`: phone, email, id_number_hash, (last_name, first_name), first_name.)*
+
+**`companies`** (Guest module)
+`id, tenant_id, name, legal_name, tax_number, contact_person, email, phone, address(json), credit_limit, payment_terms_days, is_active, notes, deleted_at`
+
+**`travel_agents`** (Guest module)
+`id, tenant_id, code, name, contact_person, email, phone, address(json), commission_percent DECIMAL(5,2), credit_limit, is_active, notes, deleted_at`
+Unique: `(tenant_id, code)`. Credit limits are in the tenant's base currency (`core.currency`).
 
 **`reservations`**
 `id, tenant_id, property_id, code, status, payment_status, source, primary_guest_id, company_id, travel_agent_id, check_in, check_out, adults, children, currency_code, exchange_rate, subtotal, discount_total, tax_total, grand_total, deposit_policy_id, deposit_percent, deposit_required, deposit_due_at, amount_paid, balance_due, cancellation_policy_id, promo_code, special_requests, internal_notes, confirmed_at, cancelled_at, cancellation_reason, cancellation_fee, checked_in_at, checked_out_at, created_by`
@@ -1251,7 +1260,8 @@ Unique: `(outlet_id, bill_no)`
 | Core | `settings`, `document_sequences`, `approval_workflows`, `approval_steps`, `approval_requests`, `approval_actions`, `attachments`, `notification_templates`, `activity_log`, `taxes`, `tax_categories`, `tax_category_taxes`, `countries`, `currencies`, `exchange_rates` |
 | IAM | `users`, `roles`, `permissions`, `model_has_roles`, `role_has_permissions`, `login_histories`, `user_invitations` |
 | Property | `property_user`; tenant-wide `departments`, `amenities`, `amenity_links` (polymorphic), see §8.3 |
-| Reservation | `quotes`, `quote_items`, `companies`, `travel_agents`, `reservation_logs`, `waitlist_entries` |
+| Guest | `guests`, `companies`, `travel_agents` |
+| Reservation | `quotes`, `quote_items`, `reservation_logs`, `waitlist_entries` |
 | Restaurant | See [§8.4](#84-restaurant-core), plus `outlet_user`, `combo_components`, `discount_reasons`, `void_reasons`, `wastage_entries`, `manager_approvals` |
 | Front Office | `night_audits`, `daily_statistics`, `registration_cards`, `room_moves`, `guest_requests` |
 | Billing | `charge_codes`, `extra_services`, `cashier_shifts`, `refund_requests`, `payment_gateway_logs` |
@@ -1582,7 +1592,7 @@ Please confirm or adjust. The document reflects the **assumed answer** in each c
 | Q3 | Which **countries** and **currencies** at launch? Which taxes apply (VAT, service charge, tourism levy)? | Configurable; a single country first, with multi-currency ready. | Answer: multi-currency ready
 | Q4 | Which **payment gateways** are required (Stripe, PayPal, SSLCommerz, bKash…)? | A gateway abstraction in Phase 1; the first real gateway in Phase 8. | Answer: SSLCommerze, bKash is ok now but will need all in future
 | Q5 | Is **online guest self-booking** needed in the first release, or is staff-entered booking enough initially? | Staff-entered in v1; public booking engine in Phase 8. | Answer: online guest self-booking including staff-entered booking
-| Q6 | Should a specific **room number be assigned at booking**, or booked by room type and assigned at check-in? | Assigned at booking (auto-picked, changeable). Simpler and fully safe against overbooking. |
+| Q6 | Should a specific **room number be assigned at booking**, or booked by room type and assigned at check-in? | Assigned at booking (auto-picked, changeable). Simpler and fully safe against overbooking. | Answer: assign the room number at booking.
 | Q7 | **Deposit:** is 30–50% fixed per resort, or negotiable per booking? Is the deposit refundable, and on what terms? Should unpaid bookings auto-cancel, and after how long? | Per-resort policy with a 30–50% range that staff can choose within; refund per cancellation policy; auto-cancel after 48 h. |
 | Q8 | **Revenue recognition:** nightly at night audit (accrual, international standard) or at check-out (simpler)? | Nightly, with check-out mode as an option. |
 | Q9 | **Payroll:** which country's tax and statutory rules (provident fund, gratuity, social security)? Is **service charge distribution** required? | **Bangladesh** (confirmed in review). Rules stay configurable, but are seeded with Bangladesh defaults: income tax slabs, provident fund, gratuity, festival bonuses. Service charge distribution included. *Please confirm which statutory items apply to your resorts.* |
@@ -1593,7 +1603,7 @@ Please confirm or adjust. The document reflects the **assumed answer** in each c
 | Q14 | Should the UI stay **pure Blade + Alpine.js**, or is **Livewire** acceptable for highly interactive screens (booking wizard, tape chart)? | Blade + Alpine.js, as requested. The POS order screen and kitchen display use Alpine.js with small JSON endpoints (no page reloads). If they become hard to maintain, Livewire is the fallback for those screens only. |
 | Q15 | Is **inventory** needed per resort only, or also a **central warehouse** shared by a company's resorts? | Stores belong to a property; inter-property transfers supported. | Answer: inventory will be resort wise.
 | Q16 | How many **outlets** per resort, and of what type (restaurant, bar, café, room service, mini-bar)? Do outlets have separate kitchens? | Several outlets per property; each outlet has its own stations and store. |
-| Q17 | **Printing:** are there thermal receipt/KOT printers? Is silent printing (no browser print dialog) required from day one? | Browser printing in v1; a silent printing agent in Phase 8. |
+| Q17 | **Printing:** are there thermal receipt/KOT printers? Is silent printing (no browser print dialog) required from day one? | Browser printing in v1; a silent printing agent in Phase 8. | A. Thermal receipt A. silent printing is not required day 1.
 | Q18 | **Kitchen display screens**, printed KOTs, or both? | Configurable per station; both supported. |
 | Q19 | Must the POS keep working when the **internet is down**? | No in v1 (needs a network connection); offline mode listed as a later enhancement. If the resort's connection is unreliable, this becomes a high priority and changes the POS design. |
 | Q20 | Is a **fiscal / VAT-authority device or e-receipt integration** legally required for restaurant bills in Bangladesh (e.g. NBR electronic fiscal device)? | Adapter contract prepared; the integration is built when requirements are confirmed. |

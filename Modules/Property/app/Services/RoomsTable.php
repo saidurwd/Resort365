@@ -43,8 +43,8 @@ class RoomsTable
             ->editColumn('number', fn (Room $room): string => '<span class="fw-semibold">'.e($room->number).'</span>'
                 .($room->name !== null ? '<div class="small text-body-secondary">'.e($room->name).'</div>' : ''))
             ->addColumn('cottage', fn (Room $room): string => '<a href="'.e(route('property.cottages.show', $room->cottage)).'">'.e($room->cottage->name).'</a>')
-            ->addColumn('type', fn (Room $room): string => e($room->roomType->name))
-            ->editColumn('floor', fn (Room $room): string => e($room->floor ?? '—'))
+            ->addColumn('type', fn (Room $room): string => $room->roomType->name)
+            ->editColumn('floor', fn (Room $room): string => $room->floor ?? '—')
             ->addColumn('capacity', function (Room $room): string {
                 $capacity = $this->occupancy->forRoom($room);
 

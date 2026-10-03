@@ -97,7 +97,8 @@ it('lists the current property\'s cottages and rooms in the DataTables', functio
     [$roomType, $cottageType] = setupTypes('CXB');
     [$sylhetRoomType, $sylhetCottageType] = setupTypes('SYL');
     PropertySetup::run(function () use ($roomType, $cottageType, $sylhetRoomType, $sylhetCottageType): void {
-        $cottage = Cottage::factory()->create(['property_id' => $cottageType->property_id, 'cottage_type_id' => $cottageType->id, 'name' => 'Palm']);
+        $cottageType->update(['name' => "Captain's Cottage"]);
+        $cottage = Cottage::factory()->create(['property_id' => $cottageType->property_id, 'cottage_type_id' => $cottageType->id, 'name' => 'Palm', 'zone' => "Children's garden"]);
         Room::factory()->create(['property_id' => $cottage->property_id, 'cottage_id' => $cottage->id, 'room_type_id' => $roomType->id, 'number' => '401']);
         $other = Cottage::factory()->create(['property_id' => $sylhetCottageType->property_id, 'cottage_type_id' => $sylhetCottageType->id, 'name' => 'Malnicherra']);
         Room::factory()->create(['property_id' => $other->property_id, 'cottage_id' => $other->id, 'room_type_id' => $sylhetRoomType->id, 'number' => '901']);
@@ -113,6 +114,8 @@ it('lists the current property\'s cottages and rooms in the DataTables', functio
     expect($cottages)->toHaveCount(1)
         ->and($cottages[0]['name'])->toContain('Palm')
         ->and($cottages[0]['max_occupancy'])->toBe(3)
+        ->and($cottages[0]['type'])->toBe('Captain&#039;s Cottage')
+        ->and($cottages[0]['zone'])->toBe('Children&#039;s garden')
         ->and($rooms)->toHaveCount(1)
         ->and($rooms[0]['number'])->toContain('401');
 

@@ -85,6 +85,10 @@ class DemoSeeder extends Seeder
         $this->cottages($sunrise, $sylhet, DemoResorts::sylhet());
         $this->cottages($greenValley, $valley, DemoResorts::greenValley());
 
+        // Step 1.2: guests (10,000 for Sunrise, to try search at scale), companies and travel agents.
+        DemoGuests::seed($sunrise, 10_000);
+        DemoGuests::seed($greenValley, 200);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

@@ -42,8 +42,8 @@ class CottagesTable
 
         return $this->dataTables->eloquent($query)
             ->editColumn('name', fn (Cottage $cottage): string => '<a href="'.e(route('property.cottages.show', $cottage)).'" class="fw-semibold">'.e($cottage->name).'</a>')
-            ->addColumn('type', fn (Cottage $cottage): string => e($cottage->cottageType->name))
-            ->editColumn('zone', fn (Cottage $cottage): string => e($cottage->zone ?? '—'))
+            ->addColumn('type', fn (Cottage $cottage): string => $cottage->cottageType->name)
+            ->editColumn('zone', fn (Cottage $cottage): string => $cottage->zone ?? '—')
             ->editColumn('booking_mode', fn (Cottage $cottage): string => Blade::render('<x-status-badge :status="$status" />', ['status' => $cottage->booking_mode]))
             ->addColumn('max_occupancy', fn (Cottage $cottage): int => $this->occupancy->forCottage($cottage))
             ->editColumn('status', fn (Cottage $cottage): string => Blade::render('<x-status-badge :status="$status" />', ['status' => $cottage->status]))

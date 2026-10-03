@@ -5,6 +5,11 @@ use App\Support\Tenancy\PropertyAccess;
 use App\Support\Tenancy\TenantContext;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Guest\Contracts\GuestLookup;
+use Modules\Guest\DTOs\GuestSummary;
+use Modules\Guest\Models\Company;
+use Modules\Guest\Models\Guest;
+use Modules\Guest\Models\TravelAgent;
 use Modules\IAM\Models\User;
 use Modules\Property\Enums\BookingMode;
 use Modules\Property\Models\Amenity;
@@ -62,4 +67,24 @@ it('sets up each resort with single-room and multi-room cottages (Step 1.1)', fu
     app(TenantContext::class)->run(tenant('greenvalley'), function () use ($layout): void {
         expect($layout('GVR'))->toBe([1, 1, 1, 2, 4]);
     });
+});
+
+it('seeds guests to search at scale, with a duplicate pair and a blacklisted guest (Step 1.2)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('sunrise'), function (): void {
+        expect(Guest::query()->count())->toBe(10_000)
+            ->and(Company::query()->count())->toBe(8)
+            ->and(TravelAgent::query()->count())->toBe(5)
+            ->and(Guest::query()->where('phone', '+8801711000001')->count())->toBe(2)
+            ->and(Guest::query()->where('is_blacklisted', true)->pluck('first_name')->all())->toBe(['Kamal'])
+            ->and(array_map(fn (GuestSummary $guest) => $guest->name, app(GuestLookup::class)->search('01711-000001')))->toEqualCanonicalizing(['Rahim Uddin', 'Mr Rahim Uddin']);
+
+        // Bulk-inserted guests are readable like any other: decrypted ID, hash in step.
+        $guest = Guest::query()->where('phone', '+8801710000001')->sole();
+        expect($guest->id_number)->toBe('1000000001')
+            ->and(app(GuestLookup::class)->search('1000000001')[0]->id)->toBe($guest->id);
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(Guest::query()->count())->toBe(200));
 });

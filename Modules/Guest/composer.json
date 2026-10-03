@@ -1,0 +1,24 @@
+{
+    "name": "resort365/guest",
+    "description": "Resort365 Guest module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Guest\\": "app/",
+            "Modules\\Guest\\Database\\Factories\\": "database/factories/",
+            "Modules\\Guest\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Guest\\Tests\\": "tests/"
+        }
+    }
+}
