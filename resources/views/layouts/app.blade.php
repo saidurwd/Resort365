@@ -1,12 +1,13 @@
 @props([
     'title' => null,
+    'subtitle' => null,
     'breadcrumbs' => [],
 ])
 
 {{--
     Admin layout (AdminLTE 4).
 
-    <x-layouts::app :title="__('Rooms')" :breadcrumbs="[__('Setup') => null, __('Rooms') => null]">
+    <x-layouts::app :title="__('Rooms')" :subtitle="$propertyName" :breadcrumbs="[__('Setup') => null, __('Rooms') => null]">
         <x-slot:actions>…buttons…</x-slot:actions>
         …content…
     </x-layouts::app>
@@ -29,7 +30,7 @@
                     @if (isset($header))
                         {{ $header }}
                     @elseif ($title)
-                        <x-page-header :title="$title" :breadcrumbs="$breadcrumbs">
+                        <x-page-header :title="$title" :subtitle="$subtitle" :breadcrumbs="$breadcrumbs">
                             @isset($actions)
                                 <x-slot:actions>{{ $actions }}</x-slot:actions>
                             @endisset

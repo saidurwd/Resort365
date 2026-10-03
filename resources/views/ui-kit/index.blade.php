@@ -96,11 +96,12 @@
     </section>
 
     <section class="ui-kit-section">
-        <h5 class="mb-3">{{ __('Attachments, approvals and history') }}</h5>
+        <h5 class="mb-3">{{ __('Attachments, photos, approvals and history') }}</h5>
         <div class="row">
             <div class="col-lg-4"><x-attachments :items="$attachments" upload-url="#" /></div>
             <div class="col-lg-4"><x-approval-panel :steps="$approvalSteps" approve-url="#" reject-url="#" :title="__('PO-2026-00017 approvals')" /></div>
             <div class="col-lg-4"><x-audit-trail :entries="$auditEntries" /></div>
+            <div class="col-lg-6"><x-photo-gallery :items="$photos" upload-url="#" :title="__('Photos (Family Villa)')" /></div>
         </div>
     </section>
 

@@ -2,12 +2,16 @@
 
 namespace Modules\Core\Http\Controllers;
 
+use App\Support\Attachments\Attachments;
 use App\Support\Attachments\HasAttachments;
+use App\Support\Attachments\HasPhotos;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Modules\Core\Actions\AddAttachment;
 use Modules\Core\Actions\DeleteAttachment;
 use Modules\Core\Http\Requests\UploadAttachmentRequest;
@@ -27,17 +31,29 @@ class AttachmentController extends Controller
         $subject = $this->subject($type, $id);
         Gate::authorize('update', $subject);
 
-        $user = $request->user();
-        $media = $addAttachment->handle($subject, $request->file('file'), $user instanceof Model ? $user : null);
+        $collection = $request->collection();
+        abort_if($collection === Attachments::PHOTOS && ! in_array(HasPhotos::class, class_uses_recursive($subject), true), 404);
 
-        return back()->with('success', __('":name" attached.', ['name' => $media->file_name]));
+        $user = $request->user();
+        $media = $addAttachment->handle($subject, $request->file('file'), $user instanceof Model ? $user : null, $collection);
+
+        return back()->with('success', $collection === Attachments::PHOTOS
+            ? __('Photo ":name" added.', ['name' => $media->file_name])
+            : __('":name" attached.', ['name' => $media->file_name]));
     }
 
-    public function show(Media $media): StreamedResponse
+    /**
+     * The file, or its gallery thumbnail with ?conversion=thumb.
+     */
+    public function show(Request $request, Media $media): StreamedResponse
     {
         Gate::authorize('view', $media->model);
 
-        return $media->toInlineResponse(request());
+        if ($request->query('conversion') === Attachments::THUMB && $media->hasGeneratedConversion(Attachments::THUMB)) {
+            return Storage::disk($media->conversions_disk ?: $media->disk)->response($media->getPathRelativeToRoot(Attachments::THUMB));
+        }
+
+        return $media->toInlineResponse($request);
     }
 
     public function destroy(Media $media, DeleteAttachment $deleteAttachment): RedirectResponse

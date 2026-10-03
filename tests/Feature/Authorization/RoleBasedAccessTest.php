@@ -61,14 +61,14 @@ function sidebarOf(DefaultRole $role): array
 }
 
 it('shows Front Desk and Accountant different sidebars', function (): void {
-    expect(sidebarOf(DefaultRole::FrontDeskAgent))->toBe(['Dashboard', 'Front Office', 'Front Desk'])
-        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Accounting', 'Journal Entries']);
+    expect(sidebarOf(DefaultRole::FrontDeskAgent))->toBe(['Dashboard', 'Front Office', 'Front Desk', 'Setup', 'Cottages', 'Rooms', 'Cottage types', 'Room types'])
+        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Accounting', 'Journal Entries', 'Setup', 'Departments']);
 });
 
 it('shows the Tenant Owner everything, including setup', function (): void {
     expect(sidebarOf(DefaultRole::TenantOwner))->toBe([
         'Dashboard', 'Front Office', 'Front Desk', 'Accounting', 'Journal Entries',
-        'Setup', 'Properties', 'Users', 'Property access', 'Roles & permissions', 'Settings', 'Document numbering', 'Audit log',
+        'Setup', 'Properties', 'Cottages', 'Rooms', 'Cottage types', 'Room types', 'Amenities', 'Departments', 'Users', 'Property access', 'Roles & permissions', 'Settings', 'Document numbering', 'Audit log',
     ]);
 });
 

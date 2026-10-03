@@ -9,7 +9,8 @@ use Spatie\Activitylog\Support\LogOptions;
 /**
  * Audit logging for business models (Standard Step Rule R4, ARCHITECTURE §9.2): every create,
  * update and delete is recorded with the changed attributes (old and new) and who did it.
- * Hidden attributes (passwords, secrets, tokens) are never logged; see also
+ * Hidden attributes (passwords, secrets, tokens), keys and timestamps (including soft deletes,
+ * which appear as a "deleted" entry) are never logged as changes; see also
  * config('activitylog.default_except_attributes').
  *
  * Override activityLogExcept() to leave out more attributes.
@@ -22,7 +23,7 @@ trait RecordsActivity
     {
         return LogOptions::defaults()
             ->logAll()
-            ->logExcept([...$this->getHidden(), ...$this->activityLogExcept(), $this->getKeyName(), 'tenant_id', 'created_at', 'updated_at', 'property_scope'])
+            ->logExcept([...$this->getHidden(), ...$this->activityLogExcept(), $this->getKeyName(), 'tenant_id', 'created_at', 'updated_at', 'deleted_at', 'property_scope'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName(Str::snake(class_basename($this)))

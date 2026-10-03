@@ -53,6 +53,12 @@ class UiKitSamples
                 ['name' => 'passport-rahim-uddin.pdf', 'url' => '#', 'size' => 482_311, 'uploaded_by' => 'Front Desk', 'uploaded_at' => Carbon::parse('2026-09-20 10:15')],
                 ['name' => 'booking-confirmation.png', 'url' => '#', 'size' => 96_004, 'uploaded_by' => 'Reservations', 'uploaded_at' => Carbon::parse('2026-09-21 16:40')],
             ],
+            'photos' => array_map(fn (array $photo): array => [
+                'name' => $photo[0],
+                'url' => '#',
+                'thumb_url' => 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"><rect width="3" height="2" fill="'.$photo[1].'"/></svg>'),
+                'delete_url' => '#',
+            ], [['family-villa-front.jpg', '#4f8a8b'], ['family-villa-terrace.jpg', '#f4a259'], ['master-bedroom.jpg', '#8cb369'], ['sea-view.jpg', '#5b8e7d']]),
             'approvalSteps' => [
                 ['level' => 1, 'role' => __('Purchase Manager'), 'approver' => 'Arif Chowdhury', 'status' => DemoStatus::Confirmed, 'acted_at' => Carbon::parse('2026-09-24 11:05'), 'comment' => __('Within budget.')],
                 ['level' => 2, 'role' => __('General Manager'), 'approver' => null, 'status' => DemoStatus::Tentative, 'acted_at' => null, 'comment' => null],

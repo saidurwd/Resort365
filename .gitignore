@@ -34,3 +34,6 @@ Thumbs.db
 /tests/Browser/console
 /tests/Browser/screenshots
 /tests/Browser/source
+
+# Local database dumps
+/_db/

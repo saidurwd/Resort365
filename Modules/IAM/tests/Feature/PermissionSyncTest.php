@@ -40,14 +40,17 @@ it('stores registered permissions and creates default roles for every tenant', f
     expect(rolePermissions($a, 'tenant-owner'))->toBe(app(PermissionRegistry::class)->names())
         ->and(rolePermissions($a, 'auditor'))->toBe([
             'core.audit.view', 'core.sequence.view', 'core.setting.view', 'iam.role.view', 'iam.user.view',
-            'property.property.access-all', 'property.property.view',
+            'property.amenity.view', 'property.cottage.view', 'property.department.view', 'property.property.access-all',
+            'property.property.view', 'property.room.view',
         ])
         ->and(rolePermissions($a, 'general-manager'))->toBe([
             'core.audit.view', 'core.sequence.update', 'core.sequence.view', 'core.setting.update', 'core.setting.view',
             'iam.role.view', 'iam.user.invite', 'iam.user.update', 'iam.user.view',
-            'property.property.update', 'property.property.view',
+            'property.amenity.manage', 'property.amenity.view', 'property.cottage.manage', 'property.cottage.view',
+            'property.department.manage', 'property.department.view', 'property.property.update', 'property.property.view',
+            'property.room.manage', 'property.room.view',
         ])
-        ->and(rolePermissions($a, 'front-desk-agent'))->toBe([]);
+        ->and(rolePermissions($a, 'front-desk-agent'))->toBe(['property.cottage.view', 'property.room.view']);
 });
 
 it('updates default roles when a module adds a permission, and leaves custom roles alone', function (): void {
@@ -60,7 +63,7 @@ it('updates default roles when a module adds a permission, and leaves custom rol
     ]);
     artisan('permissions:sync')->assertSuccessful();
 
-    expect(rolePermissions($tenant, 'front-desk-agent'))->toBe(['frontoffice.desk.view'])
+    expect(rolePermissions($tenant, 'front-desk-agent'))->toBe(['frontoffice.desk.view', 'property.cottage.view', 'property.room.view'])
         ->and(rolePermissions($tenant, 'Night manager'))->toBe(['iam.user.view']);
 });
 

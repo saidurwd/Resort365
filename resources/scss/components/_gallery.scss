@@ -1,0 +1,23 @@
+// Photo gallery (<x-photo-gallery>): fixed-ratio thumbnails in a responsive grid.
+.photo-gallery {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+}
+
+.photo-gallery-item {
+    position: relative;
+
+    img {
+        aspect-ratio: 3 / 2;
+        border-radius: var(--bs-border-radius);
+        object-fit: cover;
+        width: 100%;
+    }
+
+    form {
+        position: absolute;
+        right: .375rem;
+        top: .375rem;
+    }
+}

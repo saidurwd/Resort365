@@ -460,14 +460,14 @@ Master data for the physical resort.
 - **Cottages:** number/name, type, zone/location, **booking mode** (`rooms_only`, `whole_only`, `both`), status.
 - **Room types:** e.g. *Deluxe King*, *Twin*, with base occupancy, max adults and children, bed configuration, size and amenities.
 - **Rooms:** number, cottage, room type, floor, occupancy overrides, active flag.
-- Amenities and facilities catalogue; photo galleries.
-- Departments (Front Office, Housekeeping, F&B, Maintenance, Admin…), shared by HR, Inventory and Accounting as cost centres.
+- Amenities and facilities catalogue (one per tenant, shared by its properties); photo galleries.
+- Departments (Front Office, Housekeeping, F&B, Maintenance, Admin…), one list per tenant, shared by HR, Inventory and Accounting as cost centres.
 
 **Business rules**
 
 - Every room belongs to exactly one cottage. A single-room cottage is simply a cottage with one room, so no special case is needed.
 - A cottage's maximum occupancy is the sum of its rooms' occupancy, unless overridden.
-- A room with future bookings cannot be deleted. It can only be deactivated after its bookings are moved.
+- A room with future bookings cannot be deleted. It can only be deactivated after its bookings are moved. (The Property module asks through its `RoomUsage` contract, which the Reservation module implements.)
 
 ### 5.5 Rates
 
@@ -1101,6 +1101,19 @@ erDiagram
 **`rooms`**
 `id, tenant_id, property_id, cottage_id, room_type_id, number, name, floor, max_adults, max_children, housekeeping_status(clean|dirty|inspected), occupancy_status(vacant|occupied), is_active, sort_order`
 Unique: `(property_id, number)`
+*(Step 1.1 implementation notes: `cottage_types`, `room_types`, `cottages` and `rooms` also have `sort_order` and `deleted_at`; codes are unique per property. A room's empty `max_adults` / `max_children` use its room type's values, and the room type's `max_occupancy` caps every room of the type (adults plus children). A cottage's maximum occupancy is `max_occupancy_override`, or the sum of its active rooms. Deleted rows keep their unique code or room number, because the unique indexes include soft-deleted rows. Photos of cottage types, room types and cottages use the media library's `photos` collection (`HasPhotos`), not gallery tables. As in Phase 0, `created_by` / `updated_by` are not columns: the audit log records who changed what.)*
+
+**`amenities`** (tenant-wide catalogue, shared by the tenant's properties)
+`id, tenant_id, name, icon, category(in_room|bathroom|outdoor|service), is_active, sort_order, deleted_at`
+Unique: `(tenant_id, name)`
+
+**`amenity_links`** (polymorphic: cottage types and room types)
+`id, tenant_id, amenity_id, linkable_type, linkable_id`
+Unique: `(amenity_id, linkable_type, linkable_id)`
+
+**`departments`** (tenant-wide; cost centres for HR, Inventory and Accounting)
+`id, tenant_id, code, name, description, is_active, sort_order, deleted_at`
+Unique: `(tenant_id, code)`
 
 **`guests`**
 `id, tenant_id, title, first_name, last_name, email, phone, nationality_code, date_of_birth, id_type, id_number(encrypted), id_expiry, address(json), company_id, vip_level, is_blacklisted, blacklist_reason, preferences(json), marketing_consent, notes`
@@ -1236,8 +1249,8 @@ Unique: `(outlet_id, bill_no)`
 |---|---|
 | Platform | `tenants`, `plans`, `plan_modules`, `subscriptions`, `tenant_modules`, `platform_admins`, `platform_invoices`, `tenant_usage_snapshots` |
 | Core | `settings`, `document_sequences`, `approval_workflows`, `approval_steps`, `approval_requests`, `approval_actions`, `attachments`, `notification_templates`, `activity_log`, `taxes`, `tax_categories`, `tax_category_taxes`, `countries`, `currencies`, `exchange_rates` |
-| IAM | `users`, `property_user`, `roles`, `permissions`, `model_has_roles`, `role_has_permissions`, `login_histories`, `user_invitations` |
-| Property | `departments`, `amenities`, `amenity_links` (polymorphic) |
+| IAM | `users`, `roles`, `permissions`, `model_has_roles`, `role_has_permissions`, `login_histories`, `user_invitations` |
+| Property | `property_user`; tenant-wide `departments`, `amenities`, `amenity_links` (polymorphic), see §8.3 |
 | Reservation | `quotes`, `quote_items`, `companies`, `travel_agents`, `reservation_logs`, `waitlist_entries` |
 | Restaurant | See [§8.4](#84-restaurant-core), plus `outlet_user`, `combo_components`, `discount_reasons`, `void_reasons`, `wastage_entries`, `manager_approvals` |
 | Front Office | `night_audits`, `daily_statistics`, `registration_cards`, `room_moves`, `guest_requests` |
