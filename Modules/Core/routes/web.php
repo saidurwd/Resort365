@@ -6,6 +6,7 @@ use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\DocumentSequenceController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\SettingsController;
+use Modules\Core\Http\Controllers\TaxController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +26,19 @@ Route::prefix('core')->name('core.')->middleware(['auth', 'verified'])->group(fu
         Route::get('/document-sequences/{type}/edit', [DocumentSequenceController::class, 'edit'])->name('sequences.edit');
         Route::put('/document-sequences/{type}', [DocumentSequenceController::class, 'update'])->name('sequences.update');
     });
+
+    Route::middleware('can:core.tax.manage')->group(function (): void {
+        Route::get('/taxes/create', [TaxController::class, 'create'])->name('taxes.create');
+        Route::post('/taxes', [TaxController::class, 'store'])->name('taxes.store');
+        Route::get('/taxes/{tax}/edit', [TaxController::class, 'edit'])->name('taxes.edit');
+        Route::put('/taxes/{tax}', [TaxController::class, 'update'])->name('taxes.update');
+        Route::delete('/taxes/{tax}', [TaxController::class, 'destroy'])->name('taxes.destroy');
+        Route::get('/tax-categories/create', [TaxController::class, 'createCategory'])->name('tax-categories.create');
+        Route::post('/tax-categories', [TaxController::class, 'storeCategory'])->name('tax-categories.store');
+        Route::get('/tax-categories/{tax_category}/edit', [TaxController::class, 'editCategory'])->name('tax-categories.edit');
+        Route::put('/tax-categories/{tax_category}', [TaxController::class, 'updateCategory'])->name('tax-categories.update');
+    });
+    Route::get('/taxes', [TaxController::class, 'index'])->middleware('can:core.tax.view')->name('taxes.index');
 
     Route::middleware('can:core.audit.view')->group(function (): void {
         Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit.index');

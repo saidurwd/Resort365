@@ -3,20 +3,26 @@
 use App\Models\Tenant;
 use App\Support\Tenancy\PropertyAccess;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Core\Contracts\TaxEngine;
+use Modules\Core\Models\TaxCategory;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Guest\DTOs\GuestSummary;
 use Modules\Guest\Models\Company;
 use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
 use Modules\IAM\Models\User;
+use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\Enums\BookingMode;
 use Modules\Property\Models\Amenity;
 use Modules\Property\Models\Cottage;
 use Modules\Property\Models\Department;
 use Modules\Property\Models\Property;
 use Modules\Property\Services\OccupancyCalculator;
+use Modules\Rates\Models\RatePlan;
+use Modules\Rates\Services\RateCalendar;
 
 use function Pest\Laravel\seed;
 
@@ -87,4 +93,31 @@ it('seeds guests to search at scale, with a duplicate pair and a blacklisted gue
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(Guest::query()->count())->toBe(200));
+});
+
+it('seeds taxes, seasons, rate plans and rates (Step 1.3)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('sunrise'), function (): void {
+        $room = TaxCategory::query()->where('code', 'ROOM')->sole();
+        $cxb = Property::query()->where('code', 'CXB')->sole();
+        $plan = RatePlan::query()->where('property_id', $cxb->id)->where('code', 'RO')->sole();
+        $units = app(InventoryCatalog::class)->unitTypes($cxb->id);
+        $year = CarbonImmutable::now()->year;
+        $days = fn (string $from, string $to): array => app(RateCalendar::class)->rates($plan, $units, CarbonImmutable::parse($from), CarbonImmutable::parse($to));
+
+        expect(app(TaxEngine::class)->calculate('1000', $room->id)->gross)->toBe('1265.00')
+            ->and(RatePlan::query()->where('property_id', $cxb->id)->pluck('code')->sort()->values()->all())->toBe(['BB', 'HB', 'RO']);
+
+        $villaKey = collect($units)->firstWhere('code', 'FV')?->key();
+        $kingKey = collect($units)->firstWhere('code', 'DK')?->key();
+        $newYear = $days("{$year}-12-30", "{$year}-12-31");
+
+        // Deluxe King: 6,000 base; Peak ×1.4 = 8,400; New Year's Eve date price 6,000 × 1.8 = 10,800.
+        expect($newYear[$kingKey]["{$year}-12-31"]?->amount)->toBe('10800.00')
+            ->and($newYear[$kingKey]["{$year}-12-30"]?->seasonName)->toBe('Peak')
+            ->and($newYear[$villaKey]["{$year}-12-31"]?->amount)->toBe('45000.00');
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(RatePlan::query()->pluck('code')->sort()->values()->all())->toBe(['BB', 'RO']));
 });

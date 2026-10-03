@@ -1,0 +1,38 @@
+// Rate grid (Rates module): keep the type column visible while scrolling the dates.
+.rate-grid {
+    th, td {
+        min-width: 5.5rem;
+        white-space: nowrap;
+    }
+
+    .rate-grid-unit {
+        background-color: var(--bs-body-bg);
+        left: 0;
+        min-width: 12rem;
+        position: sticky;
+        z-index: 1;
+    }
+
+    // Weekend columns (Bootstrap tables paint cells from --bs-table-bg).
+    .is-weekend {
+        --bs-table-bg: var(--bs-secondary-bg);
+    }
+
+    // Beats Bootstrap's own inset shadow on table cells.
+    @each $name in primary, success, warning, danger, info, secondary {
+        td.season-mark-#{$name} {
+            box-shadow: inset 3px 0 0 var(--bs-#{$name});
+        }
+    }
+}
+
+// Season accent: a bar on the left of a legend item (and grid cell, above).
+@each $name in primary, success, warning, danger, info, secondary {
+    .season-mark-#{$name} {
+        box-shadow: inset 3px 0 0 var(--bs-#{$name});
+    }
+}
+
+.season-legend {
+    padding-left: .5rem;
+}

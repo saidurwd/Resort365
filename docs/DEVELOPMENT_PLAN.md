@@ -114,7 +114,7 @@ The AI ticks a step here when it commits the step.
 | Phase | Steps |
 |---|---|
 | **0. Foundation** | [x] 0.1 · [x] 0.2 · [x] 0.3 · [x] 0.4 · [x] 0.5 · [x] 0.6 · [x] 0.7 · [x] 0.8 |
-| **1. Property & Booking** | [x] 1.1 · [x] 1.2 · [ ] 1.3 · [ ] 1.4 · [ ] 1.5 · [ ] 1.6 · [ ] 1.7 · [ ] 1.8 |
+| **1. Property & Booking** | [x] 1.1 · [x] 1.2 · [x] 1.3 · [ ] 1.4 · [ ] 1.5 · [ ] 1.6 · [ ] 1.7 · [ ] 1.8 |
 | **2. Front Office, Billing & Housekeeping** | [ ] 2.1 · [ ] 2.2 · [ ] 2.3 · [ ] 2.4 · [ ] 2.5 · [ ] 2.6 · [ ] 2.7 |
 | **3. Restaurant POS** | [ ] 3.1 · [ ] 3.2 · [ ] 3.3 · [ ] 3.4 · [ ] 3.5 · [ ] 3.6 · [ ] 3.7 · [ ] 3.8 |
 | **4. Accounting** | [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4 · [ ] 4.5 |

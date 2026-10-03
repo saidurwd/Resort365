@@ -430,7 +430,7 @@ Shared infrastructure used by every module.
 - **Document numbering:** configurable sequences per tenant, property and document type, e.g. `RSV-2026-00001`, `INV-…`, `PO-…`, `GRN-…`, `JV-…`, `PAY-…`. Generated under a row lock and optionally reset each year. *(Every registered sequence is created when the tenant is created, so taking a number is always a single row lock. Creating a sequence on first use under concurrent load can deadlock on gap locks.)*
 - **Approval workflow engine:** a generic multi-level approval process for any "approvable" document (PR, PO, vendor bill, leave, payroll, refund) with amount-based thresholds. Example: PO < 50,000 → Purchase Manager; ≥ 50,000 → General Manager.
 - **Notifications:** email, SMS and in-app channels; per-tenant templates with placeholders; a WhatsApp channel can be added later.
-- **Tax engine:** configurable taxes and charges (VAT, service charge, tourism levy, city tax) with percentage or fixed amount, inclusive or exclusive, compound flag, and tax categories. Shared by Rates (room pricing), Billing (extras) and Restaurant (bills).
+- **Tax engine:** configurable taxes and charges (VAT, service charge, tourism levy, city tax) with percentage or fixed amount, inclusive or exclusive, compound flag, and tax categories. Shared by Rates (room pricing), Billing (extras) and Restaurant (bills). *(Implemented in Step 1.3 as `TaxEngine` / `TaxCalculator`: taxes are applied in calculation order, a compound tax on the net plus the taxes before it, a fixed tax per unit; each tax line is rounded half-up to 2 places, and for inclusive prices net = gross − taxes. Whether an amount includes tax is a property of the **price** (a rate plan's `prices_include_tax`, an outlet's `prices_include_tax`), not of each tax. Taxes have no effective dates yet.)*
 - **Audit log:** every create, update and delete on business records, plus login history.
 - **Attachments:** a polymorphic file-attachment component usable by any module.
 - **Reference data:** countries (ISO 3166), currencies (ISO 4217), timezones, languages.
@@ -1152,6 +1152,7 @@ Unique: `(reservation_item_id, stay_date)`
 `rules: days_before_arrival_from, days_before_arrival_to, charge_type(percent_of_total|percent_of_deposit|nights|fixed), charge_value`
 
 **`seasons`**, **`rate_plans`**, **`rates`**, **`rate_overrides`**, **`rate_restrictions`**, **`taxes`**, **`promotions`**
+*(Step 1.3: `seasons` (name, colour, priority) with `season_periods` (season_id, start_date, end_date), so one season can cover several ranges. `rate_plans`: code, name, meal_plan (EP/CP/MAP/AP), meal_adult_amount, meal_child_amount, is_refundable, prices_include_tax, tax_category_id, valid_from, valid_to, channels (json), is_active, deleted_at. `rate_overrides`: one price per plan, type and date. `rate_restrictions`: per date, rate_plan_id and rateable null = all; rows combine (longest minimum stay, shortest maximum, any closure). `taxes` (code, name, type percent|fixed, rate, is_compound, sort_order, is_active), `tax_categories`, `tax_category_taxes`, all tenant-wide. A night's price: date override → highest-priority season rate (the most specific weekday set) → base rate; a season without a rate for the type falls back to the base rate. Weekend days per property: setting `rates.weekend_days`.)*
 `rates: id, tenant_id, rate_plan_id, rateable_type(room_type|cottage_type), rateable_id, season_id(null = base), dow_mask, amount, extra_adult_amount, extra_child_amount`
 
 **`folios`**
@@ -1380,7 +1381,7 @@ Payroll
 Reports
 Setup
   ├ Property · Cottages · Rooms · Room/Cottage Types
-  ├ Rates · Seasons · Rate Plans · Deposit & Cancellation Policies · Taxes
+  ├ Taxes (Rates, Seasons, Rate Plans and, from Step 1.4, Deposit & Cancellation Policies have their own **Rates** group)
   ├ Users & Roles · Approval Workflows · Document Numbering · Settings
 Subscription (tenant owner only)
 ```

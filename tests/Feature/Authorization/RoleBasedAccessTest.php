@@ -61,14 +61,14 @@ function sidebarOf(DefaultRole $role): array
 }
 
 it('shows Front Desk and Accountant different sidebars', function (): void {
-    expect(sidebarOf(DefaultRole::FrontDeskAgent))->toBe(['Dashboard', 'Front Office', 'Front Desk', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Setup', 'Cottages', 'Rooms', 'Cottage types', 'Room types'])
-        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Guests', 'Companies', 'Travel agents', 'Accounting', 'Journal Entries', 'Setup', 'Departments']);
+    expect(sidebarOf(DefaultRole::FrontDeskAgent))->toBe(['Dashboard', 'Front Office', 'Front Desk', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Setup', 'Cottages', 'Rooms', 'Cottage types', 'Room types'])
+        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Guests', 'Companies', 'Travel agents', 'Accounting', 'Journal Entries', 'Setup', 'Departments', 'Taxes']);
 });
 
 it('shows the Tenant Owner everything, including setup', function (): void {
     expect(sidebarOf(DefaultRole::TenantOwner))->toBe([
-        'Dashboard', 'Front Office', 'Front Desk', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Accounting', 'Journal Entries',
-        'Setup', 'Properties', 'Cottages', 'Rooms', 'Cottage types', 'Room types', 'Amenities', 'Departments', 'Users', 'Property access', 'Roles & permissions', 'Settings', 'Document numbering', 'Audit log',
+        'Dashboard', 'Front Office', 'Front Desk', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Accounting', 'Journal Entries',
+        'Setup', 'Properties', 'Cottages', 'Rooms', 'Cottage types', 'Room types', 'Amenities', 'Departments', 'Taxes', 'Users', 'Property access', 'Roles & permissions', 'Settings', 'Document numbering', 'Audit log',
     ]);
 });
 

@@ -13,6 +13,7 @@
     "license": "proprietary",
     "require": {
         "php": "^8.4",
+        "brick/money": "^0.15.2",
         "laravel/fortify": "^1.40",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",

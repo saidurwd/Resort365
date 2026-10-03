@@ -3,5 +3,6 @@
     "IAM": true,
     "Platform": true,
     "Property": true,
-    "Guest": true
+    "Guest": true,
+    "Rates": true
 }

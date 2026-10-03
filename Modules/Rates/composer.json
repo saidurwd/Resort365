@@ -1,0 +1,24 @@
+{
+    "name": "resort365/rates",
+    "description": "Resort365 Rates module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Rates\\": "app/",
+            "Modules\\Rates\\Database\\Factories\\": "database/factories/",
+            "Modules\\Rates\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Rates\\Tests\\": "tests/"
+        }
+    }
+}

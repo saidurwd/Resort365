@@ -14,6 +14,7 @@ use Modules\Core\Contracts\ExchangeRates;
 use Modules\Core\Contracts\NotificationTemplates;
 use Modules\Core\Contracts\ReferenceData;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\Contracts\TaxEngine;
 use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\NotificationTemplateDefinition;
 use Modules\Core\DTOs\SettingDefinition;
@@ -25,6 +26,7 @@ use Modules\Core\Services\ExchangeRateService;
 use Modules\Core\Services\NotificationTemplateService;
 use Modules\Core\Services\ReferenceDataService;
 use Modules\Core\Services\SettingsService;
+use Modules\Core\Services\TaxEngineService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class CoreServiceProvider extends ModuleServiceProvider
@@ -60,6 +62,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->app->singleton(AuditTrail::class, AuditTrailService::class);
         $this->app->singleton(ExchangeRates::class, ExchangeRateService::class);
         $this->app->singleton(ReferenceData::class, ReferenceDataService::class);
+        $this->app->singleton(TaxEngine::class, TaxEngineService::class);
     }
 
     public function boot(): void
@@ -120,11 +123,18 @@ class CoreServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('core.sequence.update', 'Change document numbering', $managers),
             new PermissionDefinition('core.audit.view', 'View the audit log', $managers),
         ]);
+
+        $permissions->register('Taxes', [
+            new PermissionDefinition('core.tax.view', 'View taxes', [DefaultRole::GeneralManager, DefaultRole::Accountant, DefaultRole::FrontOfficeManager]),
+            new PermissionDefinition('core.tax.manage', 'Change taxes and tax categories', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
+        ]);
     }
 
     private function registerMenu(MenuRegistry $menu): void
     {
         $menu->group('setup', 'Setup', 'bi-gear', order: 900);
+        $menu->add(new MenuItem('core.taxes', 'Taxes', route: 'core.taxes.index', parent: 'setup', order: 9,
+            permission: 'core.tax.view', module: 'core', active: 'core.taxes.*'));
         $menu->add(new MenuItem('core.settings', 'Settings', route: 'core.settings.index', parent: 'setup', order: 30,
             permission: 'core.setting.view', module: 'core', active: 'core.settings.*'));
         $menu->add(new MenuItem('core.sequences', 'Document numbering', route: 'core.sequences.index', parent: 'setup', order: 40,

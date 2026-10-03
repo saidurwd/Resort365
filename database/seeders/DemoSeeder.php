@@ -89,6 +89,13 @@ class DemoSeeder extends Seeder
         DemoGuests::seed($sunrise, 10_000);
         DemoGuests::seed($greenValley, 200);
 
+        // Step 1.3: taxes per tenant; seasons, rate plans and rates per property.
+        DemoRates::taxes($sunrise);
+        DemoRates::taxes($greenValley);
+        DemoRates::rates($sunrise, $coxsBazar, full: true);
+        DemoRates::rates($sunrise, $sylhet, full: false);
+        DemoRates::rates($greenValley, $valley, full: false);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],
