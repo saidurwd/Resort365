@@ -96,6 +96,9 @@ class DemoSeeder extends Seeder
         DemoRates::rates($sunrise, $sylhet, full: false);
         DemoRates::rates($greenValley, $valley, full: false);
 
+        // Step 1.5: a few inventory locks so availability shows their effect.
+        DemoLocks::seed($sunrise, $coxsBazar);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

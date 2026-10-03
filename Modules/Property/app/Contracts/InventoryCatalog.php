@@ -2,6 +2,8 @@
 
 namespace Modules\Property\Contracts;
 
+use Modules\Property\DTOs\CottageSummary;
+use Modules\Property\DTOs\RoomSummary;
 use Modules\Property\DTOs\UnitTypeSummary;
 use Modules\Property\Enums\UnitKind;
 
@@ -19,4 +21,18 @@ interface InventoryCatalog
     public function unitTypes(int $propertyId, bool $activeOnly = false): array;
 
     public function find(UnitKind $kind, int $id): ?UnitTypeSummary;
+
+    /**
+     * The property's rooms (active and inactive), by sort order and number.
+     *
+     * @return list<RoomSummary>
+     */
+    public function rooms(int $propertyId): array;
+
+    /**
+     * The property's cottages (active and inactive), by sort order and name.
+     *
+     * @return list<CottageSummary>
+     */
+    public function cottages(int $propertyId): array;
 }

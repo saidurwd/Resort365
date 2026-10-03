@@ -1,0 +1,24 @@
+{
+    "name": "resort365/reservation",
+    "description": "Resort365 Reservation module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Reservation\\": "app/",
+            "Modules\\Reservation\\Database\\Factories\\": "database/factories/",
+            "Modules\\Reservation\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Reservation\\Tests\\": "tests/"
+        }
+    }
+}

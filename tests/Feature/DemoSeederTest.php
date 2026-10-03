@@ -15,6 +15,7 @@ use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
 use Modules\IAM\Models\User;
 use Modules\Property\Contracts\InventoryCatalog;
+use Modules\Property\DTOs\UnitTypeSummary;
 use Modules\Property\Enums\BookingMode;
 use Modules\Property\Models\Amenity;
 use Modules\Property\Models\Cottage;
@@ -107,7 +108,7 @@ it('seeds taxes, seasons, rate plans and rates (Step 1.3)', function (): void {
         $plan = RatePlan::query()->where('property_id', $cxb->id)->where('code', 'RO')->sole();
         $units = app(InventoryCatalog::class)->unitTypes($cxb->id);
         $year = CarbonImmutable::now()->year;
-        $days = fn (string $from, string $to): array => app(RateCalendar::class)->rates($plan, $units, CarbonImmutable::parse($from), CarbonImmutable::parse($to));
+        $days = fn (string $from, string $to): array => app(RateCalendar::class)->rates($plan, array_map(fn (UnitTypeSummary $unit) => $unit->key(), $units), CarbonImmutable::parse($from), CarbonImmutable::parse($to));
 
         expect(app(TaxEngine::class)->calculate('1000', $room->id)->gross)->toBe('1265.00')
             ->and(RatePlan::query()->where('property_id', $cxb->id)->pluck('code')->sort()->values()->all())->toBe(['BB', 'HB', 'NRF', 'RO'])

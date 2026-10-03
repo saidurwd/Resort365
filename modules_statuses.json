@@ -4,5 +4,6 @@
     "Platform": true,
     "Property": true,
     "Guest": true,
-    "Rates": true
+    "Rates": true,
+    "Reservation": true
 }

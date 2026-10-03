@@ -4,7 +4,6 @@ namespace Modules\Rates\Services;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
-use Modules\Property\DTOs\UnitTypeSummary;
 use Modules\Rates\DTOs\NightlyRate;
 use Modules\Rates\DTOs\RateRow;
 use Modules\Rates\DTOs\RestrictionSet;
@@ -27,10 +26,10 @@ class RateCalendar
     /**
      * Nightly rates per type and date (null = no price set).
      *
-     * @param  list<UnitTypeSummary>  $units
+     * @param  list<string>  $unitKeys  e.g. "room_type:4"
      * @return array<string, array<string, NightlyRate|null>> unit key => date => rate
      */
-    public function rates(RatePlan $plan, array $units, CarbonImmutable $from, CarbonImmutable $to): array
+    public function rates(RatePlan $plan, array $unitKeys, CarbonImmutable $from, CarbonImmutable $to): array
     {
         $seasons = $this->seasons($plan->property_id, $from, $to);
         $rates = Rate::query()->where('rate_plan_id', $plan->id)->get()->groupBy(fn (Rate $rate): string => $rate->rateable_type->value.':'.$rate->rateable_id);
@@ -39,14 +38,14 @@ class RateCalendar
 
         $grid = [];
 
-        foreach ($units as $unit) {
-            $rows = ($rates[$unit->key()] ?? collect())->map(fn (Rate $rate): RateRow => new RateRow(
+        foreach ($unitKeys as $key) {
+            $rows = ($rates[$key] ?? collect())->map(fn (Rate $rate): RateRow => new RateRow(
                 $rate->id, $rate->season_id, $rate->dow_mask, $rate->amount, $rate->extra_adult_amount, $rate->extra_child_amount,
             ))->values()->all();
-            $unitOverrides = ($overrides[$unit->key()] ?? collect())->mapWithKeys(fn (RateOverride $override): array => [$override->date->toDateString() => $override->amount])->all();
+            $unitOverrides = ($overrides[$key] ?? collect())->mapWithKeys(fn (RateOverride $override): array => [$override->date->toDateString() => $override->amount])->all();
 
             foreach (CarbonPeriod::create($from, $to) as $date) {
-                $grid[$unit->key()][$date->toDateString()] = $this->resolver->resolve($date, $seasons, $rows, $unitOverrides[$date->toDateString()] ?? null);
+                $grid[$key][$date->toDateString()] = $this->resolver->resolve($date, $seasons, $rows, $unitOverrides[$date->toDateString()] ?? null);
             }
         }
 
@@ -56,10 +55,10 @@ class RateCalendar
     /**
      * The strictest restrictions per type and date (rows for all plans or all types included).
      *
-     * @param  list<UnitTypeSummary>  $units
+     * @param  list<string>  $unitKeys  e.g. "room_type:4"
      * @return array<string, array<string, RestrictionSet>> unit key => date => restrictions
      */
-    public function restrictions(RatePlan $plan, array $units, CarbonImmutable $from, CarbonImmutable $to): array
+    public function restrictions(RatePlan $plan, array $unitKeys, CarbonImmutable $from, CarbonImmutable $to): array
     {
         $rows = RateRestriction::query()->where('property_id', $plan->property_id)
             ->where(fn ($query) => $query->whereNull('rate_plan_id')->orWhere('rate_plan_id', $plan->id))
@@ -67,15 +66,15 @@ class RateCalendar
 
         $result = [];
 
-        foreach ($units as $unit) {
+        foreach ($unitKeys as $key) {
             foreach ($rows as $row) {
-                if ($row->rateable_type !== null && ($row->rateable_type !== $unit->kind || $row->rateable_id !== $unit->id)) {
+                if ($row->rateable_type !== null && $row->rateable_type->value.':'.$row->rateable_id !== $key) {
                     continue;
                 }
 
                 $date = $row->date->toDateString();
                 $set = new RestrictionSet($row->min_stay, $row->max_stay, $row->closed_to_arrival, $row->closed_to_departure, $row->stop_sell);
-                $result[$unit->key()][$date] = isset($result[$unit->key()][$date]) ? $result[$unit->key()][$date]->merge($set) : $set;
+                $result[$key][$date] = isset($result[$key][$date]) ? $result[$key][$date]->merge($set) : $set;
             }
         }
 

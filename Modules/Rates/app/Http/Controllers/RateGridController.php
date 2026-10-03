@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\Contracts\PropertyDirectory;
+use Modules\Property\DTOs\UnitTypeSummary;
 use Modules\Rates\Actions\SetRateOverrides;
 use Modules\Rates\Actions\SetRestrictions;
 use Modules\Rates\Http\Controllers\Concerns\UsesCurrentProperty;
@@ -45,6 +46,7 @@ class RateGridController extends Controller
         $start = $this->start($request, $properties->find($propertyId)->businessDate ?? now()->toDateString());
         $end = $start->addDays(self::DAYS - 1);
         $units = $catalog->unitTypes($propertyId, activeOnly: true);
+        $keys = array_map(fn (UnitTypeSummary $unit): string => $unit->key(), $units);
 
         return view('rates::grid.index', [
             'propertyName' => $this->currentPropertyName(),
@@ -53,8 +55,8 @@ class RateGridController extends Controller
             'units' => $units,
             'dates' => array_map(fn (CarbonInterface $date): CarbonImmutable => CarbonImmutable::parse($date), CarbonPeriod::create($start, $end)->toArray()),
             'start' => $start,
-            'rates' => $plan instanceof RatePlan ? $calendar->rates($plan, $units, $start, $end) : [],
-            'restrictions' => $plan instanceof RatePlan ? $calendar->restrictions($plan, $units, $start, $end) : [],
+            'rates' => $plan instanceof RatePlan ? $calendar->rates($plan, $keys, $start, $end) : [],
+            'restrictions' => $plan instanceof RatePlan ? $calendar->restrictions($plan, $keys, $start, $end) : [],
             'seasons' => $calendar->seasons($propertyId, $start, $end),
             'weekend' => $this->weekendDays($propertyId),
             'currency' => $this->currency($propertyId),

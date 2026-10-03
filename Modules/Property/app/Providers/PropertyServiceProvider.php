@@ -66,7 +66,7 @@ class PropertyServiceProvider extends ModuleServiceProvider
         $this->app->singleton(PropertyAccess::class, PropertyAccessService::class);
         $this->app->singleton(PropertyDirectory::class, PropertyDirectoryService::class);
         $this->app->singleton(InventoryCatalog::class, InventoryCatalogService::class);
-        // The Reservation module replaces this with the real check (TODO(step-1.6)).
+        // The Reservation module replaces this with the real check (LockedRoomUsage).
         $this->app->bindIf(RoomUsage::class, NoRoomUsage::class, shared: true);
     }
 

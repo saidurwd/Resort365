@@ -882,6 +882,8 @@ for each night in [check_in, check_out):
 
 **Whole-cottage pricing:** use the **cottage-type rate** if one is defined. Otherwise use the sum of the room rates, optionally with a whole-cottage discount (a property setting).
 
+*(Step 1.5 implementation notes: `PricingService` with the pure `PriceCalculator`. Meals are **included in the rate**: the plan's meal component (per adult and child per night) is reported as the part of the price that pays for meals, not added as a supplement. The rate covers the type's base occupancy; adults fill it first, then children, and guests beyond it pay the night's extra-adult / extra-child amounts. A whole cottage uses its cottage-type rate per night, else the sum of its active rooms' rates less `reservation.whole_cottage_discount_percent`. The best single promotion (`PromotionMatcher`) is spread over the nights in proportion; taxes are applied per night. Availability (`AvailabilityService` with the pure `AvailabilityCalculator` and `RestrictionChecker`): stop-sell is checked on every night, closed to arrival / minimum / maximum stay on the arrival night, closed to departure on the departure date. Reservation reaches Property and Rates only through `InventoryCatalog` (rooms, cottages, types) and `RateLookup` (plans, nightly rates, restrictions, promotions). `reservation_item_nights` is created with reservations in Step 1.6; `PricedNight` holds the same columns.)*
+
 Prices are **snapshotted** on the reservation, so later rate changes never alter an existing booking. Re-pricing happens only on an explicit modification.
 
 ### 6.4 Reservation Lifecycle

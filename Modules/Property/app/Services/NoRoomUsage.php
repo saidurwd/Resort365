@@ -5,7 +5,7 @@ namespace Modules\Property\Services;
 use Modules\Property\Contracts\RoomUsage;
 
 /**
- * Default RoomUsage until the Reservation module exists: no room has bookings.
+ * Default RoomUsage when the Reservation module is not installed: no room has bookings.
  */
 class NoRoomUsage implements RoomUsage
 {

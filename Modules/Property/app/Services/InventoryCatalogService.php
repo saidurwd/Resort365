@@ -3,13 +3,40 @@
 namespace Modules\Property\Services;
 
 use Modules\Property\Contracts\InventoryCatalog;
+use Modules\Property\DTOs\CottageSummary;
+use Modules\Property\DTOs\RoomSummary;
 use Modules\Property\DTOs\UnitTypeSummary;
 use Modules\Property\Enums\UnitKind;
+use Modules\Property\Models\Cottage;
 use Modules\Property\Models\CottageType;
+use Modules\Property\Models\Room;
 use Modules\Property\Models\RoomType;
 
 class InventoryCatalogService implements InventoryCatalog
 {
+    public function __construct(private readonly OccupancyCalculator $occupancy) {}
+
+    public function rooms(int $propertyId): array
+    {
+        return Room::query()->where('property_id', $propertyId)->with('roomType')->orderBy('sort_order')->orderBy('number')->get()
+            ->map(function (Room $room): RoomSummary {
+                $capacity = $this->occupancy->forRoom($room);
+
+                return new RoomSummary($room->id, $room->property_id, $room->cottage_id, $room->room_type_id, $room->number, $room->name,
+                    $room->roomType->base_occupancy, $capacity->maxAdults, $capacity->maxChildren, $capacity->maxOccupancy, $room->is_active);
+            })->values()->all();
+    }
+
+    public function cottages(int $propertyId): array
+    {
+        return Cottage::query()->where('property_id', $propertyId)->with('rooms.roomType')->orderBy('sort_order')->orderBy('name')->get()
+            ->map(fn (Cottage $cottage): CottageSummary => new CottageSummary(
+                $cottage->id, $cottage->property_id, $cottage->cottage_type_id, $cottage->code, $cottage->name, $cottage->booking_mode,
+                $this->occupancy->forCottage($cottage), $cottage->rooms->where('is_active', true)->pluck('id')->map(intval(...))->values()->all(),
+                $cottage->isActive(),
+            ))->values()->all();
+    }
+
     public function unitTypes(int $propertyId, bool $activeOnly = false): array
     {
         $rooms = RoomType::query()->where('property_id', $propertyId)->when($activeOnly, fn ($query) => $query->where('is_active', true))

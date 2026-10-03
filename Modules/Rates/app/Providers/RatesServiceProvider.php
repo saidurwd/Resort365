@@ -13,6 +13,7 @@ use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
+use Modules\Rates\Contracts\RateLookup;
 use Modules\Rates\Models\CancellationPolicy;
 use Modules\Rates\Models\CancellationPolicyRule;
 use Modules\Rates\Models\DepositPolicy;
@@ -28,6 +29,7 @@ use Modules\Rates\Policies\DepositPolicyPolicy;
 use Modules\Rates\Policies\PromotionPolicy;
 use Modules\Rates\Policies\RatePlanPolicy;
 use Modules\Rates\Policies\SeasonPolicy;
+use Modules\Rates\Services\RateLookupService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class RatesServiceProvider extends ModuleServiceProvider
@@ -51,6 +53,13 @@ class RatesServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->singleton(RateLookup::class, RateLookupService::class);
+    }
 
     public function boot(): void
     {

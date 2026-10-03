@@ -41,7 +41,7 @@ it('stores registered permissions and creates default roles for every tenant', f
         ->and(rolePermissions($a, 'auditor'))->toBe([
             'core.audit.view', 'core.sequence.view', 'core.setting.view', 'core.tax.view', 'guest.company.view', 'guest.guest.view', 'guest.travel-agent.view',
             'iam.role.view', 'iam.user.view', 'property.amenity.view', 'property.cottage.view', 'property.department.view', 'property.property.access-all',
-            'property.property.view', 'property.room.view', 'rates.policy.view', 'rates.promotion.view', 'rates.rate-plan.view', 'rates.rate.view', 'rates.season.view',
+            'property.property.view', 'property.room.view', 'rates.policy.view', 'rates.promotion.view', 'rates.rate-plan.view', 'rates.rate.view', 'rates.season.view', 'reservation.availability.view',
         ])
         ->and(rolePermissions($a, 'general-manager'))->toBe([
             'core.audit.view', 'core.sequence.update', 'core.sequence.view', 'core.setting.update', 'core.setting.view', 'core.tax.manage', 'core.tax.view',
@@ -51,10 +51,10 @@ it('stores registered permissions and creates default roles for every tenant', f
             'property.amenity.manage', 'property.amenity.view', 'property.cottage.manage', 'property.cottage.view',
             'property.department.manage', 'property.department.view', 'property.property.update', 'property.property.view',
             'property.room.manage', 'property.room.view', 'rates.policy.manage', 'rates.policy.view', 'rates.promotion.manage', 'rates.promotion.view', 'rates.rate-plan.manage', 'rates.rate-plan.view', 'rates.rate.manage', 'rates.rate.view',
-            'rates.season.manage', 'rates.season.view',
+            'rates.season.manage', 'rates.season.view', 'reservation.availability.view',
         ])
         ->and(rolePermissions($a, 'front-desk-agent'))->toBe([
-            'guest.company.view', 'guest.guest.create', 'guest.guest.update', 'guest.guest.view', 'guest.guest.view-id', 'guest.travel-agent.view', 'property.cottage.view', 'property.room.view', 'rates.policy.view', 'rates.promotion.view', 'rates.rate-plan.view', 'rates.rate.view', 'rates.season.view',
+            'guest.company.view', 'guest.guest.create', 'guest.guest.update', 'guest.guest.view', 'guest.guest.view-id', 'guest.travel-agent.view', 'property.cottage.view', 'property.room.view', 'rates.policy.view', 'rates.promotion.view', 'rates.rate-plan.view', 'rates.rate.view', 'rates.season.view', 'reservation.availability.view',
         ]);
 });
 
@@ -69,7 +69,7 @@ it('updates default roles when a module adds a permission, and leaves custom rol
     artisan('permissions:sync')->assertSuccessful();
 
     expect(rolePermissions($tenant, 'front-desk-agent'))->toBe([
-        'frontoffice.desk.view', 'guest.company.view', 'guest.guest.create', 'guest.guest.update', 'guest.guest.view', 'guest.guest.view-id', 'guest.travel-agent.view', 'property.cottage.view', 'property.room.view', 'rates.policy.view', 'rates.promotion.view', 'rates.rate-plan.view', 'rates.rate.view', 'rates.season.view',
+        'frontoffice.desk.view', 'guest.company.view', 'guest.guest.create', 'guest.guest.update', 'guest.guest.view', 'guest.guest.view-id', 'guest.travel-agent.view', 'property.cottage.view', 'property.room.view', 'rates.policy.view', 'rates.promotion.view', 'rates.rate-plan.view', 'rates.rate.view', 'rates.season.view', 'reservation.availability.view',
     ])
         ->and(rolePermissions($tenant, 'Night manager'))->toBe(['iam.user.view']);
 });
