@@ -102,6 +102,11 @@ class DemoSeeder extends Seeder
         // Step 1.6: two tentative bookings made through CreateReservation.
         DemoBookings::seed($rodela, $resort);
 
+        // Step 2.1: charge codes per tenant; the extras catalogue and a folio charge at Rodela.
+        DemoBilling::chargeCodes($rodela);
+        DemoBilling::chargeCodes($greenValley);
+        DemoBilling::extras($rodela, $resort);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

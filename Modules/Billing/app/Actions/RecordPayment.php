@@ -5,11 +5,14 @@ namespace Modules\Billing\Actions;
 use App\Support\Actions\Action;
 use Brick\Math\BigDecimal;
 use Modules\Billing\DTOs\NewPayment;
+use Modules\Billing\Enums\FolioLineType;
 use Modules\Billing\Enums\PaymentStatus;
 use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Events\PaymentReceived;
 use Modules\Billing\Exceptions\PaymentNotAllowed;
+use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Payment;
+use Modules\Billing\Services\FolioLedger;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\ReservationSummary;
@@ -27,6 +30,7 @@ class RecordPayment extends Action
     public function __construct(
         private readonly ReservationLookup $reservations,
         private readonly DocumentNumbers $numbers,
+        private readonly FolioLedger $ledger,
     ) {}
 
     /**
@@ -74,6 +78,17 @@ class RecordPayment extends Action
                 'received_by' => $data->receivedBy,
                 'received_at' => now(),
             ]);
+
+            // The payment also shows on the guest folio (deposits included), reducing its balance.
+            $folio = $this->ledger->guestFolio($reservation->id);
+            $payment->forceFill(['folio_id' => $folio->id])->save();
+            FolioLine::query()->create([
+                'property_id' => $folio->property_id, 'folio_id' => $folio->id, 'posting_date' => $this->ledger->businessDate($folio->property_id),
+                'line_type' => FolioLineType::Payment, 'description' => __(':method payment :receipt', ['method' => $payment->method->label(), 'receipt' => $payment->receipt_no]),
+                'quantity' => '1', 'unit_price' => $payment->amount, 'amount' => $payment->amount, 'tax_amount' => '0', 'total' => $payment->amount,
+                'reference_type' => 'payment', 'reference_id' => $payment->id, 'posted_by' => $data->receivedBy,
+            ]);
+            $this->ledger->recalculate($folio);
 
             PaymentReceived::dispatch($payment->tenant_id, $payment->id, $payment->property_id, $payment->receipt_no, $payment->amount,
                 $payment->currency_code, $reservation->id, (string) $paid->plus($amount)->toScale(2), $data->receivedBy);

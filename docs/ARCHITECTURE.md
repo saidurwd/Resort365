@@ -538,6 +538,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - **Refunds:** policy-driven, and approval-gated above a threshold.
 - **Accounts receivable:** a city ledger for company and travel-agent billing, with aging.
 - Cashier shifts: open/close shift, cash count, variance report.
+- *Implemented in Step 2.1: charge codes (tenant-wide; category for routing, tax category for `TaxEngine`; defaults ROOM, EXBED, FNB, TRANSFER, LAUNDRY, SPA, MISC for new tenants), the extras catalogue (`extra_services`, per property), folios (a guest folio opens with every booking; company, travel-agent and master folios on demand), charges, adjustments (amount incl. tax, may be negative), voids with reason, routing rules per booking and category, and `FolioPostingContract` (in-house, open folio, credit limit: the company's or travel agent's, or `billing.guest_credit_limit` for guest folios). Payments also post a payment line to the guest folio. Staff may post extras before arrival; the in-house rule applies to other modules. Moving lines between folios, invoices and settlement come in Step 2.6.*
 
 ### 5.10 Restaurant (F&B / POS)
 
@@ -1045,7 +1046,7 @@ Operational modules **never write journal entries directly**. They emit events. 
 | Service charge distributed | Service Charge Payable | Salaries Payable |
 | Tips distributed | Tips Payable | Salaries Payable |
 
-**Revenue recognition:** room revenue is recognised **per night at night audit** (the accrual basis and international standard). This is why deposits are held as a liability until the stay happens. *A simpler "recognise at check-out" mode can be offered as a setting. See Q8.*
+**Revenue recognition:** room revenue is recognised **per night at night audit** (the accrual basis and international standard). This is why deposits are held as a liability until the stay happens. *Q8 decided before Phase 2: nightly by default, with a per-tenant setting `billing.revenue_recognition` (`nightly` | `at_checkout`) used by the night audit (Step 2.5) and Accounting.*
 
 **No double counting of restaurant revenue:** when a restaurant bill is charged to a room, the Restaurant posting recognises the revenue (Dr Guest Ledger / Cr F&B Revenue). The folio line that Billing creates is flagged `revenue_posted_by_source = true`, so Billing moves only the receivable and never posts that revenue again.
 
@@ -1174,6 +1175,7 @@ Items and nights mirror `reservation_items` / `reservation_item_nights` (plus `u
 
 **`folio_lines`**
 `id, tenant_id, folio_id, posting_date(business date), line_type(charge|payment|adjustment|refund), charge_code, description, quantity, unit_price, amount, tax_amount, reference_type, reference_id, is_voided, voided_by, void_reason`
+*(Step 2.1: `folios` also has `name` (who it is for) and `bill_to_type` guest|company|travel_agent; numbered `FOL-…`. `folio_lines` have `property_id`, `charge_code_id` and `extra_service_id` (foreign keys), `total` (amount + tax; FolioLineType::sign() decides whether it adds to the balance), `revenue_posted_by_source`, `routed_from_folio_id`, `voided_at` and `posted_by`. New tables: `charge_codes` (code, name, category, tax_category_id, soft-deleted), `extra_services` (per property: charge code, unit, unit_price, price_includes_tax) and `folio_routing_rules` (reservation, category, target folio; unique per reservation and category). `payments.folio_id` is now a foreign key.)*
 
 **`payments`**
 `id, tenant_id, property_id, receipt_no, reservation_id, folio_id, payment_type(deposit|payment|refund), method, amount, currency_code, exchange_rate, base_amount, reference, gateway, gateway_txn_id, status(pending|succeeded|failed|voided), received_by, received_at, cash_account_id`
@@ -1614,7 +1616,7 @@ Please confirm or adjust. The document reflects the **assumed answer** in each c
 | Q5 | Is **online guest self-booking** needed in the first release, or is staff-entered booking enough initially? | Staff-entered in v1; public booking engine in Phase 8. | Answer: online guest self-booking including staff-entered booking
 | Q6 | Should a specific **room number be assigned at booking**, or booked by room type and assigned at check-in? | Assigned at booking (auto-picked, changeable). Simpler and fully safe against overbooking. | Answer: assign the room number at booking.
 | Q7 | **Deposit:** is 30–50% fixed per resort, or negotiable per booking? Is the deposit refundable, and on what terms? Should unpaid bookings auto-cancel, and after how long? | Per-resort policy with a 30–50% range that staff can choose within; refund per cancellation policy; auto-cancel after 48 h. | *(Built in Step 1.4: a default % per resort, negotiable per booking within optional limits; refunds follow the cancellation policy; unpaid deposits due in 30 minutes by default, set per resort.)* Answer: Not fixed, negotiable per booking. Deposit may refundable. ld unpaid bookings auto-cancel, 30 mins (configureable) may vary from resort to resort. 
-| Q8 | **Revenue recognition:** nightly at night audit (accrual, international standard) or at check-out (simpler)? | Nightly, with check-out mode as an option. |
+| Q8 | ~~**Revenue recognition:** nightly at night audit (accrual, international standard) or at check-out (simpler)?~~ | **Resolved before Phase 2:** nightly, with check-out mode as a per-tenant option (`billing.revenue_recognition`). |
 | Q9 | **Payroll:** which country's tax and statutory rules (provident fund, gratuity, social security)? Is **service charge distribution** required? | **Bangladesh** (confirmed in review). Rules stay configurable, but are seeded with Bangladesh defaults: income tax slabs, provident fund, gratuity, festival bonuses. Service charge distribution included. *Please confirm which statutory items apply to your resorts.* |
 | Q10 | ~~Is a restaurant/bar POS needed?~~ | **Resolved in v0.2:** full Restaurant module in scope ([§5.10](#510-restaurant-fb--pos)), delivered in Phase 3. |
 | Q11 | Which **UI languages** are required? | English first; i18n-ready. | English first then more

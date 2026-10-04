@@ -104,6 +104,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         foreach ([
             'reservation' => ['Reservation', 'RSV'],
             'quote' => ['Quotation', 'QUO'],
+            'folio' => ['Folio', 'FOL'],
             'invoice' => ['Invoice', 'INV'],
             'purchase_order' => ['Purchase order', 'PO'],
             'goods_receipt' => ['Goods receipt', 'GRN'],
