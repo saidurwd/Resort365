@@ -33,6 +33,19 @@ class OutletPolicy
         return $user->can('restaurant.outlet.manage');
     }
 
+    /**
+     * The outlet's price list: setup viewers, price managers, and staff who mark items sold out.
+     */
+    public function viewPrices(Authenticatable&Authorizable $user, Outlet $outlet): bool
+    {
+        return $user->can('restaurant.outlet.view') || $user->can('restaurant.price.manage') || $user->can('restaurant.menu.mark-sold-out');
+    }
+
+    public function markSoldOut(Authenticatable&Authorizable $user, Outlet $outlet): bool
+    {
+        return $user->can('restaurant.price.manage') || $user->can('restaurant.menu.mark-sold-out');
+    }
+
     public function editFloorPlan(Authenticatable&Authorizable $user, Outlet $outlet): bool
     {
         return $user->can('restaurant.floor-plan.manage');

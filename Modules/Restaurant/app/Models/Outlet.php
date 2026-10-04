@@ -92,4 +92,20 @@ class Outlet extends Model
     {
         return $this->hasMany(DiningTable::class);
     }
+
+    /**
+     * @return HasMany<OutletMenuItem, $this>
+     */
+    public function prices(): HasMany
+    {
+        return $this->hasMany(OutletMenuItem::class);
+    }
+
+    /**
+     * @return HasMany<MenuSchedule, $this>
+     */
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(MenuSchedule::class);
+    }
 }

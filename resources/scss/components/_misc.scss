@@ -107,3 +107,13 @@
     position: sticky;
     z-index: 2;
 }
+
+.combo-quantity {
+    max-width: 5rem;
+}
+.category-order { max-width: 6rem; }
+
+// Restaurant price list: narrow price inputs.
+.price-list .price-input {
+    max-width: 8rem;
+}

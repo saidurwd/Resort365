@@ -38,7 +38,11 @@ use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Quote;
 use Modules\Reservation\Models\Reservation;
 use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\MenuItem;
+use Modules\Restaurant\Models\MenuItemVariant;
+use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
+use Modules\Restaurant\Models\OutletMenuItem;
 
 use function Pest\Laravel\seed;
 
@@ -190,4 +194,23 @@ it('sets up the restaurant: outlets with stations, terminals and floor plans (St
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(DiningTable::query()->count())->toBe(6));
+});
+
+it('seeds a menu of about 60 items priced differently at the outlets (Step 3.2)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $outlets = Outlet::query()->pluck('id', 'code');
+        $price = fn (string $code, string $outlet, ?string $variant = null): ?string => OutletMenuItem::query()->where('outlet_id', $outlets[$outlet])
+            ->where('menu_item_id', MenuItem::query()->where('code', $code)->value('id'))
+            ->where('variant_key', $variant !== null ? MenuItemVariant::query()->where('name', $variant)->whereHas('item', fn ($query) => $query->where('code', $code))->value('id') : 0)
+            ->value('price');
+
+        expect(MenuItem::query()->count())->toBe(63)
+            ->and(MenuItemVariant::query()->count())->toBeGreaterThan(20)
+            ->and(ModifierGroup::query()->count())->toBe(4)
+            ->and([$price('FJ04', 'MR'), $price('FJ04', 'PB'), $price('FJ04', 'RS')])->toBe(['180.00', '198.00', '207.00'])
+            ->and([$price('BD01', 'MR', 'Full'), $price('BD01', 'RS', 'Full'), $price('BD01', 'PB', 'Full')])->toBe(['650.00', '748.00', null])
+            ->and(OutletMenuItem::query()->where('outlet_id', $outlets['MR'])->where('is_available', false)->count())->toBe(2);
+    });
 });

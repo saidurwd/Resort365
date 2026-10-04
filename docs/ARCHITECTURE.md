@@ -570,6 +570,7 @@ Runs every food and beverage outlet in the resort. It serves in-house guests (wh
 - **Availability ("86"):** mark an item as sold out. It greys out on every POS screen immediately (Reverb).
 - **Open items:** a custom-priced item for one-off requests, which needs a permission.
 - **Direct-stock items:** bottled drinks and packaged goods linked 1:1 to an inventory item, with no recipe needed.
+- *Implemented in Step 3.2 (Restaurant → Menu, Menu categories, Modifiers; each outlet's Price list): nested categories with a POS colour; items with code, names and descriptions in the menu languages (setting `restaurant.menu_languages`, default `en,bn`; json per language, `translated()` falls back to English), photo, course, tax category (null = the outlet's), kind (dish, direct stock, open, combo), dietary tags and the 14 allergens; variants (priced per outlet), modifier groups (min/max choices) and options with a price; combos from other items (not other combos); per-outlet menu schedules with a price change % (pure `MenuAvailability`: overnight windows, the lowest running price); the outlet price list (price, the outlet's **station**, schedules, meal-plan eligible, 86) saved as one JSON field, copying another outlet's prices with a % change; 86 by chefs, bartenders and cashiers (`restaurant.menu.mark-sold-out`); CSV import all-or-nothing (pure `MenuCsv`, items matched by code, categories created from their path, `price:<OUTLET>` columns, a template to download). Deviations: the kitchen station is chosen per outlet on the price row (`outlet_menu_items.kitchen_station_id`), not on the item, because stations belong to outlets; `outlet_menu_items.variant_key` (variant id or 0) keeps the price row unique for items without variants; modifier groups are per property. Not yet: recipes and cost (Phase 5), the open-item permission (Step 3.4), 86 pushed live to POS screens (Steps 3.4–3.5).*
 
 #### 5.10.3 Tables & Floor Plan
 
@@ -1266,6 +1267,7 @@ erDiagram
 **`outlet_menu_items`** — what each outlet sells and at what price
 `id, tenant_id, outlet_id, menu_item_id, menu_item_variant_id, price, is_available(86 flag), is_package_eligible, schedule_ids(json)`
 Unique: `(outlet_id, menu_item_id, menu_item_variant_id)`
+*(Step 3.2 as built: plus `property_id`, `kitchen_station_id` (moved here from `menu_items`) and `variant_key` = variant id or 0; unique `(tenant_id, outlet_id, menu_item_id, variant_key)`. `modifier_groups`, `modifiers` and `menu_item_variants` carry `property_id`; `combo_components` holds a combo's items.)*
 
 **`modifier_groups`**, **`modifiers`**, **`menu_item_modifier_groups`**
 `modifier_groups: id, tenant_id, name, min_select, max_select, is_required` · `modifiers: id, tenant_id, modifier_group_id, name, price_delta, recipe_id`

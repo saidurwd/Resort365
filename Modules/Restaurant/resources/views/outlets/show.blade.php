@@ -3,6 +3,7 @@
 @endphp
 <x-layouts::app :title="$outlet->name" :subtitle="$propertyName" :breadcrumbs="[__('Dashboard') => route('dashboard'), __('Outlets') => route('restaurant.outlets.index'), $outlet->name => null]">
     <x-slot:actions>
+        <a href="{{ route('restaurant.outlets.prices', $outlet) }}" class="btn btn-outline-primary" data-price-list-link><i class="bi bi-tags"></i> {{ __('Price list') }}</a>
         @if ($canManage)
             <a href="{{ route('restaurant.outlets.edit', $outlet) }}" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> {{ __('Edit outlet') }}</a>
         @endif

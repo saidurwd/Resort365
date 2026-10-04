@@ -1,9 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Restaurant\Http\Controllers\MenuCategoryController;
+use Modules\Restaurant\Http\Controllers\MenuImportController;
+use Modules\Restaurant\Http\Controllers\MenuItemController;
+use Modules\Restaurant\Http\Controllers\ModifierGroupController;
 use Modules\Restaurant\Http\Controllers\OutletAccessController;
 use Modules\Restaurant\Http\Controllers\OutletController;
 use Modules\Restaurant\Http\Controllers\OutletSetupController;
+use Modules\Restaurant\Http\Controllers\PriceListController;
 use Modules\Restaurant\Http\Controllers\PrinterController;
 
 /*
@@ -50,6 +55,41 @@ Route::prefix('restaurant')->name('restaurant.')->middleware(['auth', 'verified'
         Route::post('/tables', 'storeTable')->name('tables.store');
         Route::put('/tables/{table}', 'updateTable')->name('tables.update');
         Route::delete('/tables/{table}', 'destroyTable')->name('tables.destroy');
+    });
+
+    // Menu (Step 3.2): items, categories, modifiers, import; each outlet's price list and schedules.
+    Route::prefix('menu')->name('menu.')->group(function (): void {
+        Route::middleware('can:restaurant.menu.view')->group(function (): void {
+            Route::get('/items', [MenuItemController::class, 'index'])->name('items.index');
+            Route::get('/items/data', [MenuItemController::class, 'data'])->name('items.data');
+            Route::get('/items/{item}', [MenuItemController::class, 'edit'])->whereNumber('item')->name('items.edit');
+            Route::get('/categories', [MenuCategoryController::class, 'index'])->name('categories.index');
+            Route::get('/modifiers', [ModifierGroupController::class, 'index'])->name('modifiers.index');
+        });
+        Route::middleware('can:restaurant.menu.manage')->group(function (): void {
+            Route::get('/items/new', [MenuItemController::class, 'create'])->name('items.create');
+            Route::post('/items', [MenuItemController::class, 'store'])->name('items.store');
+            Route::put('/items/{item}', [MenuItemController::class, 'update'])->whereNumber('item')->name('items.update');
+            Route::post('/categories', [MenuCategoryController::class, 'store'])->name('categories.store');
+            Route::put('/categories/{category}', [MenuCategoryController::class, 'update'])->name('categories.update');
+            Route::post('/modifiers', [ModifierGroupController::class, 'store'])->name('modifiers.store');
+            Route::put('/modifiers/{group}', [ModifierGroupController::class, 'update'])->name('modifiers.update');
+            Route::get('/import', [MenuImportController::class, 'create'])->name('import');
+            Route::post('/import', [MenuImportController::class, 'store'])->name('import.store');
+            Route::get('/import/template', [MenuImportController::class, 'template'])->name('import.template');
+        });
+    });
+
+    Route::prefix('outlets/{outlet}')->whereNumber('outlet')->name('outlets.')->scopeBindings()->group(function (): void {
+        // The price list is open to setup viewers and to staff who mark items sold out (OutletPolicy::viewPrices).
+        Route::get('/prices', [PriceListController::class, 'show'])->name('prices');
+        Route::post('/prices/{price}/sold-out', [PriceListController::class, 'soldOut'])->name('prices.sold-out');
+        Route::middleware('can:restaurant.price.manage')->group(function (): void {
+            Route::put('/prices', [PriceListController::class, 'update'])->name('prices.update');
+            Route::post('/prices/copy', [PriceListController::class, 'copy'])->name('prices.copy');
+            Route::post('/schedules', [PriceListController::class, 'storeSchedule'])->name('schedules.store');
+            Route::put('/schedules/{schedule}', [PriceListController::class, 'updateSchedule'])->name('schedules.update');
+        });
     });
 
     Route::get('/access', [OutletAccessController::class, 'index'])->middleware('can:restaurant.access.manage')->name('access.index');

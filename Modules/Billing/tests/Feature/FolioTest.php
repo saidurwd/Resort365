@@ -35,6 +35,7 @@ use Modules\Billing\Services\DefaultChargeCodes;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Models\TaxCategory;
 use Modules\Guest\Models\Company;
+use Modules\Property\Models\Property;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Models\Reservation;
 
@@ -89,7 +90,8 @@ it('posts an extra to the folio and voids it, keeping the balance right', functi
     $line = booking(fn (): FolioLine => FolioLine::query()->sole());
     expect([$line->description, $line->quantity, $line->amount, $line->tax_amount, $line->total])->toBe(['Airport pickup', '2.00', '2000.00', '530.00', '2530.00'])
         ->and($line->extra_service_id)->toBe($pickup->id)
-        ->and($line->posting_date->toDateString())->toBe(now()->toDateString())
+        // Posted on the property's business date (its local date, not the UTC date).
+        ->and($line->posting_date->toDateString())->toBe(booking(fn (): string => Property::query()->where('code', 'CXB')->sole()->business_date->toDateString()))
         ->and(guestFolioOf($reservation->id)->balance)->toBe('2530.00');
 
     post(tenantUrl('sunrise', "/billing/folios/{$folio->id}/void"), ['folio_line_id' => $line->id, 'reason' => 'Guest cancelled the pickup'])->assertSessionHas('success');
