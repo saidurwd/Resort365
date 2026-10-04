@@ -38,10 +38,19 @@ class ExpireTentativeHolds
         return $cancelled;
     }
 
-    private function expire(CancelReservation $cancel): int
+    /**
+     * The expired holds of one property in the current tenant (night audit step 4).
+     */
+    public function forProperty(int $propertyId, CancelReservation $cancel): int
+    {
+        return $this->expire($cancel, $propertyId);
+    }
+
+    private function expire(CancelReservation $cancel, ?int $propertyId = null): int
     {
         $cancelled = 0;
         $expired = Reservation::query()
+            ->when($propertyId !== null, fn ($query) => $query->where('property_id', $propertyId))
             ->where('status', ReservationStatus::Tentative->value)
             ->where('auto_cancel_unpaid', true)
             ->where('deposit_due_at', '<=', now())

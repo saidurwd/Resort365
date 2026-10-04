@@ -6,6 +6,7 @@ use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\ExtraService;
 use Modules\Billing\Models\Folio;
@@ -142,29 +143,31 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
     seed(DatabaseSeeder::class);
 
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
-        $bookings = Reservation::query()->with('items')->orderBy('check_in')->get();
+        $bookings = Reservation::query()->with('items')->orderBy('check_in')->orderBy('id')->get();
 
-        // In house in 402 (2 nights, leaving today), arriving today in 201 (2 nights), room 601 (overdue hold, 1 night),
-        // room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights).
+        // In house in 402 (2 nights, leaving today), arriving today in 201 (2 nights) and 703 (the night audit's no-show,
+        // 1 night), room 601 (overdue hold, 1 night), room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights).
         $group = Reservation::query()->whereNotNull('group_name')->sole();
         expect([$group->group_name, $group->items()->count(), $group->status->value])->toBe(['Dhaka Bank offsite', 6, 'confirmed'])
             ->and(Folio::query()->where('reservation_id', $group->id)->where('type', 'master')->exists())->toBeTrue();
         $bookings = $bookings->reject(fn (Reservation $reservation): bool => $reservation->id === $group->id)->values();
 
-        expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative'])
-            ->and($bookings[2]->deposit_due_at?->isPast())->toBeTrue()
-            ->and($bookings[3]->deposit_percent)->toBe('50.00')
-            ->and($bookings[4]->amount_paid)->toBe($bookings[4]->deposit_required)
-            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(4)
-            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 2 + 3 + 3 * 3 + 6 * 2)
+        expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative'])
+            ->and($bookings[2]->items->sole()->check_out->diffInDays($bookings[2]->check_in, true))->toEqual(1)
+            ->and($bookings[3]->deposit_due_at?->isPast())->toBeTrue()
+            ->and($bookings[4]->deposit_percent)->toBe('50.00')
+            ->and($bookings[5]->amount_paid)->toBe($bookings[5]->deposit_required)
+            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(5)
+            ->and(CashierShift::query()->where('status', 'open')->count())->toBe(1)
+            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 1 + 2 + 3 + 3 * 3 + 6 * 2)
             ->and(ExtraService::query()->count())->toBe(6)
             ->and(CityLedgerEntry::query()->sole()->due_on->isPast())->toBeTrue()
-            ->and(Folio::query()->count())->toBe(8)
+            ->and(Folio::query()->count())->toBe(9)
             ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
     ExpireTentativeHolds::dispatchSync();
-    app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->orderBy('check_in')->pluck('status')->map->value->all())
-        ->toBe(['checked_in', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative']));
+    app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->orderBy('check_in')->orderBy('id')->pluck('status')->map->value->all())
+        ->toBe(['checked_in', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative']));
 });

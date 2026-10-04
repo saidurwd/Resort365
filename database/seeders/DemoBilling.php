@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Modules\Billing\Actions\OpenShift;
 use Modules\Billing\Actions\PostCharge;
 use Modules\Billing\Actions\SaveExtraService;
 use Modules\Billing\DTOs\FolioCharge;
@@ -13,8 +14,10 @@ use Modules\Billing\Models\ChargeCode;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\ExtraService;
 use Modules\Billing\Services\DefaultChargeCodes;
+use Modules\Billing\Services\ShiftRegister;
 use Modules\Core\Models\TaxCategory;
 use Modules\Guest\Models\Company;
+use Modules\IAM\Contracts\UserDirectory;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Models\Reservation;
 
@@ -90,6 +93,22 @@ final class DemoBilling
                 'due_on' => $posted->addDays($company->payment_terms_days ?: 30)->toDateString(),
                 'description' => 'Conference stay, 3 rooms × 2 nights', 'amount' => '45540.00', 'status' => CityLedgerStatus::Open,
             ]);
+        });
+    }
+
+    /**
+     * Step 2.6: the front-desk agent's cashier shift is open with a 5,000 float (idempotent).
+     */
+    public static function cashierShift(Tenant $tenant, int $propertyId, string $email): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId, $email): void {
+            $user = collect(app(UserDirectory::class)->all())->firstWhere('email', $email);
+
+            if ($user === null || app(ShiftRegister::class)->openShift($user->id, $propertyId) !== null) {
+                return;
+            }
+
+            OpenShift::make()->handle($propertyId, $user->id, '5000.00');
         });
     }
 }

@@ -23,6 +23,12 @@ class PropertyDirectoryService implements PropertyDirectory
         return $id !== null ? $this->find($id) : null;
     }
 
+    public function all(): array
+    {
+        return Property::query()->orderBy('name')->get()->filter(fn (Property $property): bool => $property->isActive())
+            ->map(fn (Property $property): PropertySummary => self::summary($property))->values()->all();
+    }
+
     public static function summary(Property $property): PropertySummary
     {
         return new PropertySummary(

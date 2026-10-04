@@ -8,6 +8,7 @@ use Modules\Billing\Http\Controllers\FolioController;
 use Modules\Billing\Http\Controllers\InvoiceController;
 use Modules\Billing\Http\Controllers\PaymentController;
 use Modules\Billing\Http\Controllers\RefundController;
+use Modules\Billing\Http\Controllers\ShiftController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +41,18 @@ Route::prefix('billing')->name('billing.')->middleware(['auth', 'verified'])->gr
     Route::get('/city-ledger', [CityLedgerController::class, 'index'])->middleware('can:billing.city-ledger.view')->name('city-ledger.index');
     Route::post('/city-ledger/{entry}/payments', [CityLedgerController::class, 'receive'])->middleware('can:billing.city-ledger.manage')->name('city-ledger.receive');
     Route::post('/folios/{folio}/city-ledger', [CityLedgerController::class, 'transfer'])->middleware('can:billing.folio.post')->name('folios.transfer');
+
+    // Cashier shifts: my shift (open, count and close), every shift with its variance, the report.
+    Route::middleware('can:billing.shift.open')->group(function (): void {
+        Route::get('/shifts/mine', [ShiftController::class, 'mine'])->name('shifts.mine');
+        Route::post('/shifts', [ShiftController::class, 'open'])->name('shifts.open');
+        Route::post('/shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
+    });
+    Route::middleware('can:billing.shift.view')->group(function (): void {
+        Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
+        Route::get('/shifts/data', [ShiftController::class, 'data'])->name('shifts.data');
+    });
+    Route::get('/shifts/{shift}', [ShiftController::class, 'show'])->whereNumber('shift')->name('shifts.show');
 
     // Setup: charge codes (tenant-wide) and the extras catalogue (current property).
     Route::get('/charge-codes', [ChargeCodeController::class, 'index'])->middleware('can:billing.charge-code.view')->name('charge-codes.index');

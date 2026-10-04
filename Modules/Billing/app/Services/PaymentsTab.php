@@ -71,7 +71,7 @@ class PaymentsTab
     {
         $options = [];
 
-        if ($reservation->status === ReservationStatus::Cancelled) {
+        if (in_array($reservation->status, [ReservationStatus::Cancelled, ReservationStatus::NoShow], true)) {
             $options[] = ['kind' => RefundKind::Cancellation, 'label' => __('Cancellation refund'),
                 'amount' => (string) $this->payments->paidTotal($reservation->id)->minus($reservation->cancellationFee ?? '0')->toScale(2), 'source' => null];
         }

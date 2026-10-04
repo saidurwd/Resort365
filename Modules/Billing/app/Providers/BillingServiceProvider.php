@@ -9,8 +9,10 @@ use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
+use Modules\Billing\Contracts\DailyTakings;
 use Modules\Billing\Contracts\FolioPostingContract;
 use Modules\Billing\Contracts\FolioSettlement;
+use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\ChargeCode;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\CreditNote;
@@ -21,11 +23,13 @@ use Modules\Billing\Models\FolioRoutingRule;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceLine;
 use Modules\Billing\Models\Payment;
+use Modules\Billing\Policies\CashierShiftPolicy;
 use Modules\Billing\Policies\ChargeCodePolicy;
 use Modules\Billing\Policies\ExtraServicePolicy;
 use Modules\Billing\Policies\FolioPolicy;
 use Modules\Billing\Policies\InvoicePolicy;
 use Modules\Billing\Policies\PaymentPolicy;
+use Modules\Billing\Services\DailyTakingsService;
 use Modules\Billing\Services\FolioPostingService;
 use Modules\Billing\Services\FolioSettlementService;
 use Modules\Billing\Services\FoliosTab;
@@ -66,6 +70,7 @@ class BillingServiceProvider extends ModuleServiceProvider
 
         $this->app->bind(FolioPostingContract::class, FolioPostingService::class);
         $this->app->bind(FolioSettlement::class, FolioSettlementService::class);
+        $this->app->bind(DailyTakings::class, DailyTakingsService::class);
     }
 
     public function boot(): void
@@ -83,7 +88,9 @@ class BillingServiceProvider extends ModuleServiceProvider
             'invoice_line' => InvoiceLine::class,
             'credit_note' => CreditNote::class,
             'city_ledger_entry' => CityLedgerEntry::class,
+            'cashier_shift' => CashierShift::class,
         ]);
+        Gate::policy(CashierShift::class, CashierShiftPolicy::class);
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(Folio::class, FolioPolicy::class);
         Gate::policy(ChargeCode::class, ChargeCodePolicy::class);
@@ -108,12 +115,18 @@ class BillingServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('billing.refund.issue', 'Pay refunds', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
             new PermissionDefinition('billing.city-ledger.view', 'View the city ledger', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
             new PermissionDefinition('billing.city-ledger.manage', 'Receive city-ledger payments', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
+            new PermissionDefinition('billing.shift.open', 'Open and close own cashier shift', [DefaultRole::FrontOfficeManager, DefaultRole::FrontDeskAgent, DefaultRole::OutletCashier]),
+            new PermissionDefinition('billing.shift.view', 'View every cashier shift and its variance', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
         $menu->group('billing', 'Billing', 'bi-cash-stack', order: 300);
         $menu->add(new MenuItem('billing.city-ledger', 'City ledger', route: 'billing.city-ledger.index', parent: 'billing', order: 10,
             permission: 'billing.city-ledger.view', module: 'billing', active: 'billing.city-ledger.*'));
+        $menu->add(new MenuItem('billing.my-shift', 'My cashier shift', route: 'billing.shifts.mine', parent: 'billing', order: 5,
+            permission: 'billing.shift.open', module: 'billing', active: 'billing.shifts.mine'));
+        $menu->add(new MenuItem('billing.shifts', 'Cashier shifts', route: 'billing.shifts.index', parent: 'billing', order: 6,
+            permission: 'billing.shift.view', module: 'billing', active: ['billing.shifts.index', 'billing.shifts.show']));
         $menu->group('setup', 'Setup', 'bi-gear', order: 900);
         $menu->add(new MenuItem('billing.charge-codes', 'Charge codes', route: 'billing.charge-codes.index', parent: 'setup', order: 36,
             permission: 'billing.charge-code.view', module: 'billing', active: 'billing.charge-codes.*'));
@@ -125,6 +138,9 @@ class BillingServiceProvider extends ModuleServiceProvider
             'Billing', help: 'Charges from other departments (e.g. restaurant) are refused above this balance. 0 = no limit.', rules: ['min:0']));
         $settings->define(new SettingDefinition('billing.revenue_recognition', 'Room revenue recognised', SettingType::Select, 'nightly', SettingScope::Tenant,
             'Billing', help: 'Nightly at night audit (accrual), or at check-out (ARCHITECTURE §7, Q8).', options: ['nightly' => 'Nightly at night audit', 'at_checkout' => 'At check-out']));
+
+        $settings->define(new SettingDefinition('billing.cash_denominations', 'Cash denominations', SettingType::Text, '1000,500,200,100,50,20,10,5,2,1',
+            SettingScope::Tenant, 'Billing', help: 'Notes and coins counted when a cashier shift is closed, separated by commas.', rules: ['regex:/^\\s*\\d+(\\.\\d+)?(\\s*,\\s*\\d+(\\.\\d+)?)*\\s*$/']));
 
         // The Payments tab of the reservation page (Reservation may not call Billing itself).
         $this->app->make(ReservationTabs::class)->add(new ReservationTab('payments', 'Payments', 'bi-credit-card', 'billing.payment.view', 'billing',

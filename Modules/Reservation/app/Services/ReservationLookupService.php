@@ -2,16 +2,19 @@
 
 namespace Modules\Reservation\Services;
 
+use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Reservation\Contracts\ReservationLookup;
+use Modules\Reservation\DTOs\NightOccupancy;
 use Modules\Reservation\DTOs\ReservationSummary;
 use Modules\Reservation\Enums\LockType;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Reservation;
 use Modules\Reservation\Models\ReservationItem;
+use Modules\Reservation\Models\ReservationItemNight;
 
 class ReservationLookupService implements ReservationLookup
 {
@@ -53,6 +56,33 @@ class ReservationLookupService implements ReservationLookup
     public function roomsBooked(int $propertyId, string $date): int
     {
         return InventoryLock::query()->where('property_id', $propertyId)->where('stay_date', $date)->where('lock_type', LockType::Reservation->value)->count();
+    }
+
+    public function occupancy(int $propertyId, string $date): NightOccupancy
+    {
+        $stayed = [ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value];
+        $items = ReservationItem::query()->where('property_id', $propertyId)->whereIn('status', $stayed)
+            ->where('check_in', '<=', $date)->where('check_out', '>', $date)->get(['id', 'adults', 'children']);
+        $locks = InventoryLock::query()->where('property_id', $propertyId)->where('stay_date', $date)->get(['lock_type', 'reservation_item_id']);
+        $nights = ReservationItemNight::query()->whereIn('reservation_item_id', $items->pluck('id'))->where('stay_date', $date)
+            ->get(['net_amount', 'meal_amount', 'tax_amount']);
+        $sum = fn (string $field): BigDecimal => $nights->reduce(fn (BigDecimal $total, ReservationItemNight $night): BigDecimal => $total->plus($night->{$field}), BigDecimal::zero());
+        $count = fn (array $statuses, string $column): int => Reservation::query()->where('property_id', $propertyId)->whereIn('status', $statuses)->where($column, $date)->count();
+
+        return new NightOccupancy(
+            date: $date,
+            roomsOccupied: $locks->filter(fn (InventoryLock $lock): bool => $lock->lock_type === LockType::Reservation && $items->contains('id', $lock->reservation_item_id))->count(),
+            roomsOutOfOrder: $locks->filter(fn (InventoryLock $lock): bool => $lock->lock_type === LockType::OutOfOrder)->count(),
+            roomsBlocked: $locks->filter(fn (InventoryLock $lock): bool => in_array($lock->lock_type, [LockType::OwnerBlock, LockType::Hold], true))->count(),
+            adults: (int) $items->sum('adults'),
+            children: (int) $items->sum('children'),
+            roomRevenue: (string) $sum('net_amount')->minus($sum('meal_amount'))->toScale(2),
+            packageMealRevenue: (string) $sum('meal_amount')->toScale(2),
+            roomTax: (string) $sum('tax_amount')->toScale(2),
+            arrivals: $count($stayed, 'check_in'),
+            departures: $count([ReservationStatus::CheckedOut->value], 'check_out'),
+            noShows: $count([ReservationStatus::NoShow->value], 'check_in'),
+        );
     }
 
     /**

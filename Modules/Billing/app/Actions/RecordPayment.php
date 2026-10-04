@@ -15,6 +15,7 @@ use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Services\FolioLedger;
 use Modules\Billing\Services\ReservationPayments;
+use Modules\Billing\Services\ShiftRegister;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\ReservationSummary;
@@ -32,6 +33,7 @@ use Modules\Reservation\Enums\ReservationStatus;
 class RecordPayment extends Action
 {
     public function __construct(
+        private readonly ShiftRegister $shifts,
         private readonly ReservationLookup $reservations,
         private readonly DocumentNumbers $numbers,
         private readonly FolioLedger $ledger,
@@ -90,6 +92,7 @@ class RecordPayment extends Action
                 'notes' => $data->notes,
                 'status' => PaymentStatus::Succeeded,
                 'received_by' => $data->receivedBy,
+                ...$this->shifts->stamp($data->receivedBy, $reservation->propertyId),
                 'received_at' => now(),
             ]);
 
@@ -128,6 +131,7 @@ class RecordPayment extends Action
             'notes' => $data->notes,
             'status' => PaymentStatus::Succeeded,
             'received_by' => $data->receivedBy,
+            ...$this->shifts->stamp($data->receivedBy, $reservation->propertyId),
             'received_at' => now(),
         ]);
 

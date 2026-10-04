@@ -46,3 +46,9 @@
 [x-cloak] {
     display: none !important;
 }
+
+// Cashier shift close: narrow count inputs, right-aligned in their cell.
+.shift-count-input {
+    margin-left: auto;
+    max-width: 7rem;
+}

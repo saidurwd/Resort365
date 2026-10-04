@@ -24,8 +24,9 @@ use Modules\Reservation\Models\Reservation;
 
 /**
  * Front-desk demo (Step 2.2) on the property's business date: a paid booking arriving today in
- * room 201, ready to check in, a guest in house in room 402 who leaves today, and (Step 2.4) a
- * 6-room group arriving today with a master folio and a partly filled rooming list.
+ * room 201, ready to check in, a guest in house in room 402 who leaves today, (Step 2.4) a 6-room
+ * group arriving today with a master folio and a partly filled rooming list, and (Step 2.6) a
+ * confirmed booking in room 703 that will not arrive: the night audit marks it as a no-show.
  */
 final class DemoFrontOffice
 {
@@ -55,6 +56,16 @@ final class DemoFrontOffice
                 [new BookingItem(ItemType::Room, $rooms['402']->id, $plan->id, 2)], $staying->id, ReservationSource::WalkIn));
             RecordPayment::make()->handle(new NewPayment($inHouse->id, PaymentMethod::Cash, $inHouse->deposit_required));
             CheckInGuest::make()->handle($inHouse->id);
+
+            // Step 2.6: confirmed and paid, but the guest never comes (the night audit's no-show).
+            $noShowGuest = app(GuestLookup::class)->search('01710000040')[0] ?? null;
+
+            if ($noShowGuest !== null && $rooms->has('703')) {
+                $noShow = CreateReservation::make()->handle(new NewReservation($propertyId, $today, $today->addDay(),
+                    [new BookingItem(ItemType::Room, $rooms['703']->id, $plan->id, 2)], $noShowGuest->id, ReservationSource::Email,
+                    specialRequests: 'Flight from Dhaka, may be delayed.'));
+                RecordPayment::make()->handle(new NewPayment($noShow->id, PaymentMethod::Card, $noShow->deposit_required, 'VISA-3391'));
+            }
 
             // Step 2.4: a 6-room group arriving today, paid, its rooming list half filled in.
             $groupRooms = ['101', '301', '501', '502', '601', '602'];

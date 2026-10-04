@@ -32,6 +32,7 @@ use Modules\Billing\Enums\FolioLineType;
  * @property string $unit_price
  * @property string $amount
  * @property string $tax_amount
+ * @property string $meal_amount F&B part of a room night's amount (package split)
  * @property array<string, string>|null $tax_lines tax name => amount
  * @property string $total
  * @property string|null $reference_type
@@ -50,7 +51,7 @@ use Modules\Billing\Enums\FolioLineType;
 #[UseFactory(FolioLineFactory::class)]
 #[Fillable([
     'property_id', 'folio_id', 'posting_date', 'line_type', 'charge_code_id', 'extra_service_id', 'description', 'quantity', 'unit_price',
-    'amount', 'tax_amount', 'tax_lines', 'total', 'reference_type', 'reference_id', 'revenue_posted_by_source', 'routed_from_folio_id', 'posted_by',
+    'amount', 'tax_amount', 'meal_amount', 'tax_lines', 'total', 'reference_type', 'reference_id', 'revenue_posted_by_source', 'routed_from_folio_id', 'posted_by',
 ])]
 class FolioLine extends Model
 {
@@ -74,6 +75,7 @@ class FolioLine extends Model
             'unit_price' => 'decimal:2',
             'amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
+            'meal_amount' => 'decimal:2',
             'tax_lines' => 'array',
             'total' => 'decimal:2',
             'revenue_posted_by_source' => 'boolean',

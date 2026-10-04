@@ -12,6 +12,7 @@ use Modules\Billing\Events\PaymentReceived;
 use Modules\Billing\Exceptions\PaymentNotAllowed;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\Payment;
+use Modules\Billing\Services\ShiftRegister;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Property\Contracts\PropertyDirectory;
 
@@ -21,6 +22,7 @@ use Modules\Property\Contracts\PropertyDirectory;
 class ReceiveCityLedgerPayment extends Action
 {
     public function __construct(
+        private readonly ShiftRegister $shifts,
         private readonly DocumentNumbers $numbers,
         private readonly PropertyDirectory $properties,
     ) {}
@@ -52,6 +54,7 @@ class ReceiveCityLedgerPayment extends Action
                 'city_ledger_entry_id' => $locked->id,
                 'status' => PaymentStatus::Succeeded,
                 'received_by' => $userId,
+                ...$this->shifts->stamp($userId, $locked->property_id),
                 'received_at' => now(),
             ]);
 

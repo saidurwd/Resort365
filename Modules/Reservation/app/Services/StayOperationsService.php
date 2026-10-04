@@ -5,10 +5,12 @@ namespace Modules\Reservation\Services;
 use Carbon\CarbonImmutable;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Rates\Contracts\RateLookup;
+use Modules\Reservation\Actions\CancelReservation;
 use Modules\Reservation\Actions\ChangeItemRoom;
 use Modules\Reservation\Actions\CheckInReservation;
 use Modules\Reservation\Actions\CheckOutReservation;
 use Modules\Reservation\Actions\ExtendStay;
+use Modules\Reservation\Actions\MarkNoShow;
 use Modules\Reservation\Actions\MoveRoom;
 use Modules\Reservation\Actions\ShortenStay;
 use Modules\Reservation\Contracts\ReservationLookup;
@@ -17,6 +19,7 @@ use Modules\Reservation\DTOs\ReservationSummary;
 use Modules\Reservation\DTOs\RoomNightCharge;
 use Modules\Reservation\Enums\ItemType;
 use Modules\Reservation\Exceptions\StayNotPossible;
+use Modules\Reservation\Jobs\ExpireTentativeHolds;
 use Modules\Reservation\Models\Reservation;
 use Modules\Reservation\Models\ReservationItem;
 use Modules\Reservation\Models\ReservationItemNight;
@@ -34,7 +37,21 @@ class StayOperationsService implements StayOperations
         private readonly MoveRoom $move,
         private readonly ExtendStay $extend,
         private readonly ShortenStay $shorten,
+        private readonly MarkNoShow $noShow,
+        private readonly CancelReservation $cancel,
     ) {}
+
+    public function markNoShow(int $reservationId, string $date, ?int $userId = null): ReservationSummary
+    {
+        $this->noShow->handle($reservationId, $date, $userId);
+
+        return $this->reservations->find($reservationId) ?? throw new StayNotPossible(__('Unknown reservation.'));
+    }
+
+    public function expireHolds(int $propertyId): int
+    {
+        return (new ExpireTentativeHolds)->forProperty($propertyId, $this->cancel);
+    }
 
     public function checkIn(int $reservationId, ?int $userId = null, ?int $itemId = null): array
     {
@@ -95,12 +112,13 @@ class StayOperationsService implements StayOperations
         return array_values(array_unique(array_map(intval(...), $ids)));
     }
 
-    public function unpostedNights(int $reservationId): array
+    public function unpostedNights(int $reservationId, ?string $upTo = null): array
     {
         $items = ReservationItem::query()->where('reservation_id', $reservationId)->get()->keyBy('id');
         $taxCategories = [];
 
         return ReservationItemNight::query()->whereIn('reservation_item_id', $items->keys())->whereNull('posted_to_folio_at')
+            ->when($upTo !== null, fn ($query) => $query->where('stay_date', '<=', $upTo))
             ->orderBy('stay_date')->orderBy('reservation_item_id')->get()
             ->map(function (ReservationItemNight $night) use ($items, &$taxCategories): RoomNightCharge {
                 $item = $items->get($night->reservation_item_id);

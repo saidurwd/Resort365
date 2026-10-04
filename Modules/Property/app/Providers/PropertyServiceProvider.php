@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Modules\Core\Contracts\Settings;
+use Modules\Property\Contracts\BusinessDates;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Property\Contracts\RoomUsage;
@@ -31,6 +32,7 @@ use Modules\Property\Policies\DepartmentPolicy;
 use Modules\Property\Policies\PropertyPolicy;
 use Modules\Property\Policies\RoomPolicy;
 use Modules\Property\Policies\RoomTypePolicy;
+use Modules\Property\Services\BusinessDatesService;
 use Modules\Property\Services\InventoryCatalogService;
 use Modules\Property\Services\NoRoomUsage;
 use Modules\Property\Services\PropertyAccessService;
@@ -65,6 +67,7 @@ class PropertyServiceProvider extends ModuleServiceProvider
 
         $this->app->singleton(PropertyAccess::class, PropertyAccessService::class);
         $this->app->singleton(PropertyDirectory::class, PropertyDirectoryService::class);
+        $this->app->singleton(BusinessDates::class, BusinessDatesService::class);
         $this->app->singleton(InventoryCatalog::class, InventoryCatalogService::class);
         // The Reservation module replaces this with the real check (LockedRoomUsage).
         $this->app->bindIf(RoomUsage::class, NoRoomUsage::class, shared: true);

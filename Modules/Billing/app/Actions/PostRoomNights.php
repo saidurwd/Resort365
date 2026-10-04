@@ -17,7 +17,7 @@ use Modules\Reservation\DTOs\RoomNightCharge;
 
 /**
  * Posts a reservation's room nights to its folios at the prices frozen at booking (net, tax, total
- * per night), with the ROOM charge code and routed like any room charge. Each line references its
+ * per night, with the meal component kept for the package split), with the ROOM charge code and routed like any room charge. Each line references its
  * night, so a night already on a folio is never posted again (check-out now, night audit later).
  */
 class PostRoomNights extends Action
@@ -77,6 +77,7 @@ class PostRoomNights extends Action
                     'unit_price' => $night->net,
                     'amount' => $night->net,
                     'tax_amount' => $night->tax,
+                    'meal_amount' => $night->mealComponent,
                     'tax_lines' => $this->splitter->split($night->net, $night->taxCategoryId, $night->tax),
                     'total' => $night->total,
                     'reference_type' => self::REFERENCE,

@@ -45,12 +45,14 @@ use Modules\Billing\Enums\RefundKind;
  * @property int|null $refunded_payment_id
  * @property int|null $credit_note_id
  * @property int|null $city_ledger_entry_id
+ * @property Carbon|null $business_date
+ * @property int|null $cashier_shift_id
  */
 #[UseFactory(PaymentFactory::class)]
 #[Fillable([
     'property_id', 'receipt_no', 'reservation_id', 'folio_id', 'payment_type', 'method', 'amount', 'currency_code', 'exchange_rate',
     'base_amount', 'reference', 'notes', 'gateway', 'gateway_txn_id', 'status', 'received_by', 'received_at', 'cash_account_id',
-    'reason', 'refund_kind', 'refunded_payment_id', 'credit_note_id', 'city_ledger_entry_id',
+    'reason', 'refund_kind', 'refunded_payment_id', 'credit_note_id', 'city_ledger_entry_id', 'business_date', 'cashier_shift_id',
 ])]
 class Payment extends Model
 {
@@ -75,6 +77,7 @@ class Payment extends Model
             'exchange_rate' => 'decimal:8',
             'base_amount' => 'decimal:2',
             'received_at' => 'datetime',
+            'business_date' => 'date',
             'refund_kind' => RefundKind::class,
         ];
     }

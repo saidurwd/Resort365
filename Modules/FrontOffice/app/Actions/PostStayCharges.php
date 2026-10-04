@@ -8,8 +8,9 @@ use Modules\Billing\Exceptions\ChargeRejected;
 use Modules\Reservation\Contracts\StayOperations;
 
 /**
- * Posts the stay's room nights that are not on a folio yet (all of them until night audit posts
- * them nightly, Step 2.6), then marks them posted, in one transaction.
+ * Posts the stay's room nights that are not on a folio yet (the night audit posts them nightly; at
+ * check-out this catches the rest, or all of them with billing.revenue_recognition = at_checkout),
+ * then marks them posted, in one transaction.
  */
 class PostStayCharges extends Action
 {

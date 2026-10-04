@@ -17,6 +17,7 @@ use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Services\FolioLedger;
 use Modules\Billing\Services\ReservationPayments;
+use Modules\Billing\Services\ShiftRegister;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\ReservationSummary;
@@ -25,7 +26,7 @@ use Modules\Reservation\Enums\ReservationStatus;
 /**
  * Pays money back, with a reason (ARCHITECTURE §5.9; billing.refund.issue, the approval engine
  * arrives in Step 5.1). How much may go back depends on why:
- * - cancellation: what a cancelled booking paid above its cancellation fee;
+ * - cancellation: what a cancelled (or no-show) booking paid above its cancellation (or no-show) fee;
  * - security deposit: what is still held of that deposit;
  * - overpayment: a folio's credit balance;
  * - credit note: its refund still due.
@@ -35,6 +36,7 @@ use Modules\Reservation\Enums\ReservationStatus;
 class RefundPayment extends Action
 {
     public function __construct(
+        private readonly ShiftRegister $shifts,
         private readonly ReservationLookup $reservations,
         private readonly ReservationPayments $payments,
         private readonly FolioLedger $ledger,
@@ -78,6 +80,7 @@ class RefundPayment extends Action
                 'credit_note_id' => $data->kind === RefundKind::CreditNote ? $source?->getKey() : null,
                 'status' => PaymentStatus::Succeeded,
                 'received_by' => $data->issuedBy,
+                ...$this->shifts->stamp($data->issuedBy, $reservation->propertyId),
                 'received_at' => now(),
             ]);
 
@@ -124,8 +127,8 @@ class RefundPayment extends Action
      */
     private function cancellation(ReservationSummary $reservation): array
     {
-        if ($reservation->status !== ReservationStatus::Cancelled) {
-            throw new PaymentNotAllowed(__('Only a cancelled booking gets a cancellation refund.'));
+        if (! in_array($reservation->status, [ReservationStatus::Cancelled, ReservationStatus::NoShow], true)) {
+            throw new PaymentNotAllowed(__('Only a cancelled or no-show booking gets a cancellation refund.'));
         }
 
         return [$this->payments->paidTotal($reservation->id, lock: true)->minus($reservation->cancellationFee ?? '0'), $this->ledger->guestFolio($reservation->id), null];

@@ -68,11 +68,12 @@ interface StayOperations
     public function shortenStay(int $reservationId, string $checkOut, ?int $userId = null): ReservationSummary;
 
     /**
-     * The booking's nights not yet posted to a folio, in date order.
+     * The booking's nights not yet posted to a folio, in date order; with upTo (Y-m-d), only the
+     * nights up to and including that date (night audit).
      *
      * @return list<RoomNightCharge>
      */
-    public function unpostedNights(int $reservationId): array;
+    public function unpostedNights(int $reservationId, ?string $upTo = null): array;
 
     /**
      * Marks nights as posted to a folio (so they are never posted twice).
@@ -87,4 +88,19 @@ interface StayOperations
      * @throws StayNotPossible
      */
     public function checkOut(int $reservationId, ?int $userId = null): ReservationSummary;
+
+    /**
+     * Marks an expected arrival that did not come as a no-show (night audit of $date, Y-m-d): the
+     * no-show fee is kept and the rooms are released from the next night.
+     *
+     * @throws StayNotPossible
+     */
+    public function markNoShow(int $reservationId, string $date, ?int $userId = null): ReservationSummary;
+
+    /**
+     * Cancels the property's tentative bookings whose deposit hold ran out.
+     *
+     * @return int how many were cancelled
+     */
+    public function expireHolds(int $propertyId): int;
 }

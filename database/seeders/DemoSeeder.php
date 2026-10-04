@@ -113,6 +113,9 @@ class DemoSeeder extends Seeder
         // Step 2.3: a company balance on the city ledger, overdue, for the aging report.
         DemoBilling::cityLedger($rodela, $resort);
 
+        // Step 2.6: the front desk's cashier shift is open (the demo no-show is in DemoFrontOffice).
+        DemoBilling::cashierShift($rodela, $resort, 'frontdesk@'.self::DOMAINS['rodela']);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

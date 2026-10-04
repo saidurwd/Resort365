@@ -3,7 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use Modules\FrontOffice\Http\Controllers\CheckInController;
 use Modules\FrontOffice\Http\Controllers\CheckOutController;
+use Modules\FrontOffice\Http\Controllers\FlashReportController;
 use Modules\FrontOffice\Http\Controllers\FrontDeskController;
+use Modules\FrontOffice\Http\Controllers\NightAuditController;
 use Modules\FrontOffice\Http\Controllers\StayChangeController;
 
 /*
@@ -42,4 +44,10 @@ Route::prefix('frontoffice')->name('frontoffice.')->middleware(['auth', 'verifie
             Route::post('/charges', 'charges')->name('charges');
             Route::post('/', 'store')->name('store');
         });
+
+    // Night audit and the daily flash report.
+    Route::get('/night-audit', [NightAuditController::class, 'index'])->middleware('can:frontoffice.audit.view')->name('night-audit.index');
+    Route::post('/night-audit', [NightAuditController::class, 'store'])->middleware('can:frontoffice.audit.run')->name('night-audit.store');
+    Route::get('/night-audit/{audit}', [NightAuditController::class, 'show'])->whereNumber('audit')->middleware('can:frontoffice.audit.view')->name('night-audit.show');
+    Route::get('/reports/flash', [FlashReportController::class, 'index'])->middleware('can:frontoffice.report.view')->name('reports.flash');
 });
