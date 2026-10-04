@@ -2,8 +2,9 @@
 
 /*
 | Step 0.6 "Done when": a Front Desk user sees a different sidebar from the Accountant, and a
-| direct URL to a forbidden page returns 403. Front Office and Accounting don't exist yet, so this
-| test registers stand-in menu items and permissions the way those modules will.
+| direct URL to a forbidden page returns 403. Accounting doesn't exist yet, so this test registers
+| a stand-in menu item and permission the way it will; Front Office is real (Step 2.2), and the
+| /_front-desk stand-in page only checks its permission (the real desk needs a property).
 */
 
 use App\Models\Tenant;
@@ -22,9 +23,6 @@ use function Pest\Laravel\post;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    app(PermissionRegistry::class)->register('Front office', [
-        new PermissionDefinition('frontoffice.desk.view', 'View front desk', [DefaultRole::FrontDeskAgent]),
-    ]);
     app(PermissionRegistry::class)->register('Accounting', [
         new PermissionDefinition('accounting.journal.view', 'View journals', [DefaultRole::Accountant]),
     ]);
@@ -36,8 +34,6 @@ beforeEach(function (): void {
     Route::getRoutes()->refreshNameLookups();
 
     $menu = app(MenuRegistry::class);
-    $menu->group('frontoffice', 'Front Office', 'bi-door-open', order: 100);
-    $menu->add(new MenuItem('frontoffice.desk', 'Front Desk', route: 'test.front-desk', parent: 'frontoffice', permission: 'frontoffice.desk.view'));
     $menu->group('accounting', 'Accounting', 'bi-journal', order: 400);
     $menu->add(new MenuItem('accounting.journals', 'Journal Entries', route: 'test.journals', parent: 'accounting', permission: 'accounting.journal.view'));
 

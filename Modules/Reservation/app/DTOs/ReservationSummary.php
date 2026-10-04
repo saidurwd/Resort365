@@ -8,10 +8,14 @@ use Modules\Reservation\Enums\ReservationStatus;
 
 /**
  * A reservation as other modules see it (ReservationLookup). Amounts are decimal strings in the
- * reservation's currency; dates are Y-m-d.
+ * reservation's currency; dates are Y-m-d. units are readable labels ("Room 401", "Sunset Villa
+ * (whole cottage)"); depositDueAt is ISO 8601 (UTC).
  */
 final readonly class ReservationSummary extends Data
 {
+    /**
+     * @param  list<string>  $units
+     */
     public function __construct(
         public int $id,
         public int $propertyId,
@@ -27,6 +31,11 @@ final readonly class ReservationSummary extends Data
         public string $amountPaid,
         public string $balanceDue,
         public ?string $cancellationFee,
+        public array $units = [],
+        public string $guestName = '',
+        public ?string $depositDueAt = null,
+        public int $adults = 0,
+        public int $children = 0,
     ) {}
 
     /**

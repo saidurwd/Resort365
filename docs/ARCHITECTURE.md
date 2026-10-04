@@ -516,6 +516,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
   7. Snapshot daily statistics (occupancy, ADR, RevPAR, revenue, F&B covers and sales).
   8. Advance the business date.
 - Guest messages, wake-up calls and requests (simple log).
+- *Implemented in Step 2.2 (FrontOffice module): the front-desk dashboard (arrivals, departures, in house, VIPs, pending deposits, occupancy tonight) on the property's business date; check-in (guest ID through Guest's `GuestRegistry::recordIdentity`, room confirmation or a change to another room of the same type at the same price, payments and a refundable security deposit through Billing, the check-in itself, a printable registration card); a walk-in shortcut into the booking wizard; `GuestCheckedIn` with the occupied room ids. Reservation exposes `StayOperations` (check in, change room) and front-desk lists on `ReservationLookup`. Check-in needs a confirmed booking arriving on or before the business date. Module **Exceptions** (those contracts throw) are now part of a module's public API (§12.6).*
 
 ### 5.8 Guest (CRM)
 
@@ -538,7 +539,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - **Refunds:** policy-driven, and approval-gated above a threshold.
 - **Accounts receivable:** a city ledger for company and travel-agent billing, with aging.
 - Cashier shifts: open/close shift, cash count, variance report.
-- *Implemented in Step 2.1: charge codes (tenant-wide; category for routing, tax category for `TaxEngine`; defaults ROOM, EXBED, FNB, TRANSFER, LAUNDRY, SPA, MISC for new tenants), the extras catalogue (`extra_services`, per property), folios (a guest folio opens with every booking; company, travel-agent and master folios on demand), charges, adjustments (amount incl. tax, may be negative), voids with reason, routing rules per booking and category, and `FolioPostingContract` (in-house, open folio, credit limit: the company's or travel agent's, or `billing.guest_credit_limit` for guest folios). Payments also post a payment line to the guest folio. Staff may post extras before arrival; the in-house rule applies to other modules. Moving lines between folios, invoices and settlement come in Step 2.6.*
+- *Implemented in Step 2.1: charge codes (tenant-wide; category for routing, tax category for `TaxEngine`; defaults ROOM, EXBED, FNB, TRANSFER, LAUNDRY, SPA, MISC for new tenants), the extras catalogue (`extra_services`, per property), folios (a guest folio opens with every booking; company, travel-agent and master folios on demand), charges, adjustments (amount incl. tax, may be negative), voids with reason, routing rules per booking and category, and `FolioPostingContract` (in-house, open folio, credit limit: the company's or travel agent's, or `billing.guest_credit_limit` for guest folios). Payments also post a payment line to the guest folio. Staff may post extras before arrival; the in-house rule applies to other modules. Moving lines between folios, invoices and settlement come in Step 2.3.*
 
 ### 5.10 Restaurant (F&B / POS)
 
@@ -995,7 +996,7 @@ Locks are bulk-inserted in one statement. Correctness relies on the **database c
 
 History of every change is kept in `reservation_logs` plus the activity log.
 
-*(Step 1.7: `ModifyReservation` replaces the booking's items, nights and locks in one transaction (the lock insert decides; a clash rolls back and keeps the original), keeps the negotiated deposit percent and the deposit due time, and confirms a tentative booking whose payments now cover the deposit. `CancelReservation` charges the cancellation policy's fee (`RateLookup::cancellationQuote`) and stores the fee; the refund of what was paid above it is paid in Step 2.6. `ChangeDeposit` renegotiates the percent (0% waives it), outside the policy only with `reservation.deposit.override`. Other modules add tabs to the reservation page through Reservation's `ReservationTabs` contract (Billing: Payments), since Reservation may not call them. Room moves, no-shows and early check-out come with the front office (Phase 2).)*
+*(Step 1.7: `ModifyReservation` replaces the booking's items, nights and locks in one transaction (the lock insert decides; a clash rolls back and keeps the original), keeps the negotiated deposit percent and the deposit due time, and confirms a tentative booking whose payments now cover the deposit. `CancelReservation` charges the cancellation policy's fee (`RateLookup::cancellationQuote`) and stores the fee; the refund of what was paid above it is paid in Step 2.3. `ChangeDeposit` renegotiates the percent (0% waives it), outside the policy only with `reservation.deposit.override`. Other modules add tabs to the reservation page through Reservation's `ReservationTabs` contract (Billing: Payments), since Reservation may not call them. Room moves, no-shows and early check-out come with the front office (Phase 2).)*
 
 ### 6.8 Tape Chart (Booking Calendar)
 
@@ -1046,7 +1047,7 @@ Operational modules **never write journal entries directly**. They emit events. 
 | Service charge distributed | Service Charge Payable | Salaries Payable |
 | Tips distributed | Tips Payable | Salaries Payable |
 
-**Revenue recognition:** room revenue is recognised **per night at night audit** (the accrual basis and international standard). This is why deposits are held as a liability until the stay happens. *Q8 decided before Phase 2: nightly by default, with a per-tenant setting `billing.revenue_recognition` (`nightly` | `at_checkout`) used by the night audit (Step 2.5) and Accounting.*
+**Revenue recognition:** room revenue is recognised **per night at night audit** (the accrual basis and international standard). This is why deposits are held as a liability until the stay happens. *Q8 decided before Phase 2: nightly by default, with a per-tenant setting `billing.revenue_recognition` (`nightly` | `at_checkout`) used by the night audit (Step 2.6) and Accounting.*
 
 **No double counting of restaurant revenue:** when a restaurant bill is charged to a room, the Restaurant posting recognises the revenue (Dr Guest Ledger / Cr F&B Revenue). The folio line that Billing creates is flagged `revenue_posted_by_source = true`, so Billing moves only the receivable and never posts that revenue again.
 
@@ -1179,7 +1180,7 @@ Items and nights mirror `reservation_items` / `reservation_item_nights` (plus `u
 
 **`payments`**
 `id, tenant_id, property_id, receipt_no, reservation_id, folio_id, payment_type(deposit|payment|refund), method, amount, currency_code, exchange_rate, base_amount, reference, gateway, gateway_txn_id, status(pending|succeeded|failed|voided), received_by, received_at, cash_account_id`
-*(Step 1.7, Billing module: manual methods only (cash, card, bank transfer, mobile wallet), in the property's currency (exchange rate 1); also `notes`. `receipt_no` comes from Core's `payment` document type (PAY), unique per tenant. `folio_id` and `cash_account_id` have no foreign keys until folios (Step 2.1) and the chart of accounts (Phase 4) exist. `RecordPayment` refuses more than the balance due, so a booking cannot become overpaid yet; refunds and voids come in Step 2.6. A payment before check-in is a `deposit`.)*
+*(Step 1.7, Billing module: manual methods only (cash, card, bank transfer, mobile wallet), in the property's currency (exchange rate 1); also `notes`. `receipt_no` comes from Core's `payment` document type (PAY), unique per tenant. `folio_id` and `cash_account_id` have no foreign keys until folios (Step 2.1) and the chart of accounts (Phase 4) exist. `RecordPayment` refuses more than the balance due, so a booking cannot become overpaid yet; refunds and voids come in Step 2.3. A payment before check-in is a `deposit`.)*
 
 **`reservation_logs`** *(Step 1.7)*
 `id, tenant_id, property_id, reservation_id, action, description, changes(json: field → [old, new]), user_id (null = the system), timestamps`
@@ -1518,7 +1519,7 @@ Modules/Reservation/
 3. **Business logic** lives in Actions and Services, never in controllers, models or Blade.
 4. **Transactions:** an Action that writes more than one row wraps the work in `DB::transaction()`.
 5. **Events** are dispatched after commit (`ShouldDispatchAfterCommit`).
-6. **Module boundaries:** a module may use another module's **Contracts**, **Enums**, **DTOs** and **Events** only, never its Models directly for writes. This is enforced with Pest architecture tests.
+6. **Module boundaries:** a module may use another module's **Contracts**, **Enums**, **DTOs**, **Events** and **Exceptions** (those its contracts throw) only, never its Models directly for writes. This is enforced with Pest architecture tests.
 7. **Enums:** every status or type is a PHP backed enum with `label()` and `color()` for badges.
 8. **Money:** never use floats. Use the `Money` cast and `brick/money` for calculation; round only at defined points.
 9. **Dates:** stay dates are `Carbon` date-only; timestamps are stored in UTC and displayed in the property timezone.

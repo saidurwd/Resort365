@@ -22,7 +22,7 @@ use Modules\Reservation\Enums\ReservationStatus;
  * Records a manual payment for a reservation (ARCHITECTURE §5.9): a receipt number is taken and
  * the payment saved in one transaction, then PaymentReceived tells Reservation the new total paid.
  * Before arrival a payment is a deposit (advance). More than the balance due is refused; refunds
- * and voids come later (Step 2.6). The reservation's existing payments are read with a locking
+ * and voids come later (Step 2.3). The reservation's existing payments are read with a locking
  * read, so two payments at once cannot both pass the balance check or report a stale total.
  */
 class RecordPayment extends Action
@@ -57,6 +57,10 @@ class RecordPayment extends Action
         return $this->transaction(function () use ($data, $reservation, $amount): Payment {
             $paid = $this->paidSoFar($reservation->id);
             $due = BigDecimal::of($reservation->grandTotal)->minus($paid);
+
+            if ($data->securityDeposit) {
+                return $this->securityDeposit($data, $reservation, $amount);
+            }
 
             if ($amount->isGreaterThan($due)) {
                 throw new PaymentNotAllowed(__('The amount is more than the balance due (:due).', ['due' => (string) BigDecimal::max($due, BigDecimal::zero())->toScale(2)]));
@@ -105,7 +109,39 @@ class RecordPayment extends Action
         $payments = Payment::query()->where('reservation_id', $reservationId)->where('status', PaymentStatus::Succeeded->value)
             ->lockForUpdate()->get(['payment_type', 'amount']);
 
-        return $payments->reduce(fn (BigDecimal $sum, Payment $payment): BigDecimal => $payment->payment_type === PaymentType::Refund
-            ? $sum->minus($payment->amount) : $sum->plus($payment->amount), BigDecimal::zero());
+        return $payments->reduce(fn (BigDecimal $sum, Payment $payment): BigDecimal => match ($payment->payment_type) {
+            PaymentType::Refund => $sum->minus($payment->amount),
+            PaymentType::SecurityDeposit => $sum,
+            default => $sum->plus($payment->amount),
+        }, BigDecimal::zero());
+    }
+
+    /**
+     * A refundable security deposit: no cap, not on the folio, not part of the booking's paid total.
+     * TODO(step-2.3): return it (or apply it) at check-out.
+     */
+    private function securityDeposit(NewPayment $data, ReservationSummary $reservation, BigDecimal $amount): Payment
+    {
+        $payment = Payment::query()->create([
+            'property_id' => $reservation->propertyId,
+            'receipt_no' => $this->numbers->next('payment', $reservation->propertyId),
+            'reservation_id' => $reservation->id,
+            'payment_type' => PaymentType::SecurityDeposit,
+            'method' => $data->method,
+            'amount' => (string) $amount,
+            'currency_code' => $reservation->currencyCode,
+            'exchange_rate' => '1',
+            'base_amount' => (string) $amount,
+            'reference' => $data->reference,
+            'notes' => $data->notes,
+            'status' => PaymentStatus::Succeeded,
+            'received_by' => $data->receivedBy,
+            'received_at' => now(),
+        ]);
+
+        PaymentReceived::dispatch($payment->tenant_id, $payment->id, $payment->property_id, $payment->receipt_no, $payment->amount,
+            $payment->currency_code, $reservation->id, null, $data->receivedBy);
+
+        return $payment;
     }
 }

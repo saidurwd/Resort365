@@ -107,6 +107,9 @@ class DemoSeeder extends Seeder
         DemoBilling::chargeCodes($greenValley);
         DemoBilling::extras($rodela, $resort);
 
+        // Step 2.2: an arrival today ready to check in, and a guest in house leaving today.
+        DemoFrontOffice::seed($rodela, $resort);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

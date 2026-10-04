@@ -20,7 +20,7 @@ class PaymentController extends Controller
 {
     public function store(RecordPaymentRequest $request, RecordPayment $record): RedirectResponse
     {
-        $back = route('reservation.bookings.show', (int) $request->validated('reservation_id')).'#payments';
+        $back = $request->returnTo() ?? route('reservation.bookings.show', (int) $request->validated('reservation_id')).'#payments';
 
         try {
             $payment = $record->handle($request->payment());

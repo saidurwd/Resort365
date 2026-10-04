@@ -1,7 +1,7 @@
 <?php
 
 /*
-| A module may use another module's Contracts, DTOs, Enums and Events only
+| A module may use another module's Contracts, DTOs, Enums, Events and Exceptions only
 | (docs/ARCHITECTURE.md §4.3, §12.6). One test per ordered pair of modules.
 */
 
@@ -25,6 +25,7 @@ foreach (moduleNames() as $module) {
                     "Modules\\{$other}\\DTOs",
                     "Modules\\{$other}\\Enums",
                     "Modules\\{$other}\\Events",
+                    "Modules\\{$other}\\Exceptions",
                 ]);
         });
     }

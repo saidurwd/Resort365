@@ -142,20 +142,21 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
         $bookings = Reservation::query()->with('items')->orderBy('check_in')->get();
 
-        // Room 601 (overdue hold, 1 night), room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights).
-        expect($bookings->pluck('status')->map->value->all())->toBe(['tentative', 'tentative', 'confirmed', 'tentative'])
-            ->and($bookings[0]->deposit_due_at?->isPast())->toBeTrue()
-            ->and($bookings[1]->deposit_percent)->toBe('50.00')
-            ->and($bookings[2]->amount_paid)->toBe($bookings[2]->deposit_required)
-            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(1)
-            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(1 + 2 + 3 + 3 * 3)
+        // In house in 402 (2 nights, leaving today), arriving today in 201 (2 nights), room 601 (overdue hold, 1 night),
+        // room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights).
+        expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative'])
+            ->and($bookings[2]->deposit_due_at?->isPast())->toBeTrue()
+            ->and($bookings[3]->deposit_percent)->toBe('50.00')
+            ->and($bookings[4]->amount_paid)->toBe($bookings[4]->deposit_required)
+            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(3)
+            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 2 + 3 + 3 * 3)
             ->and(ExtraService::query()->count())->toBe(6)
-            ->and(Folio::query()->count())->toBe(4)
+            ->and(Folio::query()->count())->toBe(6)
             ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
     ExpireTentativeHolds::dispatchSync();
     app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->orderBy('check_in')->pluck('status')->map->value->all())
-        ->toBe(['cancelled', 'tentative', 'confirmed', 'tentative']));
+        ->toBe(['checked_in', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative']));
 });

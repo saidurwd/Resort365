@@ -6,5 +6,6 @@
     "Guest": true,
     "Rates": true,
     "Reservation": true,
-    "Billing": true
+    "Billing": true,
+    "FrontOffice": true
 }

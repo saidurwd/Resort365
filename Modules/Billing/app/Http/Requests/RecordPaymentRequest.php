@@ -31,6 +31,8 @@ class RecordPaymentRequest extends FormRequest
             'amount' => ['required', 'decimal:0,2', 'gt:0', 'max:9999999999999'],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'security_deposit' => ['boolean'],
+            'return_to' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -45,6 +47,17 @@ class RecordPaymentRequest extends FormRequest
             $this->validated('reference') !== null ? (string) $this->validated('reference') : null,
             $this->validated('notes') !== null ? (string) $this->validated('notes') : null,
             $user !== null ? (int) $user->getAuthIdentifier() : null,
+            $this->boolean('security_deposit'),
         );
+    }
+
+    /**
+     * Where to go afterwards: a page of this application (e.g. the check-in screen), else null.
+     */
+    public function returnTo(): ?string
+    {
+        $url = $this->validated('return_to');
+
+        return is_string($url) && str_starts_with($url, $this->getSchemeAndHttpHost().'/') ? $url : null;
     }
 }

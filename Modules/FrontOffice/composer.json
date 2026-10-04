@@ -1,0 +1,24 @@
+{
+    "name": "resort365/frontoffice",
+    "description": "Resort365 FrontOffice module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\FrontOffice\\": "app/",
+            "Modules\\FrontOffice\\Database\\Factories\\": "database/factories/",
+            "Modules\\FrontOffice\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\FrontOffice\\Tests\\": "tests/"
+        }
+    }
+}

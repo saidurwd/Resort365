@@ -21,6 +21,7 @@ use Modules\Rates\Contracts\RatePlanUsage;
 use Modules\Reservation\Console\ExpireHoldsCommand;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\Contracts\ReservationTabs;
+use Modules\Reservation\Contracts\StayOperations;
 use Modules\Reservation\Enums\GuestEmail;
 use Modules\Reservation\Jobs\ExpireTentativeHolds;
 use Modules\Reservation\Models\InventoryLock;
@@ -38,6 +39,7 @@ use Modules\Reservation\Services\BookedRatePlanUsage;
 use Modules\Reservation\Services\LockedRoomUsage;
 use Modules\Reservation\Services\ReservationLookupService;
 use Modules\Reservation\Services\ReservationTabRegistry;
+use Modules\Reservation\Services\StayOperationsService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class ReservationServiceProvider extends ModuleServiceProvider
@@ -80,6 +82,7 @@ class ReservationServiceProvider extends ModuleServiceProvider
         // Replaces Rates' default: plans that upcoming bookings use cannot be deleted.
         $this->app->singleton(RatePlanUsage::class, BookedRatePlanUsage::class);
         $this->app->bind(ReservationLookup::class, ReservationLookupService::class);
+        $this->app->bind(StayOperations::class, StayOperationsService::class);
         $this->app->singleton(ReservationTabs::class, ReservationTabRegistry::class);
     }
 

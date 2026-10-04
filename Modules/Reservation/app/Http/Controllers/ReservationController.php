@@ -79,7 +79,7 @@ class ReservationController extends Controller
                 ->values(),
             'history' => $audit->for($reservation),
             'userNames' => $userNames,
-            // What was paid above the cancellation fee (refunded in Step 2.6).
+            // What was paid above the cancellation fee (refunded in Step 2.3).
             'refundDue' => $balance->balance($reservation->amount_paid, $reservation->cancellation_fee ?? '0'),
         ]);
     }

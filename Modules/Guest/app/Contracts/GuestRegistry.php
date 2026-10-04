@@ -2,7 +2,9 @@
 
 namespace Modules\Guest\Contracts;
 
+use Illuminate\Http\UploadedFile;
 use Modules\Guest\DTOs\GuestDetails;
+use Modules\Guest\DTOs\GuestIdentity;
 use Modules\Guest\DTOs\GuestSummary;
 
 /**
@@ -12,4 +14,10 @@ use Modules\Guest\DTOs\GuestSummary;
 interface GuestRegistry
 {
     public function register(GuestDetails $details): GuestSummary;
+
+    /**
+     * Records a guest's ID document (check-in): type, number (encrypted, hashed for duplicate
+     * search), expiry and nationality, and optionally a scan added to the guest's ID documents.
+     */
+    public function recordIdentity(GuestIdentity $identity, ?UploadedFile $scan = null, ?int $uploaderId = null, ?string $uploaderName = null): GuestSummary;
 }

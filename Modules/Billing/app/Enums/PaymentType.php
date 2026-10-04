@@ -6,8 +6,9 @@ use App\Support\Enums\EnumHelpers;
 use App\Support\Enums\HasLabelAndColor;
 
 /**
- * What a payment is for: an advance before arrival, a payment during or after the stay, or money
- * paid back (ARCHITECTURE §5.9).
+ * What a payment is for: an advance before arrival, a payment during or after the stay, money
+ * paid back (ARCHITECTURE §5.9), or a refundable security deposit held during the stay (not part
+ * of what the booking has paid; returned at check-out).
  */
 enum PaymentType: string implements HasLabelAndColor
 {
@@ -16,6 +17,7 @@ enum PaymentType: string implements HasLabelAndColor
     case Deposit = 'deposit';
     case Payment = 'payment';
     case Refund = 'refund';
+    case SecurityDeposit = 'security_deposit';
 
     public function label(): string
     {
@@ -23,6 +25,7 @@ enum PaymentType: string implements HasLabelAndColor
             self::Deposit => __('Deposit'),
             self::Payment => __('Payment'),
             self::Refund => __('Refund'),
+            self::SecurityDeposit => __('Security deposit'),
         };
     }
 
@@ -32,6 +35,7 @@ enum PaymentType: string implements HasLabelAndColor
             self::Deposit => 'info',
             self::Payment => 'success',
             self::Refund => 'danger',
+            self::SecurityDeposit => 'warning',
         };
     }
 }

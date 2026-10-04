@@ -104,6 +104,8 @@ class GuestLookupService implements GuestLookup
             vipLevel: $guest->vip_level->value,
             isBlacklisted: $guest->is_blacklisted,
             blacklistReason: $guest->blacklist_reason,
+            idType: $guest->id_type?->value,
+            idExpiry: $guest->id_expiry?->toDateString(),
         );
     }
 

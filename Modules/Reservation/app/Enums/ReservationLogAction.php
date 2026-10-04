@@ -23,6 +23,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
     case Cancelled = 'cancelled';
     case Expired = 'expired';
     case EmailSent = 'email_sent';
+    case CheckedIn = 'checked_in';
 
     public function label(): string
     {
@@ -38,6 +39,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
             self::Cancelled => __('Cancelled'),
             self::Expired => __('Hold expired'),
             self::EmailSent => __('Email'),
+            self::CheckedIn => __('Checked in'),
         };
     }
 
@@ -45,7 +47,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
     {
         return match ($this) {
             self::Created, self::Confirmed => 'primary',
-            self::PaymentApplied => 'success',
+            self::PaymentApplied, self::CheckedIn => 'success',
             self::Cancelled, self::Expired => 'danger',
             self::DepositChanged => 'warning',
             self::EmailSent => 'info',

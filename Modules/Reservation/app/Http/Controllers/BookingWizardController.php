@@ -20,6 +20,7 @@ use Modules\Rates\DTOs\RatePlanSummary;
 use Modules\Reservation\Actions\CreateReservation;
 use Modules\Reservation\Actions\SaveQuote;
 use Modules\Reservation\DTOs\BookingQuote;
+use Modules\Reservation\Enums\ReservationSource;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Exceptions\BookingNotPossible;
 use Modules\Reservation\Exceptions\DepositBelowMinimum;
@@ -47,15 +48,26 @@ class BookingWizardController extends Controller
         private readonly PropertyDirectory $properties,
     ) {}
 
-    public function dates(): View
+    public function dates(Request $request): View
     {
         $propertyId = $this->propertyId();
-        $state = $this->wizard->state($propertyId);
         $businessDate = CarbonImmutable::parse($this->properties->find($propertyId)->businessDate ?? now()->toDateString());
 
+        // ?walk_in=1 (front desk): a fresh booking for tonight, sourced as a walk-in.
+        if ($request->boolean('walk_in')) {
+            $this->wizard->clear();
+            $this->wizard->put($propertyId, ['source' => ReservationSource::WalkIn->value]);
+
+            return $this->step('dates', 1, [
+                'plans' => $this->frontDeskPlans($propertyId),
+                'values' => ['check_in' => $businessDate->toDateString(), 'check_out' => $businessDate->addDay()->toDateString(), 'adults' => 2, 'children' => 0],
+            ]);
+        }
+
+        $state = $this->wizard->state($propertyId);
+
         return $this->step('dates', 1, [
-            'plans' => collect($this->rates->ratePlans($propertyId))->filter(fn (RatePlanSummary $plan): bool => $plan->sellsThrough('front_desk'))
-                ->mapWithKeys(fn (RatePlanSummary $plan): array => [$plan->id => $plan->name])->all(),
+            'plans' => $this->frontDeskPlans($propertyId),
             'values' => $state + ['check_in' => $businessDate->toDateString(), 'check_out' => $businessDate->addDays(2)->toDateString(), 'adults' => 2, 'children' => 0],
         ]);
     }
@@ -352,5 +364,14 @@ class BookingWizardController extends Controller
         $this->wizard->put($propertyId, ['guest_id' => $guestId]);
 
         return $guestId;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function frontDeskPlans(int $propertyId): array
+    {
+        return collect($this->rates->ratePlans($propertyId))->filter(fn (RatePlanSummary $plan): bool => $plan->sellsThrough('front_desk'))
+            ->mapWithKeys(fn (RatePlanSummary $plan): array => [$plan->id => $plan->name])->all();
     }
 }

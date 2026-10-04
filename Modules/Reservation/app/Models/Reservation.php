@@ -59,6 +59,8 @@ use Modules\Reservation\Enums\ReservationStatus;
  * @property int|null $created_by
  * @property Carbon|null $confirmed_at
  * @property Carbon|null $cancelled_at
+ * @property Carbon|null $checked_in_at
+ * @property Carbon|null $checked_out_at
  * @property string|null $cancellation_reason
  * @property string|null $cancellation_fee
  * @property Carbon|null $created_at

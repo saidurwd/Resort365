@@ -90,7 +90,7 @@ Run `composer fix` after generating anything, then the quality gate (§6).
 ## 4. Boundaries between modules
 
 - A module owns its tables. No other module writes to them.
-- Another module may use only this module's **Contracts, DTOs, Enums and Events**. Models, Actions, Services, Controllers and everything else stay private.
+- Another module may use only this module's **Contracts, DTOs, Enums, Events and Exceptions** (the exceptions its contracts throw, so callers can catch them). Models, Actions, Services, Controllers and everything else stay private.
 - Queries or commands across modules go through a **Contract** bound in the owning module's service provider. Side effects go through **Events** that the other module listens to.
 - Dependencies point one way, following the graph in ARCHITECTURE §4.3. A downstream module reacts to an upstream module's events. An upstream module never calls a downstream one, and there are no cycles.
 
@@ -121,7 +121,7 @@ Run `composer fix` after generating anything, then the quality gate (§6).
 - The **architecture tests** in `tests/Architecture` discover every module automatically and enforce these rules:
   - no `dd`, `ddd`, `dump`, `ray` or `var_dump`;
   - controllers do not use `DB` (facade, alias or connection);
-  - modules use each other only through Contracts, DTOs, Enums and Events;
+  - modules use each other only through Contracts, DTOs, Enums, Events and Exceptions;
   - Actions extend `Action`, DTOs are readonly and extend `Data`, Enums implement `HasLabelAndColor`, and Events implement `ShouldDispatchAfterCommit`.
 - Before committing: `composer fix`, then `composer lint`, `composer analyse` and `composer test`.
 
