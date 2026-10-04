@@ -557,6 +557,7 @@ Runs every food and beverage outlet in the resort. It serves in-house guests (wh
 - A property can have **several outlets**, e.g. *Main Restaurant*, *Pool Bar*, *Beach Grill*, *Café*, *Room Service*, *Mini-bar*.
 - Each outlet has: type (restaurant, bar, café, room service, mini-bar), operating hours, linked **inventory store** (where ingredients are deducted from), kitchen stations, printers, tax and service-charge settings, price-inclusive-of-tax flag, revenue account mapping, bill numbering sequence and receipt header/footer.
 - POS terminals are registered per outlet (a name and device token), so that sessions, printers and reports are tied to a physical device.
+- *Implemented in Step 3.1 (Restaurant module, setup in AdminLTE under Restaurant): outlets per property (code, type, opening hours per weekday, **one default tax category** instead of `tax_category_ids` plus `service_charge_percent`, because service charge is already a compound-ready tax in Core's categories, as for rooms; prices-include-tax flag; a `bill_prefix`, with the bill numbering itself in Step 3.6; receipt header and footer). Printers per property (receipt or KOT; browser printing in v1 per Q17, network and agent connections stored for later). Kitchen stations per outlet (output kitchen display, printer or both per Q18; a printed station needs a KOT printer). POS terminals per outlet with a device token shown once and stored as a SHA-256 hash, regenerated on demand; devices sign in with it from Step 3.3. Staff work in the outlets assigned in `outlet_user` (Restaurant → Outlet access) or in every outlet with `restaurant.outlet.access-all`; `OutletAccess` answers it. Not yet: the inventory store link (Inventory, Phase 5) and revenue account mapping (Accounting, Phase 4).*
 
 #### 5.10.2 Menu Management
 
@@ -575,6 +576,7 @@ Runs every food and beverage outlet in the resort. It serves in-house guests (wh
 - **Dining areas** (Indoor, Terrace, Pool deck, Beach) and **tables** with number, seats, shape and position on a visual floor plan (arranged by drag and drop in setup).
 - Live table status by colour: *available*, *occupied*, *bill printed*, *reserved*, *needs cleaning*. Each occupied table shows how long it has been seated and its running total.
 - Operations: open table with number of covers, assign waiter, transfer to another table, **merge** tables, move items between tables, **split** bill.
+- *Implemented in Step 3.1: dining areas and tables (number unique per outlet, seats, shape square/round/rectangle, active) and the **drag-and-drop floor plan editor**: an SVG canvas of 1000 × 600 units per area; tables are `<g>` elements placed with `transform` attributes (no inline styles); Alpine (`resources/js/ui/floor-plan.js`) drags them with pointer events, snapping to a 10-unit grid; Save posts the positions as JSON and `SaveFloorPlan` snaps and clamps them again (pure `FloorPlanGeometry`) and refuses tables of another area. New tables are placed on the first free spot. The live table status is stored (`available`) and used from Step 3.4.*
 
 #### 5.10.4 Order Types
 
@@ -1241,6 +1243,7 @@ erDiagram
 
 **`outlets`**
 `id, tenant_id, property_id, code, name, type(restaurant|bar|cafe|room_service|minibar), store_id, prices_include_tax, tax_category_ids(json), service_charge_percent, bill_sequence_id, receipt_header, receipt_footer, opening_hours(json), is_active`
+*(Step 3.1 as built: `default_tax_category_id` replaces `tax_category_ids` and `service_charge_percent`; `bill_prefix` instead of `bill_sequence_id` until Step 3.6; `store_id` comes with Inventory; plus `sort_order`. Kitchen stations, terminals, areas and tables also carry `property_id` for the property scope; tables have `is_active`; printers have `is_active`.)*
 
 **`pos_terminals`**
 `id, tenant_id, outlet_id, name, device_token(hashed), receipt_printer_id, is_active, last_seen_at`

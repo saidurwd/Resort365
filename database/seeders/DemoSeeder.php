@@ -119,6 +119,10 @@ class DemoSeeder extends Seeder
         // Step 2.7: an out-of-order block, dirty rooms with tasks, work orders, a preventive schedule and lost & found.
         DemoHousekeeping::seed($rodela, $resort, self::DOMAINS['rodela']);
 
+        // Step 3.1: outlets with stations, terminals, printers and floor plans; F&B staff per outlet.
+        DemoRestaurant::seed($rodela, $resort, self::DOMAINS['rodela']);
+        DemoRestaurant::small($greenValley, $valley);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

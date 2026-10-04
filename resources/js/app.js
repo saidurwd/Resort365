@@ -8,12 +8,14 @@ import { initConfirm } from './ui/confirm';
 import { initHashTabs } from './ui/tabs';
 import { initThemePersistence } from './ui/theme';
 import { tapeChart } from './ui/tape-chart';
+import { floorPlan } from './ui/floor-plan';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
 window.bootstrap = bootstrap;
 
 window.Alpine = Alpine;
 Alpine.data('tapeChart', tapeChart);
+Alpine.data('floorPlan', floorPlan);
 Alpine.start();
 
 /**

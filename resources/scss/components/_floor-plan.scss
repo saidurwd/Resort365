@@ -1,0 +1,56 @@
+// Restaurant floor plan (setup now, the POS from Step 3.4): an SVG canvas per dining area.
+.floor-plan {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    display: block;
+    height: auto;
+    touch-action: none;
+    user-select: none;
+    width: 100%;
+}
+
+.floor-plan__floor {
+    stroke: none;
+}
+
+.floor-plan__grid {
+    fill: none;
+    stroke: var(--bs-border-color-translucent);
+    stroke-width: 1;
+}
+
+.floor-table__top {
+    fill: var(--bs-primary-bg-subtle);
+    stroke: var(--bs-primary);
+    stroke-width: 2;
+}
+
+.floor-table__number {
+    fill: var(--bs-body-color);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.floor-table__seats {
+    fill: var(--bs-secondary-color);
+    font-size: 12px;
+}
+
+.floor-table--movable {
+    cursor: grab;
+}
+
+.floor-table.is-dragging {
+    cursor: grabbing;
+
+    .floor-table__top {
+        fill: var(--bs-warning-bg-subtle);
+        stroke: var(--bs-warning);
+    }
+}
+
+.floor-table--inactive .floor-table__top {
+    fill: var(--bs-secondary-bg);
+    stroke: var(--bs-secondary-color);
+    stroke-dasharray: 4 3;
+}

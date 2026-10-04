@@ -37,6 +37,8 @@ use Modules\Reservation\Jobs\ExpireTentativeHolds;
 use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Quote;
 use Modules\Reservation\Models\Reservation;
+use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\Outlet;
 
 use function Pest\Laravel\seed;
 
@@ -170,4 +172,22 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
     ExpireTentativeHolds::dispatchSync();
     app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->orderBy('check_in')->orderBy('id')->pluck('status')->map->value->all())
         ->toBe(['checked_in', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative']));
+});
+
+it('sets up the restaurant: outlets with stations, terminals and floor plans (Step 3.1)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $outlets = [];
+
+        foreach (Outlet::query()->withCount(['areas', 'tables', 'stations', 'terminals'])->orderBy('sort_order')->orderBy('name')->get() as $outlet) {
+            $outlets[$outlet->name] = [(int) $outlet->getAttribute('areas_count'), (int) $outlet->getAttribute('tables_count'),
+                (int) $outlet->getAttribute('stations_count'), (int) $outlet->getAttribute('terminals_count')];
+        }
+
+        expect($outlets)->toBe(['Main Restaurant' => [2, 12, 4, 2], 'Pool Bar' => [1, 4, 1, 1], 'Room Service' => [0, 0, 1, 1]])
+            ->and(DiningTable::query()->where('number', 'T8')->sole()->only(['pos_x', 'pos_y']))->toBe(['pos_x' => 600, 'pos_y' => 200]);
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(DiningTable::query()->count())->toBe(6));
 });

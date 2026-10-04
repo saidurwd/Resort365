@@ -1,0 +1,24 @@
+{
+    "name": "resort365/restaurant",
+    "description": "Resort365 Restaurant module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Restaurant\\": "app/",
+            "Modules\\Restaurant\\Database\\Factories\\": "database/factories/",
+            "Modules\\Restaurant\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Restaurant\\Tests\\": "tests/"
+        }
+    }
+}
