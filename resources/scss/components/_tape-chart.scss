@@ -1,0 +1,179 @@
+// Tape chart (Reservations): a room label column, then one grid column per night. Cells and bars
+// share the lane's single grid row; bars sit on top and are placed with tc-col-N / tc-span-N.
+$tape-chart-max-days: 30;
+
+.tape-chart-scroll {
+    overflow-x: auto;
+}
+
+.tape-chart {
+    --tape-chart-room-width: 9rem;
+    --tape-chart-day-width: 3.25rem;
+    --tape-chart-row-height: 2.25rem;
+    --tape-chart-days: 14;
+
+    min-width: min-content;
+
+    &--30 {
+        --tape-chart-days: 30;
+        --tape-chart-day-width: 2.5rem;
+    }
+}
+
+.tape-chart__row {
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    display: flex;
+
+    &--head {
+        background-color: var(--bs-tertiary-bg);
+        position: sticky;
+        top: 0;
+        z-index: 3;
+    }
+}
+
+.tape-chart__room {
+    align-items: center;
+    background-color: var(--bs-body-bg);
+    border-right: 1px solid var(--bs-border-color);
+    display: flex;
+    flex: 0 0 var(--tape-chart-room-width);
+    gap: .5rem;
+    left: 0;
+    padding: 0 .5rem;
+    position: sticky;
+    z-index: 2;
+
+    .tape-chart__row--head & {
+        background-color: var(--bs-tertiary-bg);
+    }
+}
+
+.tape-chart__group {
+    background-color: var(--bs-secondary-bg);
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    font-weight: 600;
+    left: 0;
+    padding: .25rem .5rem;
+    position: sticky;
+    width: max-content;
+    min-width: 100%;
+}
+
+// Day columns share any spare width, but never get narrower than --tape-chart-day-width. The lane's
+// width comes from the row (flex-basis 0) and bars have no minimum width, so a long guest name
+// never widens a column: every row keeps the same columns.
+.tape-chart__lane {
+    display: grid;
+    flex: 1 1 0;
+    grid-template-columns: repeat(var(--tape-chart-days), minmax(var(--tape-chart-day-width), 1fr));
+    min-width: calc(var(--tape-chart-days) * var(--tape-chart-day-width));
+    grid-template-rows: var(--tape-chart-row-height);
+    position: relative;
+
+    > * {
+        grid-row: 1;
+    }
+
+    &.is-drop-target {
+        background-color: var(--bs-info-bg-subtle);
+    }
+}
+
+.tape-chart__day {
+    align-items: center;
+    border-right: 1px solid var(--bs-border-color-translucent);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.1;
+    padding: .25rem 0;
+
+}
+
+.tape-chart__cell {
+    border-right: 1px solid var(--bs-border-color-translucent);
+
+    &.is-past {
+        background-color: var(--bs-tertiary-bg);
+    }
+
+    @at-root a#{&}:hover {
+        background-color: var(--bs-primary-bg-subtle);
+    }
+}
+
+// The business date: a marker line in every row.
+.tape-chart__day.is-today,
+.tape-chart__cell.is-today {
+    box-shadow: inset 2px 0 0 var(--bs-danger);
+}
+
+.tape-chart__day.is-today {
+    background-color: var(--bs-danger-bg-subtle);
+}
+
+.tape-chart__bar {
+    align-self: center;
+    border-radius: var(--bs-border-radius);
+    font-size: .8rem;
+    height: calc(var(--tape-chart-row-height) - .5rem);
+    line-height: calc(var(--tape-chart-row-height) - .5rem);
+    margin: 0 2px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 0 .4rem;
+    text-decoration: none;
+    white-space: nowrap;
+    z-index: 1;
+
+    &.continues-before {
+        border-bottom-left-radius: 0;
+        border-top-left-radius: 0;
+        margin-left: 0;
+    }
+
+    &.continues-after {
+        border-bottom-right-radius: 0;
+        border-top-right-radius: 0;
+        margin-right: 0;
+    }
+
+    &.is-movable {
+        cursor: grab;
+    }
+
+    &--block {
+        background: repeating-linear-gradient(135deg, var(--bs-secondary-bg), var(--bs-secondary-bg) 6px, var(--bs-tertiary-bg) 6px, var(--bs-tertiary-bg) 12px);
+        border: 1px solid var(--bs-border-color);
+        color: var(--bs-body-color);
+    }
+}
+
+.tape-chart__label {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tape-chart__legend-block {
+    background: repeating-linear-gradient(135deg, var(--bs-secondary-bg), var(--bs-secondary-bg) 6px, var(--bs-tertiary-bg) 6px, var(--bs-tertiary-bg) 12px);
+    border: 1px solid var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+@for $i from 0 through $tape-chart-max-days - 1 {
+    .tc-col-#{$i} {
+        grid-column-start: $i + 1;
+    }
+}
+
+@for $i from 1 through $tape-chart-max-days {
+    .tc-span-#{$i} {
+        grid-column-end: span $i;
+    }
+}
+
+.tape-chart__row--head .tape-chart__lane {
+    grid-template-rows: auto;
+}

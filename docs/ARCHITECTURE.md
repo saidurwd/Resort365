@@ -1011,6 +1011,14 @@ A grid of rooms (grouped by cottage) × dates, showing reservations as coloured 
 
 It is built as a custom Blade + CSS Grid + Alpine.js component. This avoids commercial calendar licenses such as FullCalendar Scheduler.
 
+**As built (Step 2.5):** `/reservation/tape-chart` (permission `reservation.booking.view`) shows the current property for 14 or 30 days, starting the day before the business date, which is marked in every row. A column is a night: each `inventory_locks` row is one cell, and `TapeChartBuilder` (pure, unit-tested) merges an item's consecutive nights into one bar. Blocks (out of order, owner block, hold) are grey and striped. An empty cell from the business date on opens the booking wizard with `?check_in=…&check_out=…` (one night). Only a single-room item that is Tentative, Confirmed or Checked in can be dragged (`reservation.booking.update`); the drop posts JSON to `/reservation/tape-chart/move`, and `MoveOnChart` applies the Step 2.4 rules:
+
+- **In house:** `MoveRoom` moves the remaining nights from the business date, at the same rate, to any active room.
+- **Before arrival:** `ChangeItemRoom` moves every night to a room of the same type, at the same price. A different room type is refused, because it re-prices the booking; use Modify booking for that.
+- **Whole cottages** are moved with Change stay, not on the chart.
+
+If the target room is held on any of those nights, the move is refused with a message that names the nights ("Room 402 is taken on 12 Nov, 13 Nov."), and the unique lock index still decides when two people drag at once. After a move the page reloads, so it always shows the server's state.
+
 ---
 
 ## 7. Finance & Accounting Integration

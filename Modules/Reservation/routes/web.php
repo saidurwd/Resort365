@@ -11,6 +11,7 @@ use Modules\Reservation\Http\Controllers\ReservationController;
 use Modules\Reservation\Http\Controllers\ReservationDepositController;
 use Modules\Reservation\Http\Controllers\ReservationGuestController;
 use Modules\Reservation\Http\Controllers\RoomingListController;
+use Modules\Reservation\Http\Controllers\TapeChartController;
 
 /*
 |--------------------------------------------------------------------------
@@ -54,6 +55,9 @@ Route::prefix('reservation')->name('reservation.')->middleware(['auth', 'verifie
     });
 
     Route::get('/reports/sources', [BookingSourceReportController::class, 'index'])->middleware('can:reservation.report.view')->name('reports.sources');
+
+    Route::get('/tape-chart', [TapeChartController::class, 'index'])->middleware('can:reservation.booking.view')->name('tape-chart');
+    Route::post('/tape-chart/move', [TapeChartController::class, 'move'])->middleware('can:reservation.booking.update')->name('tape-chart.move');
 
     Route::middleware('can:reservation.booking.view')->group(function (): void {
         Route::get('/bookings', [ReservationController::class, 'index'])->name('bookings.index');

@@ -7,11 +7,13 @@ import { initDataTables } from './ui/datatables';
 import { initConfirm } from './ui/confirm';
 import { initHashTabs } from './ui/tabs';
 import { initThemePersistence } from './ui/theme';
+import { tapeChart } from './ui/tape-chart';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
 window.bootstrap = bootstrap;
 
 window.Alpine = Alpine;
+Alpine.data('tapeChart', tapeChart);
 Alpine.start();
 
 /**

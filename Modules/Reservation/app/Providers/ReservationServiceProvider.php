@@ -130,6 +130,8 @@ class ReservationServiceProvider extends ModuleServiceProvider
             permission: 'reservation.quote.view', module: 'reservation', active: 'reservation.quotes.*'));
         $menu->add(new MenuItem('reservation.report.sources', 'Booking sources', route: 'reservation.reports.sources', parent: 'reservations', order: 20,
             permission: 'reservation.report.view', module: 'reservation', active: 'reservation.reports.sources'));
+        $menu->add(new MenuItem('reservation.tape-chart', 'Tape chart', route: 'reservation.tape-chart', parent: 'reservations', order: 9,
+            permission: 'reservation.booking.view', module: 'reservation', active: 'reservation.tape-chart'));
         $menu->add(new MenuItem('reservation.availability', 'Availability', route: 'reservation.availability', parent: 'reservations', order: 10,
             permission: 'reservation.availability.view', module: 'reservation', active: 'reservation.availability'));
 

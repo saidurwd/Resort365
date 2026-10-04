@@ -64,12 +64,53 @@ class BookingWizardController extends Controller
             ]);
         }
 
+        // ?check_in=…&check_out=… (an empty tape-chart cell): a fresh booking for those dates.
+        $prefill = $this->prefilledDates($request, $businessDate);
+
+        if ($prefill !== null) {
+            $this->wizard->clear();
+
+            return $this->step('dates', 1, [
+                'plans' => $this->frontDeskPlans($propertyId),
+                'values' => $prefill + ['adults' => 2, 'children' => 0],
+            ]);
+        }
+
         $state = $this->wizard->state($propertyId);
 
         return $this->step('dates', 1, [
             'plans' => $this->frontDeskPlans($propertyId),
             'values' => $state + ['check_in' => $businessDate->toDateString(), 'check_out' => $businessDate->addDays(2)->toDateString(), 'adults' => 2, 'children' => 0],
         ]);
+    }
+
+    /**
+     * Dates passed in the link, when both are valid and not before the business date; the booking
+     * itself is validated by BookingDatesRequest when the form is submitted.
+     *
+     * @return array{check_in: string, check_out: string}|null
+     */
+    private function prefilledDates(Request $request, CarbonImmutable $businessDate): ?array
+    {
+        $parse = function (string $key) use ($request): ?CarbonImmutable {
+            $value = $request->query($key);
+
+            if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1) {
+                return null;
+            }
+
+            $date = rescue(fn (): ?CarbonImmutable => CarbonImmutable::createFromFormat('!Y-m-d', $value), null, false);
+
+            return $date instanceof CarbonImmutable && $date->toDateString() === $value ? $date : null;
+        };
+        $checkIn = $parse('check_in');
+        $checkOut = $parse('check_out');
+
+        if (! $checkIn instanceof CarbonImmutable || ! $checkOut instanceof CarbonImmutable || $checkIn->lt($businessDate) || $checkOut->lte($checkIn)) {
+            return null;
+        }
+
+        return ['check_in' => $checkIn->toDateString(), 'check_out' => $checkOut->toDateString()];
     }
 
     public function storeDates(BookingDatesRequest $request): RedirectResponse
