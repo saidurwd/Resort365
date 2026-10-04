@@ -52,3 +52,58 @@
     margin-left: auto;
     max-width: 7rem;
 }
+
+// Housekeeping room status board: a tile per room, coloured by its cleaning status.
+.room-board {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+}
+
+.room-tile {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-left-width: .35rem;
+    border-radius: var(--bs-border-radius);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    min-width: 0;
+    padding: .5rem .75rem;
+
+    @each $name in primary, success, warning, danger, info, secondary {
+        &--#{$name} {
+            border-left-color: var(--bs-#{$name});
+        }
+    }
+
+    &--blocked {
+        background: repeating-linear-gradient(135deg, var(--bs-body-bg), var(--bs-body-bg) 8px, var(--bs-tertiary-bg) 8px, var(--bs-tertiary-bg) 16px);
+    }
+
+    &:has(input:checked) {
+        box-shadow: 0 0 0 .2rem var(--bs-primary-border-subtle);
+    }
+}
+
+.room-tile__number {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.room-tile__status {
+    font-weight: 600;
+}
+
+.room-tile__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem;
+}
+
+.board-actions {
+    bottom: 1rem;
+    position: sticky;
+    z-index: 2;
+}

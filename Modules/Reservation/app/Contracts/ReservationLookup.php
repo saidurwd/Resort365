@@ -4,6 +4,7 @@ namespace Modules\Reservation\Contracts;
 
 use Modules\Reservation\DTOs\NightOccupancy;
 use Modules\Reservation\DTOs\ReservationSummary;
+use Modules\Reservation\DTOs\RoomOccupancy;
 
 /**
  * Reservations for other modules (Billing). Lookups respect the user's property access.
@@ -49,4 +50,11 @@ interface ReservationLookup
      * The night of $date (Y-m-d) as stayed at the property, for the night audit's statistics.
      */
     public function occupancy(int $propertyId, string $date): NightOccupancy;
+
+    /**
+     * The property's rooms with a booking on $date (Y-m-d): in house, leaving or arriving.
+     *
+     * @return array<int, RoomOccupancy> room id => occupancy
+     */
+    public function roomOccupancy(int $propertyId, string $date): array;
 }

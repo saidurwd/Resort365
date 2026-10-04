@@ -307,6 +307,8 @@ flowchart LR
     FrontOffice --> Billing
     Billing --> Reservation
     Housekeeping --> Property
+    Housekeeping --> Reservation
+    Housekeeping -. events .-> FrontOffice
     Restaurant --> Property
     Restaurant --> Billing
     Restaurant -. optional .-> Inventory
@@ -368,16 +370,17 @@ Route ─► Middleware ─► Controller (thin: authorize, validate, delegate, 
 | `ReservationCancelled` | Reservation | Billing → cancellation fee / refund; Notifications |
 | `PaymentReceived` | Billing | Reservation → update payment status, auto-confirm if deposit met; Accounting → post receipt *(Step 1.7: the event carries the reservation's total paid, so Reservation sets it rather than adding to it)* |
 | `RefundIssued` | Billing | Reservation → paid total and payment status; Accounting → post refund |
-| `GuestCheckedIn` | FrontOffice | Housekeeping → room status *Occupied* |
+| `GuestCheckedIn` | FrontOffice | Housekeeping → room status *Occupied* *(Step 2.7: occupancy is read from Reservation's in-house stays, `ReservationLookup::roomOccupancy`, so Housekeeping does not listen to it)* |
 | `GuestCheckedOut` | FrontOffice | Housekeeping → room *Dirty*, create cleaning task *(Step 2.3: invoices are issued during check-out through Billing's `FolioSettlement` contract, so Billing does not listen to FrontOffice)* |
-| `NightAuditCompleted` | FrontOffice | Accounting → post the day's revenue; Reports → snapshot daily statistics |
+| `RoomMoved` | Reservation | Housekeeping → the room left becomes *Dirty* with a departure clean *(Step 2.7)* |
+| `NightAuditCompleted` | FrontOffice | Accounting → post the day's revenue; Reports → snapshot daily statistics; Housekeeping → stayover tasks for rooms in house *(Step 2.7)* |
 | `KotSent` | Restaurant | Kitchen display (via Reverb) → new ticket appears; printer queue → KOT printed at the station |
 | `KotItemStatusChanged` | Restaurant | POS (via Reverb) → waiter sees "ready to serve" |
 | `KotItemVoided` | Restaurant | Kitchen display → cancel ticket line; audit log; F&B Manager notification if above threshold |
 | `RestaurantBillSettled` | Restaurant | Accounting → post F&B revenue, taxes, payments; Inventory → deduct recipe ingredients from the outlet's store; Reports → sales statistics |
 | `RestaurantBillVoided` | Restaurant | Accounting → reverse postings; Inventory → reverse consumption (if food was not prepared) |
 | `PosSessionClosed` | Restaurant | Accounting → post cash over/short; Notifications → Z-report to the F&B Manager |
-| `RoomOutOfOrder` | Housekeeping | Reservation → locks inventory; alert if the room has bookings |
+| ~~`RoomOutOfOrder`~~ | Housekeeping | *Step 2.7: replaced by a call. Housekeeping's `BlockRoom` calls Reservation's `RoomBlocks` contract, which locks the nights (`out_of_order`, `block_id`) or refuses at once, naming the bookings that hold the room; an event could not refuse.* |
 | `StockBelowReorderLevel` | Inventory | Procurement → suggest requisition; Notifications |
 | `GoodsReceived` | Procurement | Inventory → stock in; Accounting → Dr Inventory / Cr GRNI |
 | `VendorBillApproved` | Procurement | Accounting → Dr GRNI (or Expense) / Cr Accounts Payable |
@@ -716,6 +719,14 @@ Sales by outlet, category, item, hour, waiter and payment method · covers and a
 - **OOO blocks:** mark a room unavailable for a date range. This creates inventory locks, so the room cannot be sold.
 - Lost & found register.
 - Preventive maintenance schedules (e.g. AC servicing every 90 days).
+- *Implemented in Step 2.7 (Housekeeping module, depends on Property and Reservation contracts and listens to FrontOffice and Reservation events):*
+  - *Room status board (`/housekeeping/board`): a tile per active room by cottage with its cleaning status (`rooms.housekeeping_status`, changed through Property's `RoomStatuses` contract and logged in `room_status_logs`), occupied / due out / arriving from Reservation's `ReservationLookup::roomOccupancy` (occupancy is derived from bookings, not stored in a `rooms.occupancy_status` column), an active OOO/OOS block and today's task; bulk status update.*
+  - *Cleaning tasks (`housekeeping_tasks`, one per room, business date and type): a departure clean and the room Dirty on check-out (`GuestCheckedOut`) and for the room left on an in-house move (`RoomMoved`); after each night audit (`NightAuditCompleted`) rooms in house become Dirty with a stayover task (also `housekeeping:daily-tasks` and a button). Supervisors assign tasks to anyone with `housekeeping.task.perform` (no default attendant role: tenants create one) and inspect; attendants start, finish (room Clean) or skip their own or unassigned tasks; a passed inspection makes the room Inspected, a failed one Dirty with the task reopened (pure `TaskTransitions`).*
+  - *Blocks (`room_blocks`): out of order locks the nights through Reservation's `RoomBlocks` and is refused while the room is booked or in house on any night; out of service only shows on the board; ending a block releases the nights from the business date.*
+  - *Work orders (`maintenance_requests`, WO-id): reported by any staff member, worked and closed (labour and parts cost, what was done) by the maintenance technician or a manager. Parts from inventory come with the Inventory module.*
+  - *Preventive schedules (`maintenance_schedules`): daily at 06:00 (`housekeeping:preventive`) each due schedule opens one work order and moves on by whole intervals (pure `PreventiveCalendar`).*
+  - *Lost & found (`lost_found_items`): logged, then returned to a guest profile or a named person, or disposed of.*
+  - *Not yet: amenity consumption (needs Inventory), a "room not clean" warning at check-in.*
 
 ### 5.12 Inventory
 

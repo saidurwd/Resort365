@@ -7,5 +7,6 @@
     "Rates": true,
     "Reservation": true,
     "Billing": true,
-    "FrontOffice": true
+    "FrontOffice": true,
+    "Housekeeping": true
 }

@@ -6,7 +6,7 @@ use App\Support\Enums\EnumHelpers;
 use App\Support\Enums\HasLabelAndColor;
 
 /**
- * A room's cleaning state. Shown read-only here; Housekeeping changes it (Phase 4).
+ * A room's cleaning state. Shown read-only here; Housekeeping changes it through RoomStatuses (Step 2.7).
  */
 enum HousekeepingStatus: string implements HasLabelAndColor
 {

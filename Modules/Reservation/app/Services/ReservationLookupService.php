@@ -3,12 +3,14 @@
 namespace Modules\Reservation\Services;
 
 use Brick\Math\BigDecimal;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\NightOccupancy;
 use Modules\Reservation\DTOs\ReservationSummary;
+use Modules\Reservation\DTOs\RoomOccupancy;
 use Modules\Reservation\Enums\LockType;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Models\InventoryLock;
@@ -83,6 +85,48 @@ class ReservationLookupService implements ReservationLookup
             departures: $count([ReservationStatus::CheckedOut->value], 'check_out'),
             noShows: $count([ReservationStatus::NoShow->value], 'check_in'),
         );
+    }
+
+    public function roomOccupancy(int $propertyId, string $date): array
+    {
+        $yesterday = CarbonImmutable::parse($date)->subDay()->toDateString();
+        $locks = InventoryLock::query()->where('property_id', $propertyId)->whereIn('stay_date', [$date, $yesterday])
+            ->where('lock_type', LockType::Reservation->value)->get(['room_id', 'stay_date', 'reservation_id', 'reservation_item_id']);
+        $items = ReservationItem::query()->whereIn('id', $locks->pluck('reservation_item_id')->filter()->unique())->get(['id', 'status', 'check_in', 'check_out'])->keyBy('id');
+        $reservations = Reservation::query()->whereIn('id', $locks->pluck('reservation_id')->filter()->unique())->get(['id', 'code', 'primary_guest_id', 'group_name'])->keyBy('id');
+        $names = $this->guests->names($reservations->pluck('primary_guest_id')->unique()->values()->all());
+        $rooms = [];
+
+        foreach ($locks as $lock) {
+            $item = $items->get($lock->reservation_item_id);
+
+            if (! $item instanceof ReservationItem) {
+                continue;
+            }
+
+            $tonight = $lock->stay_date->toDateString() === $date;
+            $kind = match (true) {
+                $tonight && $item->status === ReservationStatus::CheckedIn => 'occupied',
+                ! $tonight && $item->status === ReservationStatus::CheckedIn && $item->check_out->toDateString() === $date => 'departing',
+                $tonight && in_array($item->status, [ReservationStatus::Tentative, ReservationStatus::Confirmed], true) && $item->check_in->toDateString() === $date => 'arriving',
+                default => null,
+            };
+
+            if ($kind !== null) {
+                $rooms[$lock->room_id][$kind] = $lock->reservation_id;
+            }
+        }
+
+        $result = [];
+
+        foreach ($rooms as $roomId => $kinds) {
+            $reservationId = $kinds['occupied'] ?? $kinds['departing'] ?? $kinds['arriving'] ?? null;
+            $reservation = $reservationId !== null ? $reservations->get($reservationId) : null;
+            $result[(int) $roomId] = new RoomOccupancy((int) $roomId, isset($kinds['occupied']), isset($kinds['departing']), isset($kinds['arriving']),
+                $reservationId, $reservation?->code, $reservation instanceof Reservation ? ($reservation->group_name ?? ($names[$reservation->primary_guest_id] ?? null)) : null);
+        }
+
+        return $result;
     }
 
     /**

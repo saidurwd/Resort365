@@ -1,0 +1,11 @@
+{
+    "name": "Housekeeping",
+    "alias": "housekeeping",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Housekeeping\\Providers\\HousekeepingServiceProvider"
+    ],
+    "files": []
+}

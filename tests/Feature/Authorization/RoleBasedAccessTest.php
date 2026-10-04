@@ -57,13 +57,13 @@ function sidebarOf(DefaultRole $role): array
 }
 
 it('shows Front Desk and Accountant different sidebars', function (): void {
-    expect(sidebarOf(DefaultRole::FrontDeskAgent))->toBe(['Dashboard', 'Front Office', 'Front Desk', 'Reservations', 'New booking', 'Reservations', 'Quotes', 'Tape chart', 'Availability', 'Billing', 'My cashier shift', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Policies', 'Promotions', 'Setup', 'Cottages', 'Rooms', 'Cottage types', 'Room types'])
-        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Front Office', 'Night audit', 'Flash report', 'Billing', 'Cashier shifts', 'City ledger', 'Guests', 'Companies', 'Travel agents', 'Accounting', 'Journal Entries', 'Setup', 'Departments', 'Taxes', 'Charge codes', 'Extras']);
+    expect(sidebarOf(DefaultRole::FrontDeskAgent))->toBe(['Dashboard', 'Front Office', 'Front Desk', 'Housekeeping', 'Room status', 'Report a fault', 'Lost & found', 'Reservations', 'New booking', 'Reservations', 'Quotes', 'Tape chart', 'Availability', 'Billing', 'My cashier shift', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Policies', 'Promotions', 'Setup', 'Cottages', 'Rooms', 'Cottage types', 'Room types'])
+        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Front Office', 'Night audit', 'Flash report', 'Housekeeping', 'Report a fault', 'Billing', 'Cashier shifts', 'City ledger', 'Guests', 'Companies', 'Travel agents', 'Accounting', 'Journal Entries', 'Setup', 'Departments', 'Taxes', 'Charge codes', 'Extras']);
 });
 
 it('shows the Tenant Owner everything, including setup', function (): void {
     expect(sidebarOf(DefaultRole::TenantOwner))->toBe([
-        'Dashboard', 'Front Office', 'Front Desk', 'Night audit', 'Flash report', 'Reservations', 'New booking', 'Reservations', 'Quotes', 'Tape chart', 'Availability', 'Booking sources', 'Billing', 'My cashier shift', 'Cashier shifts', 'City ledger', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Policies', 'Promotions', 'Accounting', 'Journal Entries',
+        'Dashboard', 'Front Office', 'Front Desk', 'Night audit', 'Flash report', 'Housekeeping', 'Room status', 'Tasks', 'My tasks', 'Out of order', 'Work orders', 'Report a fault', 'Preventive maintenance', 'Lost & found', 'Reservations', 'New booking', 'Reservations', 'Quotes', 'Tape chart', 'Availability', 'Booking sources', 'Billing', 'My cashier shift', 'Cashier shifts', 'City ledger', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Policies', 'Promotions', 'Accounting', 'Journal Entries',
         'Setup', 'Properties', 'Cottages', 'Rooms', 'Cottage types', 'Room types', 'Amenities', 'Departments', 'Taxes', 'Users', 'Property access', 'Roles & permissions', 'Settings', 'Email templates', 'Charge codes', 'Extras', 'Document numbering', 'Audit log',
     ]);
 });

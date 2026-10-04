@@ -1,0 +1,24 @@
+{
+    "name": "resort365/housekeeping",
+    "description": "Resort365 Housekeeping module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Housekeeping\\": "app/",
+            "Modules\\Housekeeping\\Database\\Factories\\": "database/factories/",
+            "Modules\\Housekeeping\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Housekeeping\\Tests\\": "tests/"
+        }
+    }
+}

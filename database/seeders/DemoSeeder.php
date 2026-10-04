@@ -116,6 +116,9 @@ class DemoSeeder extends Seeder
         // Step 2.6: the front desk's cashier shift is open (the demo no-show is in DemoFrontOffice).
         DemoBilling::cashierShift($rodela, $resort, 'frontdesk@'.self::DOMAINS['rodela']);
 
+        // Step 2.7: an out-of-order block, dirty rooms with tasks, work orders, a preventive schedule and lost & found.
+        DemoHousekeeping::seed($rodela, $resort, self::DOMAINS['rodela']);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

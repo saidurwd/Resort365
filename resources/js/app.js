@@ -33,6 +33,17 @@ window.initUi = (root = document) => {
 initConfirm();
 initThemePersistence();
 
+// A button that opens a modal with data-modal-action="url" points the modal's form at that URL
+// (one modal shared by every row of a list, e.g. lost & found's "Return / dispose").
+document.addEventListener('show.bs.modal', (event) => {
+    const action = event.relatedTarget?.dataset?.modalAction;
+    const form = action ? event.target.querySelector('form') : null;
+
+    if (form) {
+        form.action = action;
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     window.initUi(document);
 

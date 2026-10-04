@@ -9,6 +9,7 @@ use Modules\Property\DTOs\RoomSummary;
 use Modules\Reservation\Enums\ItemType;
 use Modules\Reservation\Enums\ReservationLogAction;
 use Modules\Reservation\Enums\ReservationStatus;
+use Modules\Reservation\Events\RoomMoved;
 use Modules\Reservation\Exceptions\StayNotPossible;
 use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Reservation;
@@ -22,7 +23,7 @@ use Modules\Reservation\Services\StayRepricer;
  * from tonight to departure, are locked on the new room (any active room, in any cottage) and the
  * old room is free again from tonight; nights already passed stay on the old room. The rate is kept,
  * or — with reprice — the remaining nights not on a folio yet are priced for the new room. If
- * another booking holds the new room on any of those nights, nothing changes.
+ * another booking holds the new room on any of those nights, nothing changes. Fires RoomMoved.
  */
 class MoveRoom extends Action
 {
@@ -66,6 +67,7 @@ class MoveRoom extends Action
                 }
 
                 $before = $this->labels->of($locked);
+                $fromRoomId = (int) $locked->room_id;
                 InventoryLock::query()->where('reservation_item_id', $locked->id)->where('stay_date', '>=', $from->toDateString())->delete();
                 $locked->forceFill(['room_id' => $room->id, 'cottage_id' => $room->cottageId, 'room_type_id' => $room->roomTypeId])->save();
                 $this->repricer->lock($locked, [$room->id], $from, $to);
@@ -80,6 +82,8 @@ class MoveRoom extends Action
                 $this->logger->log($reservation, ReservationLogAction::Modified, __('Moved from :from to :to from :date:rate.', [
                     'from' => $before, 'to' => $after, 'date' => $from->format('d M'), 'rate' => $reprice ? __(', at the new room\'s rate') : __(', same rate'),
                 ]), ['room' => [$before, $after]], $userId);
+
+                RoomMoved::dispatch($locked->tenant_id, $locked->property_id, $locked->reservation_id, $fromRoomId, $room->id);
 
                 return $locked;
             }, attempts: 3);
