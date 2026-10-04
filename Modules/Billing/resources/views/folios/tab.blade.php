@@ -26,6 +26,16 @@
                 @if ($canAdjust)
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#adjust-{{ $folio->id }}"><i class="bi bi-plus-slash-minus"></i> {{ __('Adjustment') }}</button>
                 @endif
+                @if ($canPost && bccomp($folio->balance, "0", 2) > 0 && $companies !== [])
+                    <form method="POST" action="{{ route('billing.folios.transfer', $folio) }}" class="d-flex gap-1" data-transfer="{{ $folio->folio_no }}"
+                        data-confirm="{{ __('Move this balance to the company\'s account?') }}">
+                        @csrf
+                        <select name="company_id" class="form-select form-select-sm w-auto" aria-label="{{ __('Company') }}">
+                            @foreach ($companies as $company)<option value="{{ $company['id'] }}" @selected($folio->bill_to_type === \Modules\Billing\Enums\BillTo::Company && $folio->bill_to_id === $company['id'])>{{ $company['name'] }}</option>@endforeach
+                        </select>
+                        <button class="btn btn-sm btn-outline-info"><i class="bi bi-building"></i> {{ __('To city ledger') }}</button>
+                    </form>
+                @endif
                 @if ($canVoid && $folio->lines->contains(fn ($line) => ! $line->is_voided && in_array($line->line_type, [\Modules\Billing\Enums\FolioLineType::Charge, \Modules\Billing\Enums\FolioLineType::Adjustment], true)))
                     <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#void-{{ $folio->id }}"><i class="bi bi-slash-circle"></i> {{ __('Void a line') }}</button>
                 @endif
@@ -159,4 +169,50 @@
             </x-card>
         </div>
     </div>
+@endif
+
+@if ($invoices->isNotEmpty())
+    <x-card :title="__('Invoices')" icon="bi-file-earmark-text" body-class="p-0">
+        <table class="table align-middle mb-0" data-invoices>
+            <tbody>
+                @foreach ($invoices as $invoice)
+                    <tr data-invoice="{{ $invoice->invoice_no }}">
+                        <td class="ps-3">
+                            <span class="font-monospace fw-semibold">{{ $invoice->invoice_no }}</span> <x-status-badge :status="$invoice->status" />
+                            <div class="small text-body-secondary">{{ $invoice->bill_to_name }} · {{ $invoice->issue_date->format('d M Y') }}</div>
+                            @foreach ($invoice->creditNotes as $note)
+                                <div class="small">{{ __('Credit note :no: :amount — :reason', ['no' => $note->credit_note_no, 'amount' => $money($note->amount), 'reason' => $note->reason]) }}
+                                    <a href="{{ route('billing.credit-notes.pdf', $note) }}">PDF</a></div>
+                            @endforeach
+                        </td>
+                        <td class="text-end font-monospace">{{ $invoice->currency_code }} {{ $money($invoice->total) }}</td>
+                        <td class="text-end pe-3 text-nowrap">
+                            <a href="{{ route('billing.invoices.pdf', $invoice) }}" class="btn btn-sm btn-outline-secondary" data-invoice-pdf><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                            @can('credit', $invoice)
+                                @if ($invoice->status !== \Modules\Billing\Enums\InvoiceStatus::Credited)
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#credit-{{ $invoice->id }}">{{ __('Credit note') }}</button>
+                                @endif
+                            @endcan
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </x-card>
+    @foreach ($invoices as $invoice)
+        @can('credit', $invoice)
+            <x-modal :id="'credit-'.$invoice->id" :title="__('Credit note for :no', ['no' => $invoice->invoice_no])">
+                <form method="POST" action="{{ route('billing.invoices.credit', $invoice) }}" id="credit-form-{{ $invoice->id }}" data-credit-note>
+                    @csrf
+                    <x-form.input name="amount" :id="'credit-amount-'.$invoice->id" type="number" step="0.01" min="0.01" :label="__('Amount')" required
+                        :help="__('At most :max. It first reduces what the company still owes; the rest is refundable.', ['max' => $money(bcsub($invoice->total, $invoice->credited, 2))])" />
+                    <x-form.input name="reason" :id="'credit-reason-'.$invoice->id" :label="__('Reason')" required maxlength="190" />
+                </form>
+                <x-slot:footer>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ __('Close') }}</button>
+                    <button type="submit" form="credit-form-{{ $invoice->id }}" class="btn btn-warning">{{ __('Issue credit note') }}</button>
+                </x-slot:footer>
+            </x-modal>
+        @endcan
+    @endforeach
 @endif

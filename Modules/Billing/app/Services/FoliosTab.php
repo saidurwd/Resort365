@@ -11,6 +11,7 @@ use Modules\Billing\Models\ChargeCode;
 use Modules\Billing\Models\ExtraService;
 use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioRoutingRule;
+use Modules\Billing\Models\Invoice;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Guest\DTOs\CompanySummary;
 use Modules\Guest\DTOs\TravelAgentSummary;
@@ -62,6 +63,7 @@ class FoliosTab
             'companies' => array_map(fn (CompanySummary $company): array => ['id' => $company->id, 'name' => $company->name], $this->guests->searchCompanies('', 200)),
             'agents' => array_map(fn (TravelAgentSummary $agent): array => ['id' => $agent->id, 'name' => $agent->name], $this->guests->searchTravelAgents('', 200)),
             'userNames' => $userNames,
+            'invoices' => Invoice::query()->with('creditNotes')->where('reservation_id', $reservationId)->orderBy('id')->get(),
         ]);
     }
 }

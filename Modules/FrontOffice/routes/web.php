@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\FrontOffice\Http\Controllers\CheckInController;
+use Modules\FrontOffice\Http\Controllers\CheckOutController;
 use Modules\FrontOffice\Http\Controllers\FrontDeskController;
 
 /*
@@ -24,5 +25,12 @@ Route::prefix('frontoffice')->name('frontoffice.')->middleware(['auth', 'verifie
             Route::post('/identity', 'identity')->name('identity');
             Route::post('/room', 'room')->name('room');
             Route::get('/card', 'card')->name('card');
+        });
+
+    Route::prefix('check-out/{reservation}')->whereNumber('reservation')->name('check-out.')->middleware('can:frontoffice.checkout.perform')
+        ->controller(CheckOutController::class)->group(function (): void {
+            Route::get('/', 'show')->name('show');
+            Route::post('/charges', 'charges')->name('charges');
+            Route::post('/', 'store')->name('store');
         });
 });

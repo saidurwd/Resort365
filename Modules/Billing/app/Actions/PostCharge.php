@@ -13,8 +13,10 @@ use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Services\FolioLedger;
 use Modules\Billing\Services\FolioMath;
+use Modules\Billing\Services\TaxSplitter;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Contracts\TaxEngine;
+use Modules\Core\DTOs\TaxLine;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Reservation\Enums\ReservationStatus;
 
@@ -33,6 +35,7 @@ class PostCharge extends Action
         private readonly TaxEngine $taxes,
         private readonly Settings $settings,
         private readonly GuestLookup $guests,
+        private readonly TaxSplitter $splitter,
     ) {}
 
     /**
@@ -92,6 +95,7 @@ class PostCharge extends Action
                 'unit_price' => $charge->unitPrice,
                 'amount' => $tax->net,
                 'tax_amount' => $tax->taxTotal,
+                'tax_lines' => $this->breakdown($tax->taxes),
                 'total' => $tax->gross,
                 'reference_type' => $charge->referenceType,
                 'reference_id' => $charge->referenceId,
@@ -104,6 +108,17 @@ class PostCharge extends Action
 
             return $line;
         }, attempts: 3);
+    }
+
+    /**
+     * Tax name => amount (taxes with the same name are added together).
+     *
+     * @param  list<TaxLine>  $taxes
+     * @return array<string, string>
+     */
+    private function breakdown(array $taxes): array
+    {
+        return $this->splitter->sum(array_map(fn (TaxLine $line): array => [$line->name => $line->amount], $taxes));
     }
 
     /**

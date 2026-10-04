@@ -3,6 +3,7 @@
 namespace Modules\Reservation\Contracts;
 
 use Modules\Reservation\DTOs\ReservationSummary;
+use Modules\Reservation\DTOs\RoomNightCharge;
 use Modules\Reservation\Exceptions\StayNotPossible;
 
 /**
@@ -39,4 +40,25 @@ interface StayOperations
      * @return list<int>
      */
     public function roomIds(int $reservationId): array;
+
+    /**
+     * The booking's nights not yet posted to a folio, in date order.
+     *
+     * @return list<RoomNightCharge>
+     */
+    public function unpostedNights(int $reservationId): array;
+
+    /**
+     * Marks nights as posted to a folio (so they are never posted twice).
+     *
+     * @param  list<int>  $nightIds
+     */
+    public function markNightsPosted(array $nightIds): void;
+
+    /**
+     * Checks an in-house booking out and releases its rooms (departure today or earlier).
+     *
+     * @throws StayNotPossible
+     */
+    public function checkOut(int $reservationId, ?int $userId = null): ReservationSummary;
 }

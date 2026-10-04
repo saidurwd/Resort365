@@ -6,6 +6,7 @@ use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\ExtraService;
 use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
@@ -151,6 +152,7 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
             ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(3)
             ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 2 + 3 + 3 * 3)
             ->and(ExtraService::query()->count())->toBe(6)
+            ->and(CityLedgerEntry::query()->sole()->due_on->isPast())->toBeTrue()
             ->and(Folio::query()->count())->toBe(6)
             ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);

@@ -32,6 +32,7 @@ class RecordPaymentRequest extends FormRequest
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:500'],
             'security_deposit' => ['boolean'],
+            'folio_id' => ['nullable', 'integer', TenantRule::exists('folios')->where('reservation_id', (int) $this->input('reservation_id'))],
             'return_to' => ['nullable', 'string', 'max:500'],
         ];
     }
@@ -48,6 +49,7 @@ class RecordPaymentRequest extends FormRequest
             $this->validated('notes') !== null ? (string) $this->validated('notes') : null,
             $user !== null ? (int) $user->getAuthIdentifier() : null,
             $this->boolean('security_deposit'),
+            $this->filled('folio_id') ? (int) $this->validated('folio_id') : null,
         );
     }
 

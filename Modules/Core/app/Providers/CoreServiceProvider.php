@@ -105,6 +105,7 @@ class CoreServiceProvider extends ModuleServiceProvider
             'reservation' => ['Reservation', 'RSV'],
             'quote' => ['Quotation', 'QUO'],
             'folio' => ['Folio', 'FOL'],
+            'credit_note' => ['Credit note', 'CN'],
             'invoice' => ['Invoice', 'INV'],
             'purchase_order' => ['Purchase order', 'PO'],
             'goods_receipt' => ['Goods receipt', 'GRN'],

@@ -68,4 +68,15 @@ trait ResolvesProperty
             'grand_total' => '15180.00', 'balance_due' => '15180.00', 'created_at' => $now, 'updated_at' => $now,
         ]);
     }
+
+    protected function companyId(int $propertyId): int
+    {
+        $tenantId = (int) DB::table('properties')->where('id', $propertyId)->value('tenant_id');
+        $existing = DB::table('companies')->where('tenant_id', $tenantId)->orderBy('id')->value('id');
+
+        return is_numeric($existing) ? (int) $existing : DB::table('companies')->insertGetId([
+            'tenant_id' => $tenantId, 'name' => fake()->company(), 'credit_limit' => '500000.00', 'payment_terms_days' => 30, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
 }

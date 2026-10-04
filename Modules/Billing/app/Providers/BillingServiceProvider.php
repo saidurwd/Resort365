@@ -10,17 +10,24 @@ use App\Support\Menu\MenuRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Modules\Billing\Contracts\FolioPostingContract;
+use Modules\Billing\Contracts\FolioSettlement;
 use Modules\Billing\Models\ChargeCode;
+use Modules\Billing\Models\CityLedgerEntry;
+use Modules\Billing\Models\CreditNote;
 use Modules\Billing\Models\ExtraService;
 use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\FolioRoutingRule;
+use Modules\Billing\Models\Invoice;
+use Modules\Billing\Models\InvoiceLine;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Policies\ChargeCodePolicy;
 use Modules\Billing\Policies\ExtraServicePolicy;
 use Modules\Billing\Policies\FolioPolicy;
+use Modules\Billing\Policies\InvoicePolicy;
 use Modules\Billing\Policies\PaymentPolicy;
 use Modules\Billing\Services\FolioPostingService;
+use Modules\Billing\Services\FolioSettlementService;
 use Modules\Billing\Services\FoliosTab;
 use Modules\Billing\Services\PaymentsTab;
 use Modules\Core\Contracts\Settings;
@@ -58,6 +65,7 @@ class BillingServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->bind(FolioPostingContract::class, FolioPostingService::class);
+        $this->app->bind(FolioSettlement::class, FolioSettlementService::class);
     }
 
     public function boot(): void
@@ -71,11 +79,16 @@ class BillingServiceProvider extends ModuleServiceProvider
             'folio' => Folio::class,
             'folio_line' => FolioLine::class,
             'folio_routing_rule' => FolioRoutingRule::class,
+            'invoice' => Invoice::class,
+            'invoice_line' => InvoiceLine::class,
+            'credit_note' => CreditNote::class,
+            'city_ledger_entry' => CityLedgerEntry::class,
         ]);
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(Folio::class, FolioPolicy::class);
         Gate::policy(ChargeCode::class, ChargeCodePolicy::class);
         Gate::policy(ExtraService::class, ExtraServicePolicy::class);
+        Gate::policy(Invoice::class, InvoicePolicy::class);
 
         $desk = [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::FrontDeskAgent, DefaultRole::ReservationAgent];
 
@@ -90,9 +103,17 @@ class BillingServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('billing.charge-code.manage', 'Change charge codes', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
             new PermissionDefinition('billing.extra-service.view', 'View the extras catalogue', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
             new PermissionDefinition('billing.extra-service.manage', 'Change the extras catalogue', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager]),
+            new PermissionDefinition('billing.invoice.view', 'View invoices and credit notes', [...$desk, DefaultRole::Accountant]),
+            new PermissionDefinition('billing.credit-note.issue', 'Issue credit notes', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
+            new PermissionDefinition('billing.refund.issue', 'Pay refunds', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
+            new PermissionDefinition('billing.city-ledger.view', 'View the city ledger', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
+            new PermissionDefinition('billing.city-ledger.manage', 'Receive city-ledger payments', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
+        $menu->group('billing', 'Billing', 'bi-cash-stack', order: 300);
+        $menu->add(new MenuItem('billing.city-ledger', 'City ledger', route: 'billing.city-ledger.index', parent: 'billing', order: 10,
+            permission: 'billing.city-ledger.view', module: 'billing', active: 'billing.city-ledger.*'));
         $menu->group('setup', 'Setup', 'bi-gear', order: 900);
         $menu->add(new MenuItem('billing.charge-codes', 'Charge codes', route: 'billing.charge-codes.index', parent: 'setup', order: 36,
             permission: 'billing.charge-code.view', module: 'billing', active: 'billing.charge-codes.*'));

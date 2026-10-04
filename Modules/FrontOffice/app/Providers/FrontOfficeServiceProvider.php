@@ -41,12 +41,13 @@ class FrontOfficeServiceProvider extends ModuleServiceProvider
         $this->app->make(PermissionRegistry::class)->register('Front office', [
             new PermissionDefinition('frontoffice.desk.view', 'View the front desk', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::FrontDeskAgent, DefaultRole::ReservationAgent]),
             new PermissionDefinition('frontoffice.checkin.perform', 'Check guests in', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::FrontDeskAgent]),
+            new PermissionDefinition('frontoffice.checkout.perform', 'Check guests out', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::FrontDeskAgent]),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
         $menu->group('frontoffice', 'Front Office', 'bi-door-open', order: 100);
         $menu->add(new MenuItem('frontoffice.desk', 'Front Desk', route: 'frontoffice.desk', parent: 'frontoffice', order: 10,
-            permission: 'frontoffice.desk.view', module: 'frontoffice', active: ['frontoffice.desk', 'frontoffice.check-in.*']));
+            permission: 'frontoffice.desk.view', module: 'frontoffice', active: ['frontoffice.desk', 'frontoffice.check-in.*', 'frontoffice.check-out.*']));
 
         // The booking page's Front desk tab (stay status, check-in, registration card).
         $this->app->make(ReservationTabs::class)->add(new ReservationTab('frontdesk', 'Front desk', 'bi-door-open', 'frontoffice.desk.view', 'frontoffice',

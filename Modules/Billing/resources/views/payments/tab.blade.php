@@ -32,6 +32,27 @@
         </x-card>
     </div>
     <div class="col-xl-5">
+        @if ($refunds !== [])
+            @can('billing.refund.issue')
+                <x-card :title="__('Pay back')" icon="bi-arrow-counterclockwise" data-refunds>
+                    @foreach ($refunds as $option)
+                        <form method="POST" action="{{ route('billing.refunds.store') }}" class="border-bottom pb-3 mb-3" data-refund="{{ $option['kind']->value }}">
+                            @csrf
+                            <input type="hidden" name="reservation_id" value="{{ $reservation->id }}">
+                            <input type="hidden" name="kind" value="{{ $option['kind']->value }}">
+                            <input type="hidden" name="source_id" value="{{ $option['source'] }}">
+                            <div class="fw-semibold mb-2">{{ $option['label'] }} <span class="text-body-secondary small">· {{ __('up to :amount', ['amount' => $money($option['amount'])]) }}</span></div>
+                            <div class="row g-2">
+                                <div class="col-4"><select name="method" class="form-select form-select-sm" aria-label="{{ __('Method') }}">@foreach ($methods as $method)<option value="{{ $method->value }}">{{ $method->label() }}</option>@endforeach</select></div>
+                                <div class="col-3"><input type="number" step="0.01" min="0.01" name="amount" value="{{ $option['amount'] }}" class="form-control form-control-sm" aria-label="{{ __('Amount') }}"></div>
+                                <div class="col-5"><input type="text" name="reason" required maxlength="190" class="form-control form-control-sm" placeholder="{{ __('Reason') }}" aria-label="{{ __('Reason') }}"></div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger mt-2"><i class="bi bi-arrow-counterclockwise"></i> {{ __('Refund') }}</button>
+                        </form>
+                    @endforeach
+                </x-card>
+            @endcan
+        @endif
         @if ($reservation->acceptsPayments() && $reservation->balanceDue !== '0.00')
             @can('create', \Modules\Billing\Models\Payment::class)
                 <x-card :title="__('Take a payment')" icon="bi-cash-coin">

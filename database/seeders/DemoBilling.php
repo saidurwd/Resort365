@@ -4,13 +4,17 @@ namespace Database\Seeders;
 
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Modules\Billing\Actions\PostCharge;
 use Modules\Billing\Actions\SaveExtraService;
 use Modules\Billing\DTOs\FolioCharge;
+use Modules\Billing\Enums\CityLedgerStatus;
 use Modules\Billing\Models\ChargeCode;
+use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\ExtraService;
 use Modules\Billing\Services\DefaultChargeCodes;
 use Modules\Core\Models\TaxCategory;
+use Modules\Guest\Models\Company;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Models\Reservation;
 
@@ -64,6 +68,28 @@ final class DemoBilling
                 PostCharge::make()->handle(new FolioCharge($confirmed->id, $pickup->charge_code_id, $pickup->unit_price, description: 'Airport pickup on arrival (11:00)',
                     priceIncludesTax: true, extraServiceId: $pickup->id));
             }
+        });
+    }
+
+    /**
+     * Step 2.3: a company that still owes for a stay 40 days ago (due 10 days ago), for the city
+     * ledger's aging.
+     */
+    public static function cityLedger(Tenant $tenant, int $propertyId): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId): void {
+            $company = Company::query()->orderBy('id')->first();
+
+            if (! $company instanceof Company || CityLedgerEntry::query()->exists()) {
+                return;
+            }
+
+            $posted = CarbonImmutable::today()->subDays(40);
+            CityLedgerEntry::query()->create([
+                'property_id' => $propertyId, 'company_id' => $company->id, 'posted_on' => $posted->toDateString(),
+                'due_on' => $posted->addDays($company->payment_terms_days ?: 30)->toDateString(),
+                'description' => 'Conference stay, 3 rooms × 2 nights', 'amount' => '45540.00', 'status' => CityLedgerStatus::Open,
+            ]);
         });
     }
 }

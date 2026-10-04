@@ -19,6 +19,10 @@
                                 @can('frontoffice.checkin.perform')
                                     <a href="{{ route('frontoffice.check-in.show', $row->id) }}" class="btn btn-sm btn-success" data-check-in="{{ $row->code }}"><i class="bi bi-box-arrow-in-right"></i> {{ __('Check in') }}</a>
                                 @endcan
+                            @elseif ($action === 'check-out')
+                                @can('frontoffice.checkout.perform')
+                                    <a href="{{ route('frontoffice.check-out.show', $row->id) }}" class="btn btn-sm btn-warning" data-check-out="{{ $row->code }}"><i class="bi bi-box-arrow-right"></i> {{ __('Check out') }}</a>
+                                @endcan
                             @endif
                         </td>
                     </tr>

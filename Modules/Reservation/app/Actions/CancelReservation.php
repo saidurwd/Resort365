@@ -23,7 +23,7 @@ use Modules\Reservation\Services\ReservationLogger;
  * An expired hold (ExpireTentativeHolds) is cancelled free of charge, and only while it is still
  * tentative and short of its deposit, so a payment that arrived just before wins.
  *
- * TODO(step-2.3): the refund itself (Billing, with approval above a threshold).
+ * The refund itself is paid from the Payments tab (Billing's RefundPayment, kind cancellation).
  */
 class CancelReservation extends Action
 {

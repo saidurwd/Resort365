@@ -18,7 +18,7 @@
                 @include('frontoffice::desk.partials.list', ['rows' => $arrivals, 'list' => 'arrivals', 'empty' => __('No more arrivals today.'), 'action' => 'check-in'])
             </x-card>
             <x-card :title="__('Departures today')" icon="bi-box-arrow-right" body-class="p-0">
-                @include('frontoffice::desk.partials.list', ['rows' => $departures, 'list' => 'departures', 'empty' => __('No departures today.'), 'action' => null])
+                @include('frontoffice::desk.partials.list', ['rows' => $departures, 'list' => 'departures', 'empty' => __('No departures today.'), 'action' => 'check-out'])
             </x-card>
         </div>
         <div class="col-xl-6">

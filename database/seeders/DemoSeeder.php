@@ -110,6 +110,9 @@ class DemoSeeder extends Seeder
         // Step 2.2: an arrival today ready to check in, and a guest in house leaving today.
         DemoFrontOffice::seed($rodela, $resort);
 
+        // Step 2.3: a company balance on the city ledger, overdue, for the aging report.
+        DemoBilling::cityLedger($rodela, $resort);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

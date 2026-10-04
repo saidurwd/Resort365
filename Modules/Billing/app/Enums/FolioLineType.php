@@ -6,7 +6,8 @@ use App\Support\Enums\EnumHelpers;
 use App\Support\Enums\HasLabelAndColor;
 
 /**
- * A folio line: a charge or adjustment adds to what is owed; a payment reduces it; a refund (money paid back) adds it back.
+ * A folio line: a charge or adjustment adds to what is owed; a payment reduces it; a refund (money
+ * paid back) adds it back; a transfer moves the balance to a company's city-ledger account.
  */
 enum FolioLineType: string implements HasLabelAndColor
 {
@@ -16,6 +17,7 @@ enum FolioLineType: string implements HasLabelAndColor
     case Payment = 'payment';
     case Adjustment = 'adjustment';
     case Refund = 'refund';
+    case Transfer = 'transfer';
 
     public function label(): string
     {
@@ -24,6 +26,7 @@ enum FolioLineType: string implements HasLabelAndColor
             self::Payment => __('Payment'),
             self::Adjustment => __('Adjustment'),
             self::Refund => __('Refund'),
+            self::Transfer => __('To city ledger'),
         };
     }
 
@@ -34,6 +37,7 @@ enum FolioLineType: string implements HasLabelAndColor
             self::Payment => 'success',
             self::Adjustment => 'warning',
             self::Refund => 'danger',
+            self::Transfer => 'info',
         };
     }
 
@@ -43,6 +47,6 @@ enum FolioLineType: string implements HasLabelAndColor
      */
     public function sign(): int
     {
-        return $this === self::Payment ? -1 : 1;
+        return in_array($this, [self::Payment, self::Transfer], true) ? -1 : 1;
     }
 }

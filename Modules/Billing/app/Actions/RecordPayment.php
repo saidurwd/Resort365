@@ -10,20 +10,24 @@ use Modules\Billing\Enums\PaymentStatus;
 use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Events\PaymentReceived;
 use Modules\Billing\Exceptions\PaymentNotAllowed;
+use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Services\FolioLedger;
+use Modules\Billing\Services\ReservationPayments;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\ReservationSummary;
 use Modules\Reservation\Enums\ReservationStatus;
 
 /**
- * Records a manual payment for a reservation (ARCHITECTURE §5.9): a receipt number is taken and
- * the payment saved in one transaction, then PaymentReceived tells Reservation the new total paid.
- * Before arrival a payment is a deposit (advance). More than the balance due is refused; refunds
- * and voids come later (Step 2.3). The reservation's existing payments are read with a locking
- * read, so two payments at once cannot both pass the balance check or report a stale total.
+ * Records a manual payment for a reservation (ARCHITECTURE §5.9): a receipt number is taken, the
+ * payment saved and posted to a folio in one transaction, then PaymentReceived tells Reservation
+ * what the booking has paid. Before arrival a payment is a deposit, capped by the booking's balance
+ * and posted to the guest folio. In house, it goes to the folio chosen (the guest's by default) and
+ * is capped by that folio's balance, which also holds extras; the booking's paid total reported to
+ * Reservation never exceeds the stay's grand total (the folio is the bill from check-in on).
+ * A security deposit is held apart (see securityDeposit()).
  */
 class RecordPayment extends Action
 {
@@ -31,6 +35,7 @@ class RecordPayment extends Action
         private readonly ReservationLookup $reservations,
         private readonly DocumentNumbers $numbers,
         private readonly FolioLedger $ledger,
+        private readonly ReservationPayments $payments,
     ) {}
 
     /**
@@ -55,12 +60,16 @@ class RecordPayment extends Action
         }
 
         return $this->transaction(function () use ($data, $reservation, $amount): Payment {
-            $paid = $this->paidSoFar($reservation->id);
-            $due = BigDecimal::of($reservation->grandTotal)->minus($paid);
-
             if ($data->securityDeposit) {
                 return $this->securityDeposit($data, $reservation, $amount);
             }
+
+            $paid = $this->payments->paidTotal($reservation->id, lock: true);
+            $inHouse = $reservation->status === ReservationStatus::CheckedIn || $data->folioId !== null;
+            $folio = $data->folioId !== null
+                ? Folio::query()->where('reservation_id', $reservation->id)->lockForUpdate()->find($data->folioId) ?? throw new PaymentNotAllowed(__('That folio does not belong to this booking.'))
+                : $this->ledger->guestFolio($reservation->id);
+            $due = $inHouse ? BigDecimal::of($folio->balance) : BigDecimal::of($reservation->grandTotal)->minus($paid);
 
             if ($amount->isGreaterThan($due)) {
                 throw new PaymentNotAllowed(__('The amount is more than the balance due (:due).', ['due' => (string) BigDecimal::max($due, BigDecimal::zero())->toScale(2)]));
@@ -70,6 +79,7 @@ class RecordPayment extends Action
                 'property_id' => $reservation->propertyId,
                 'receipt_no' => $this->numbers->next('payment', $reservation->propertyId),
                 'reservation_id' => $reservation->id,
+                'folio_id' => $folio->id,
                 'payment_type' => $reservation->status === ReservationStatus::CheckedIn ? PaymentType::Payment : PaymentType::Deposit,
                 'method' => $data->method,
                 'amount' => (string) $amount,
@@ -83,9 +93,6 @@ class RecordPayment extends Action
                 'received_at' => now(),
             ]);
 
-            // The payment also shows on the guest folio (deposits included), reducing its balance.
-            $folio = $this->ledger->guestFolio($reservation->id);
-            $payment->forceFill(['folio_id' => $folio->id])->save();
             FolioLine::query()->create([
                 'property_id' => $folio->property_id, 'folio_id' => $folio->id, 'posting_date' => $this->ledger->businessDate($folio->property_id),
                 'line_type' => FolioLineType::Payment, 'description' => __(':method payment :receipt', ['method' => $payment->method->label(), 'receipt' => $payment->receipt_no]),
@@ -95,30 +102,15 @@ class RecordPayment extends Action
             $this->ledger->recalculate($folio);
 
             PaymentReceived::dispatch($payment->tenant_id, $payment->id, $payment->property_id, $payment->receipt_no, $payment->amount,
-                $payment->currency_code, $reservation->id, (string) $paid->plus($amount)->toScale(2), $data->receivedBy);
+                $payment->currency_code, $reservation->id, (string) BigDecimal::min($paid->plus($amount), BigDecimal::of($reservation->grandTotal))->toScale(2), $data->receivedBy);
 
             return $payment;
         }, attempts: 3);
     }
 
     /**
-     * Succeeded payments less refunds, read with a lock so concurrent payments queue up.
-     */
-    private function paidSoFar(int $reservationId): BigDecimal
-    {
-        $payments = Payment::query()->where('reservation_id', $reservationId)->where('status', PaymentStatus::Succeeded->value)
-            ->lockForUpdate()->get(['payment_type', 'amount']);
-
-        return $payments->reduce(fn (BigDecimal $sum, Payment $payment): BigDecimal => match ($payment->payment_type) {
-            PaymentType::Refund => $sum->minus($payment->amount),
-            PaymentType::SecurityDeposit => $sum,
-            default => $sum->plus($payment->amount),
-        }, BigDecimal::zero());
-    }
-
-    /**
-     * A refundable security deposit: no cap, not on the folio, not part of the booking's paid total.
-     * TODO(step-2.3): return it (or apply it) at check-out.
+     * A refundable security deposit: no cap, not on a folio, not part of what the booking has paid;
+     * RefundPayment gives it back at check-out.
      */
     private function securityDeposit(NewPayment $data, ReservationSummary $reservation, BigDecimal $amount): Payment
     {

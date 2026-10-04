@@ -4,11 +4,13 @@ namespace Modules\Reservation\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Modules\Billing\Events\PaymentReceived;
+use Modules\Billing\Events\RefundIssued;
 use Modules\Guest\Events\GuestsMerged;
 use Modules\Reservation\Events\ReservationCancelled;
 use Modules\Reservation\Events\ReservationConfirmed;
 use Modules\Reservation\Events\ReservationCreated;
 use Modules\Reservation\Listeners\ApplyReceivedPayment;
+use Modules\Reservation\Listeners\ApplyRefund;
 use Modules\Reservation\Listeners\MoveReservationsToKeptGuest;
 use Modules\Reservation\Listeners\SendBookingNotifications;
 
@@ -21,6 +23,7 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         PaymentReceived::class => [ApplyReceivedPayment::class],
+        RefundIssued::class => [ApplyRefund::class],
         GuestsMerged::class => [MoveReservationsToKeptGuest::class],
         ReservationCreated::class => [SendBookingNotifications::class.'@created'],
         ReservationConfirmed::class => [SendBookingNotifications::class.'@confirmed'],

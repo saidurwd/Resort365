@@ -304,6 +304,7 @@ flowchart LR
     Reservation --> Rates
     Reservation --> Guest
     FrontOffice --> Reservation
+    FrontOffice --> Billing
     Billing --> Reservation
     Housekeeping --> Property
     Restaurant --> Property
@@ -366,9 +367,9 @@ Route ─► Middleware ─► Controller (thin: authorize, validate, delegate, 
 | `ReservationConfirmed` | Reservation | Notifications → confirmation voucher |
 | `ReservationCancelled` | Reservation | Billing → cancellation fee / refund; Notifications |
 | `PaymentReceived` | Billing | Reservation → update payment status, auto-confirm if deposit met; Accounting → post receipt *(Step 1.7: the event carries the reservation's total paid, so Reservation sets it rather than adding to it)* |
-| `RefundIssued` | Billing | Accounting → post refund |
+| `RefundIssued` | Billing | Reservation → paid total and payment status; Accounting → post refund |
 | `GuestCheckedIn` | FrontOffice | Housekeeping → room status *Occupied* |
-| `GuestCheckedOut` | FrontOffice | Housekeeping → room *Dirty*, create cleaning task; Billing → finalize invoice |
+| `GuestCheckedOut` | FrontOffice | Housekeeping → room *Dirty*, create cleaning task *(Step 2.3: invoices are issued during check-out through Billing's `FolioSettlement` contract, so Billing does not listen to FrontOffice)* |
 | `NightAuditCompleted` | FrontOffice | Accounting → post the day's revenue; Reports → snapshot daily statistics |
 | `KotSent` | Restaurant | Kitchen display (via Reverb) → new ticket appears; printer queue → KOT printed at the station |
 | `KotItemStatusChanged` | Restaurant | POS (via Reverb) → waiter sees "ready to serve" |
@@ -540,6 +541,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - **Accounts receivable:** a city ledger for company and travel-agent billing, with aging.
 - Cashier shifts: open/close shift, cash count, variance report.
 - *Implemented in Step 2.1: charge codes (tenant-wide; category for routing, tax category for `TaxEngine`; defaults ROOM, EXBED, FNB, TRANSFER, LAUNDRY, SPA, MISC for new tenants), the extras catalogue (`extra_services`, per property), folios (a guest folio opens with every booking; company, travel-agent and master folios on demand), charges, adjustments (amount incl. tax, may be negative), voids with reason, routing rules per booking and category, and `FolioPostingContract` (in-house, open folio, credit limit: the company's or travel agent's, or `billing.guest_credit_limit` for guest folios). Payments also post a payment line to the guest folio. Staff may post extras before arrival; the in-house rule applies to other modules. Moving lines between folios, invoices and settlement come in Step 2.3.*
+- *Implemented in Step 2.3: check-out (FrontOffice) posts the stay's room nights not yet on a folio at the prices frozen at booking (night audit will post them nightly from Step 2.6; a night is never posted twice), settles each folio (several payment methods, a refund of a credit balance, or a transfer of the balance to a company's city ledger), then issues an invoice per folio with charges (sequential, tax breakdown, payments with the deposit deducted, PDF, immutable) and closes the folios. Credit notes correct an invoice: first against what the company still owes on the city ledger, the rest refundable. Refunds (`billing.refund.issue`, reason required): cancellation (paid above the fee), security deposit, folio credit balance, credit note. The city ledger shows open amounts per company with aging and takes payments. In house, payments go to a chosen folio and are capped by its balance; the booking's paid total reported to Reservation never exceeds the stay's total. Not yet: moving lines between folios, travel-agent city ledger, refund approvals (Step 5.1).*
 
 ### 5.10 Restaurant (F&B / POS)
 
@@ -1187,6 +1189,7 @@ Items and nights mirror `reservation_items` / `reservation_item_nights` (plus `u
 One row per change (created, stay changed, deposit changed, guest added/removed/made primary, payment received, confirmed, cancelled, hold expired), shown on the reservation's History tab next to the activity log.
 
 **`invoices`** + **`invoice_lines`**, **`credit_notes`**
+*(Step 2.3: `invoices` (folio, reservation, `invoice_no` INV-…, issue_date = business date, bill_to type/id/name/tax number, currency, subtotal, tax_total, total, paid, on_account, credited, `tax_breakdown` json tax name → amount, status issued|partially_credited|credited) never change once issued, except `credited`/`status` by credit notes; `invoice_lines` copy the folio's charge and adjustment lines. `credit_notes` (CN-…; amount, reason, applied_to_ledger, refund_due, refunded). New: `city_ledger_entries` (company, folio, invoice, posted_on, due_on = posted + the company's payment terms, amount, paid, credited, status open|paid). `folio_lines.tax_lines` (json) and line type `transfer` (to the city ledger); `payments` gain `reason`, `refund_kind` (cancellation|security_deposit|overpayment|credit_note), `refunded_payment_id`, `credit_note_id`, `city_ledger_entry_id`, and type `security_deposit`.)*
 
 ### 8.4 Restaurant Core
 
