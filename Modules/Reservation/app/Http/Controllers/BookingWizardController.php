@@ -18,6 +18,7 @@ use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Rates\Contracts\RateLookup;
 use Modules\Rates\DTOs\RatePlanSummary;
 use Modules\Reservation\Actions\CreateReservation;
+use Modules\Reservation\Actions\SaveQuote;
 use Modules\Reservation\DTOs\BookingQuote;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Exceptions\BookingNotPossible;
@@ -27,6 +28,7 @@ use Modules\Reservation\Http\Requests\BookingChoiceRequest;
 use Modules\Reservation\Http\Requests\BookingDatesRequest;
 use Modules\Reservation\Http\Requests\BookingGuestRequest;
 use Modules\Reservation\Http\Requests\BookingPricingRequest;
+use Modules\Reservation\Models\Quote;
 use Modules\Reservation\Models\Reservation;
 use Modules\Reservation\Services\BookingQuoter;
 use Modules\Reservation\Support\BookingWizard;
@@ -223,14 +225,7 @@ class BookingWizardController extends Controller
             return to_route('reservation.bookings.pricing');
         }
 
-        $state = $this->wizard->state($propertyId);
-        $guestId = isset($state['guest_id']) ? (int) $state['guest_id'] : $registry->register(new GuestDetails(
-            (string) $state['new_guest']['first_name'], $state['new_guest']['last_name'] ?? null, $state['new_guest']['phone'] ?? null,
-            $state['new_guest']['email'] ?? null, companyId: isset($state['company_id']) ? (int) $state['company_id'] : null,
-        ))->id;
-        $this->wizard->forget($propertyId, ['new_guest']);
-        $this->wizard->put($propertyId, ['guest_id' => $guestId]);
-
+        $guestId = $this->guestId($propertyId, $registry);
         $user = $request->user();
 
         try {
@@ -252,6 +247,35 @@ class BookingWizardController extends Controller
         $url = route('reservation.bookings.show', $reservation).($reservation->status === ReservationStatus::Tentative ? '#payments' : '');
 
         return redirect()->to($url)->with('success', __('Booking :code created.', ['code' => $reservation->code]));
+    }
+
+    /**
+     * Save the priced booking as a quote instead (no rooms are held).
+     */
+    public function storeQuote(Request $request, SaveQuote $save, GuestRegistry $registry): RedirectResponse
+    {
+        Gate::authorize('create', Quote::class);
+        $propertyId = $this->propertyId();
+
+        if ($this->wizard->nextStep($propertyId) < 5) {
+            return to_route('reservation.bookings.pricing');
+        }
+
+        $guestId = $this->guestId($propertyId, $registry);
+        $user = $request->user();
+
+        try {
+            $quote = $save->handle($this->wizard->reservation($propertyId, $guestId, $user !== null ? (int) $user->getAuthIdentifier() : null,
+                $user?->can('reservation.deposit.override') ?? false));
+        } catch (BookingNotPossible|DepositBelowMinimum $exception) {
+            $this->wizard->forget($propertyId, ['priced']);
+
+            return to_route('reservation.bookings.pricing')->with('error', $exception->getMessage());
+        }
+
+        $this->wizard->clear();
+
+        return to_route('reservation.quotes.show', $quote)->with('success', __('Quote :code saved.', ['code' => $quote->code]));
     }
 
     public function reset(): RedirectResponse
@@ -312,5 +336,21 @@ class BookingWizardController extends Controller
     private function propertyId(): int
     {
         return app(PropertyContext::class)->currentId() ?? abort(403, __('Choose a property first.'));
+    }
+
+    /**
+     * The chosen guest, or the new guest of step 3 (registered now, once).
+     */
+    private function guestId(int $propertyId, GuestRegistry $registry): int
+    {
+        $state = $this->wizard->state($propertyId);
+        $guestId = isset($state['guest_id']) ? (int) $state['guest_id'] : $registry->register(new GuestDetails(
+            (string) $state['new_guest']['first_name'], $state['new_guest']['last_name'] ?? null, $state['new_guest']['phone'] ?? null,
+            $state['new_guest']['email'] ?? null, companyId: isset($state['company_id']) ? (int) $state['company_id'] : null,
+        ))->id;
+        $this->wizard->forget($propertyId, ['new_guest']);
+        $this->wizard->put($propertyId, ['guest_id' => $guestId]);
+
+        return $guestId;
     }
 }

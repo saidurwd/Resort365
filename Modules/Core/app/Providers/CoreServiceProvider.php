@@ -73,6 +73,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->registerDocumentTypes($this->app->make(DocumentNumbers::class));
         $this->app->make(NotificationTemplates::class)->register(new NotificationTemplateDefinition(
             'core.welcome', 'database', 'Welcome to {tenant}', 'Hi {name}, your account is ready. Explore the menu on the left to get started.', ['name', 'tenant'],
+            'Welcome message', 'In-app, when a user account is created.',
         ));
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));
@@ -102,6 +103,7 @@ class CoreServiceProvider extends ModuleServiceProvider
     {
         foreach ([
             'reservation' => ['Reservation', 'RSV'],
+            'quote' => ['Quotation', 'QUO'],
             'invoice' => ['Invoice', 'INV'],
             'purchase_order' => ['Purchase order', 'PO'],
             'goods_receipt' => ['Goods receipt', 'GRN'],
@@ -122,6 +124,8 @@ class CoreServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('core.sequence.view', 'View document numbering', $managers),
             new PermissionDefinition('core.sequence.update', 'Change document numbering', $managers),
             new PermissionDefinition('core.audit.view', 'View the audit log', $managers),
+            new PermissionDefinition('core.notification-template.view', 'View email and notification templates', $managers),
+            new PermissionDefinition('core.notification-template.manage', 'Change email and notification templates', $managers),
         ]);
 
         $permissions->register('Taxes', [
@@ -139,6 +143,8 @@ class CoreServiceProvider extends ModuleServiceProvider
             permission: 'core.setting.view', module: 'core', active: 'core.settings.*'));
         $menu->add(new MenuItem('core.sequences', 'Document numbering', route: 'core.sequences.index', parent: 'setup', order: 40,
             permission: 'core.sequence.view', module: 'core', active: 'core.sequences.*'));
+        $menu->add(new MenuItem('core.notification-templates', 'Email templates', route: 'core.notification-templates.index', parent: 'setup', order: 35,
+            permission: 'core.notification-template.view', module: 'core', active: 'core.notification-templates.*'));
         $menu->add(new MenuItem('core.audit', 'Audit log', route: 'core.audit.index', parent: 'setup', order: 50,
             permission: 'core.audit.view', module: 'core', active: 'core.audit.*'));
     }

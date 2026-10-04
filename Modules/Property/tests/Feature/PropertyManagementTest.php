@@ -62,7 +62,7 @@ it('creates a property with its business date, sequences and an audit entry', fu
         ->and($property->getFirstMedia(Property::LOGO))->not->toBeNull();
 
     app(TenantContext::class)->run(tenant('sunrise'), function () use ($property): void {
-        expect(DocumentSequence::query()->where('property_id', $property->id)->count())->toBe(6)
+        expect(DocumentSequence::query()->where('property_id', $property->id)->count())->toBe(7)
             ->and(Activity::query()->where('subject_type', 'property')->where('event', 'created')->exists())->toBeTrue();
     });
 

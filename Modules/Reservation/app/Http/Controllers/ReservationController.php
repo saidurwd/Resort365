@@ -4,7 +4,9 @@ namespace Modules\Reservation\Http\Controllers;
 
 use App\Support\Tenancy\ModuleAccess;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -20,6 +22,7 @@ use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Http\Requests\ReservationListRequest;
 use Modules\Reservation\Models\Reservation;
 use Modules\Reservation\Models\ReservationGuest;
+use Modules\Reservation\Services\BookingDocuments;
 use Modules\Reservation\Services\ItemLabels;
 use Modules\Reservation\Services\ReservationBalance;
 use Modules\Reservation\Services\ReservationsTable;
@@ -78,6 +81,23 @@ class ReservationController extends Controller
             'userNames' => $userNames,
             // What was paid above the cancellation fee (refunded in Step 2.6).
             'refundDue' => $balance->balance($reservation->amount_paid, $reservation->cancellation_fee ?? '0'),
+        ]);
+    }
+
+    /**
+     * The confirmation voucher (PDF) of a confirmed booking.
+     */
+    public function voucher(Reservation $reservation, BookingDocuments $documents): Response|RedirectResponse
+    {
+        Gate::authorize('view', $reservation);
+
+        if (! in_array($reservation->status, [ReservationStatus::Confirmed, ReservationStatus::CheckedIn, ReservationStatus::CheckedOut], true)) {
+            return to_route('reservation.bookings.show', $reservation)->with('error', __('The voucher is available once the booking is confirmed.'));
+        }
+
+        return response($documents->voucher($reservation), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$reservation->code.'.pdf"',
         ]);
     }
 }

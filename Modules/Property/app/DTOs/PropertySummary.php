@@ -19,5 +19,8 @@ final readonly class PropertySummary extends Data
         public string $checkOutTime,
         public string $businessDate,
         public bool $isActive,
+        public ?string $address = null,
+        public ?string $phone = null,
+        public ?string $email = null,
     ) {}
 }

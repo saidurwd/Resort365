@@ -44,8 +44,15 @@
                 </x-card>
                 <form method="POST" action="{{ route('reservation.bookings.store') }}" data-wizard-confirm>
                     @csrf
-                    <button type="submit" class="btn btn-success btn-lg w-100 mb-4"><i class="bi bi-check2-circle"></i> {{ __('Create booking') }}</button>
+                    <button type="submit" class="btn btn-success btn-lg w-100 mb-2"><i class="bi bi-check2-circle"></i> {{ __('Create booking') }}</button>
                 </form>
+                @can('create', \Modules\Reservation\Models\Quote::class)
+                    <form method="POST" action="{{ route('reservation.bookings.quote') }}" data-wizard-quote>
+                        @csrf
+                        <button type="submit" class="btn btn-outline-primary w-100 mb-4"><i class="bi bi-file-earmark-text"></i> {{ __('Save as quote instead') }}</button>
+                        <div class="small text-body-secondary mt-n3 mb-4">{{ __('Keeps these prices for the guest; no rooms are held until it is booked.') }}</div>
+                    </form>
+                @endcan
             </div>
         </div>
     @endif

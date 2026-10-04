@@ -2,7 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Reservation\Http\Controllers\AvailabilityController;
+use Modules\Reservation\Http\Controllers\BookingSourceReportController;
 use Modules\Reservation\Http\Controllers\BookingWizardController;
+use Modules\Reservation\Http\Controllers\QuoteController;
 use Modules\Reservation\Http\Controllers\ReservationCancelController;
 use Modules\Reservation\Http\Controllers\ReservationChangeController;
 use Modules\Reservation\Http\Controllers\ReservationController;
@@ -35,12 +37,28 @@ Route::prefix('reservation')->name('reservation.')->middleware(['auth', 'verifie
         Route::get('/confirm', 'confirm')->name('confirm');
         Route::post('/confirm', 'store')->name('store');
         Route::post('/reset', 'reset')->name('reset');
+        Route::post('/quote', 'storeQuote')->middleware('can:reservation.quote.create')->name('quote');
     });
+
+    Route::middleware('can:reservation.quote.view')->group(function (): void {
+        Route::get('/quotes', [QuoteController::class, 'index'])->name('quotes.index');
+        Route::get('/quotes/data', [QuoteController::class, 'data'])->name('quotes.data');
+        Route::get('/quotes/{quote}', [QuoteController::class, 'show'])->whereNumber('quote')->name('quotes.show');
+        Route::get('/quotes/{quote}/pdf', [QuoteController::class, 'pdf'])->whereNumber('quote')->name('quotes.pdf');
+    });
+    Route::prefix('quotes/{quote}')->whereNumber('quote')->name('quotes.')->middleware('can:reservation.quote.create')->controller(QuoteController::class)->group(function (): void {
+        Route::post('/send', 'send')->name('send');
+        Route::post('/convert', 'convert')->name('convert');
+        Route::post('/decline', 'decline')->name('decline');
+    });
+
+    Route::get('/reports/sources', [BookingSourceReportController::class, 'index'])->middleware('can:reservation.report.view')->name('reports.sources');
 
     Route::middleware('can:reservation.booking.view')->group(function (): void {
         Route::get('/bookings', [ReservationController::class, 'index'])->name('bookings.index');
         Route::get('/bookings/data', [ReservationController::class, 'data'])->name('bookings.data');
         Route::get('/bookings/{reservation}', [ReservationController::class, 'show'])->whereNumber('reservation')->name('bookings.show');
+        Route::get('/bookings/{reservation}/voucher', [ReservationController::class, 'voucher'])->whereNumber('reservation')->name('bookings.voucher');
     });
 
     // Changes to a booking: stay (edit → review → save), deposit, guests.

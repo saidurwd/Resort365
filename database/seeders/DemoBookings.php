@@ -12,9 +12,11 @@ use Modules\Guest\Contracts\GuestLookup;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Rates\Contracts\RateLookup;
 use Modules\Reservation\Actions\CreateReservation;
+use Modules\Reservation\Actions\SaveQuote;
 use Modules\Reservation\DTOs\BookingItem;
 use Modules\Reservation\DTOs\NewReservation;
 use Modules\Reservation\Enums\ItemType;
+use Modules\Reservation\Enums\QuoteStatus;
 use Modules\Reservation\Enums\ReservationSource;
 use Modules\Reservation\Models\Reservation;
 
@@ -23,7 +25,9 @@ use Modules\Reservation\Models\Reservation;
  * - Step 1.6: Sunset Villa (whole) for a family and room 501 for a couple, both tentative;
  * - Step 1.7: room 101 for John Smith, confirmed by a 30% card deposit (RecordPayment, with a
  *   receipt), and room 601 whose deposit was due an hour ago, so `php artisan
- *   reservation:expire-holds` (or the scheduler) cancels it and frees the room.
+ *   reservation:expire-holds` (or the scheduler) cancels it and frees the room;
+ * - Step 1.8: a quote for John Smith (Pearl, room 201, in 30 days) marked sent, and an expired
+ *   quote for Rahim Uddin (Seashell, room 301).
  */
 final class DemoBookings
 {
@@ -67,6 +71,17 @@ final class DemoBookings
                 $overdue = CreateReservation::make()->handle(new NewReservation($propertyId, $today->addDays(3), $today->addDays(4),
                     [new BookingItem(ItemType::Room, $rooms['601']->id, $plan->id, 2)], $walkIn->id, ReservationSource::Phone));
                 $overdue->forceFill(['deposit_due_at' => now()->subHour()])->save();
+            }
+
+            if ($john !== null && $rooms->has('201') && $rooms->has('301')) {
+                $sent = SaveQuote::make()->handle(new NewReservation($propertyId, $today->addDays(30), $today->addDays(33),
+                    [new BookingItem(ItemType::Room, $rooms['201']->id, $plan->id, 2)], $john->id, ReservationSource::Email,
+                    specialRequests: 'Anniversary trip: flowers in the room, please.'));
+                $sent->forceFill(['status' => QuoteStatus::Sent, 'sent_at' => now()->subDay()])->save();
+
+                $expired = SaveQuote::make()->handle(new NewReservation($propertyId, $today->addDays(40), $today->addDays(42),
+                    [new BookingItem(ItemType::Room, $rooms['301']->id, $plan->id, 2)], $guest->id, ReservationSource::Phone));
+                $expired->forceFill(['status' => QuoteStatus::Sent, 'sent_at' => now()->subDays(10), 'valid_until' => $today->subDays(3)->toDateString()])->save();
             }
         });
     }

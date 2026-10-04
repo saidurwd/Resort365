@@ -5,6 +5,7 @@ namespace App\Support\Tenancy;
 use App\Models\Tenant;
 use App\Support\Tenancy\Events\TenantSwitched;
 use Illuminate\Support\Facades\Context;
+use Illuminate\Support\Facades\URL;
 
 /**
  * The tenant the current request, job or command is acting for.
@@ -26,6 +27,9 @@ class TenantContext
         Context::addHidden(self::CONTEXT_KEY, $tenant->id);
         Context::add('tenant', $tenant->slug);
 
+        // route() fills in {tenant} for the current tenant, in jobs and commands too (links in emails, notices).
+        URL::defaults(['tenant' => $tenant->slug]);
+
         TenantSwitched::dispatch($tenant);
     }
 
@@ -35,6 +39,7 @@ class TenantContext
 
         Context::forgetHidden(self::CONTEXT_KEY);
         Context::forget('tenant');
+        URL::defaults(['tenant' => null]);
 
         TenantSwitched::dispatch(null);
     }

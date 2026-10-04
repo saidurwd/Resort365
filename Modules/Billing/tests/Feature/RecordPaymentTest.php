@@ -55,7 +55,7 @@ it('confirms the booking automatically when a 30% deposit is taken', function ()
         ->and($confirmed->confirmed_at)->not->toBeNull()
         ->and([$confirmed->amount_paid, $confirmed->balance_due, $confirmed->payment_status])->toBe(['6831.00', '15939.00', PaymentStatus::DepositPaid])
         ->and($confirmed->items->pluck('status')->unique()->all())->toBe([ReservationStatus::Confirmed])
-        ->and($confirmed->logs->pluck('action')->take(2)->all())->toBe([ReservationLogAction::Confirmed, ReservationLogAction::PaymentApplied])
+        ->and($confirmed->logs->pluck('action')->reject(ReservationLogAction::EmailSent)->take(2)->values()->all())->toBe([ReservationLogAction::Confirmed, ReservationLogAction::PaymentApplied])
         ->and($payment->receipt_no)->toStartWith('PAY-')
         ->and([$payment->payment_type, $payment->method, $payment->amount, $payment->reference, $payment->received_by])->toBe([PaymentType::Deposit, PaymentMethod::Card, '6831.00', 'VISA-4421', $user->id]);
 

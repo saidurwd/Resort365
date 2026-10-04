@@ -35,6 +35,10 @@ class PropertyDirectoryService implements PropertyDirectory
             substr($property->check_out_time, 0, 5),
             $property->business_date->toDateString(),
             $property->isActive(),
+            // One line for guest documents (vouchers, quotes, receipts).
+            collect([$property->address_line1, $property->address_line2, $property->city])->filter()->implode(', ') ?: null,
+            $property->phone,
+            $property->email,
         );
     }
 }

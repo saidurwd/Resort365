@@ -16,9 +16,8 @@ use Throwable;
  * The hold-expiry job (ARCHITECTURE §6.5 rule 4), scheduled every five minutes: in every tenant
  * that may use the app, tentative bookings past their deposit due time, with auto-cancel on and
  * the deposit not covered, are cancelled free of charge and their rooms released. It runs in the
- * scheduler process (not queued); one booking that fails does not stop the others.
- *
- * TODO(step-1.8): notify the guest and the staff member who made the booking.
+ * scheduler process (not queued); one booking that fails does not stop the others. The guest
+ * and the staff member who made the booking are told by SendBookingNotifications.
  */
 class ExpireTentativeHolds
 {

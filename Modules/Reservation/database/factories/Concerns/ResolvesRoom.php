@@ -59,6 +59,13 @@ trait ResolvesRoom
         return DB::table('rooms')->insertGetId([...$base, 'cottage_id' => $cottage, 'room_type_id' => $roomType, 'number' => (string) fake()->unique()->numberBetween(1000, 99999)]);
     }
 
+    protected function roomTypeIdOf(int $roomId): ?int
+    {
+        $id = DB::table('rooms')->where('id', $roomId)->value('room_type_id');
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
     protected function cottageIdOf(int $roomId): int
     {
         return (int) DB::table('rooms')->where('id', $roomId)->value('cottage_id');

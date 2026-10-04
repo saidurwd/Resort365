@@ -2,6 +2,8 @@
 
 namespace Modules\IAM\Services;
 
+use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\DTOs\UserSummary;
 use Modules\IAM\Enums\UserStatus;
@@ -23,5 +25,14 @@ class UserDirectoryService implements UserDirectory
     public function userCan(int $userId, string $permission): bool
     {
         return User::query()->find($userId)?->checkPermissionTo($permission) ?? false;
+    }
+
+    public function notify(array $userIds, Notification $notification): void
+    {
+        $users = User::query()->whereIn('id', $userIds)->where('status', UserStatus::Active->value)->get();
+
+        if ($users->isNotEmpty()) {
+            NotificationFacade::send($users, $notification);
+        }
     }
 }

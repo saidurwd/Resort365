@@ -5,6 +5,7 @@ use Modules\Core\Http\Controllers\AttachmentController;
 use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\DocumentSequenceController;
 use Modules\Core\Http\Controllers\NotificationController;
+use Modules\Core\Http\Controllers\NotificationTemplateController;
 use Modules\Core\Http\Controllers\SettingsController;
 use Modules\Core\Http\Controllers\TaxController;
 
@@ -39,6 +40,13 @@ Route::prefix('core')->name('core.')->middleware(['auth', 'verified'])->group(fu
         Route::put('/tax-categories/{tax_category}', [TaxController::class, 'updateCategory'])->name('tax-categories.update');
     });
     Route::get('/taxes', [TaxController::class, 'index'])->middleware('can:core.tax.view')->name('taxes.index');
+
+    Route::get('/notification-templates', [NotificationTemplateController::class, 'index'])->middleware('can:core.notification-template.view')->name('notification-templates.index');
+    Route::middleware('can:core.notification-template.manage')->group(function (): void {
+        Route::get('/notification-templates/{channel}/{key}/edit', [NotificationTemplateController::class, 'edit'])->name('notification-templates.edit');
+        Route::put('/notification-templates/{channel}/{key}', [NotificationTemplateController::class, 'update'])->name('notification-templates.update');
+        Route::delete('/notification-templates/{channel}/{key}', [NotificationTemplateController::class, 'destroy'])->name('notification-templates.destroy');
+    });
 
     Route::middleware('can:core.audit.view')->group(function (): void {
         Route::get('/audit-log', [AuditLogController::class, 'index'])->name('audit.index');

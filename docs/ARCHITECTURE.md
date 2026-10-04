@@ -429,7 +429,7 @@ Shared infrastructure used by every module.
 - **Settings engine:** typed key/value settings at tenant and property level, for example `checkin_time`, `checkout_time`, `default_deposit_percent`, `currency`, `timezone`, `date_format`.
 - **Document numbering:** configurable sequences per tenant, property and document type, e.g. `RSV-2026-00001`, `INV-…`, `PO-…`, `GRN-…`, `JV-…`, `PAY-…`. Generated under a row lock and optionally reset each year. *(Every registered sequence is created when the tenant is created, so taking a number is always a single row lock. Creating a sequence on first use under concurrent load can deadlock on gap locks.)*
 - **Approval workflow engine:** a generic multi-level approval process for any "approvable" document (PR, PO, vendor bill, leave, payroll, refund) with amount-based thresholds. Example: PO < 50,000 → Purchase Manager; ≥ 50,000 → General Manager.
-- **Notifications:** email, SMS and in-app channels; per-tenant templates with placeholders; a WhatsApp channel can be added later.
+- **Notifications:** email, SMS and in-app channels; per-tenant templates with placeholders; a WhatsApp channel can be added later. *(Step 1.8: modules register `NotificationTemplateDefinition`s (key, channel, default subject and body, placeholders, label, description); tenants rewrite them at Setup → Email templates (`notification_templates`, permission `core.notification-template.manage`) and can reset them to the default. Templates are plain text with `{placeholders}`; the first line of an email is its greeting. SMS is not built yet.)*
 - **Tax engine:** configurable taxes and charges (VAT, service charge, tourism levy, city tax) with percentage or fixed amount, inclusive or exclusive, compound flag, and tax categories. Shared by Rates (room pricing), Billing (extras) and Restaurant (bills). *(Implemented in Step 1.3 as `TaxEngine` / `TaxCalculator`: taxes are applied in calculation order, a compound tax on the net plus the taxes before it, a fixed tax per unit; each tax line is rounded half-up to 2 places, and for inclusive prices net = gross − taxes. Whether an amount includes tax is a property of the **price** (a rate plan's `prices_include_tax`, an outlet's `prices_include_tax`), not of each tax. Taxes have no effective dates yet.)*
 - **Audit log:** every create, update and delete on business records, plus login history.
 - **Attachments:** a polymorphic file-attachment component usable by any module.
@@ -497,6 +497,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - Waitlist (optional).
 - Booking calendar / **tape chart** (rooms × dates grid).
 - Confirmation voucher (PDF and email).
+- *Implemented in Step 1.8: quotes are made in the booking wizard ("Save as quote instead"), numbered `QUO-…`, valid for `reservation.quote_valid_days` (7), emailed with a PDF and booked by `ConvertQuote` at the quoted nightly prices (the deposit and its due time are worked out at conversion; rooms are locked then, so a room taken since fails cleanly). Guest emails — booking received (deposit, due time, `reservation.payment_instructions`), confirmed (voucher PDF attached), cancelled (fee, refund), released (deposit not paid) and quotation — are queued (`SendGuestEmail`, tenant-aware) and recorded in the booking's history; the staff member who made an expired booking gets an in-app notice. A booking-source report (bookings, cancellations, unit-nights, revenue, average, share) sits under Reservations.*
 
 ### 5.7 Front Office
 
@@ -1152,6 +1153,10 @@ Unique: `(reservation_item_id, stay_date)`
 **`reservation_guests`** — occupants per item
 `id, tenant_id, reservation_id, reservation_item_id, guest_id, is_primary`
 *(Step 1.6 implementation notes: `reservations` also has `rate_plan_id` (the plan whose deposit and cancellation policies apply — the first item's), `auto_cancel_unpaid` (copied from the deposit policy for the hold-expiry job), `deposit_override_by` (who allowed a deposit outside the policy), `balance_due_on` and `promotion_id`; reservations are cancelled, never deleted. `reservation_items`, `reservation_item_nights` and `reservation_guests` carry `property_id` (property-level models). `reservation_item_nights` also stores `rate_source`. `inventory_locks.reservation_id` / `reservation_item_id` are foreign keys. A booking with no deposit due is Confirmed at once. Quotes and waitlists are not built yet.)*
+
+**`quotes`** + **`quote_items`** + **`quote_item_nights`** *(Step 1.8)*
+`quotes: id, tenant_id, property_id, code, status(draft|sent|accepted|declined; expired = open past valid_until), source, guest_id, company_id, travel_agent_id, rate_plan_id, check_in, check_out, adults, children, currency_code, subtotal, discount_total, tax_total, grand_total, deposit_percent, deposit_amount, promo_code, promotion_id, valid_until, special_requests, internal_notes, reservation_id, sent_at, accepted_at, declined_at, created_by`
+Items and nights mirror `reservation_items` / `reservation_item_nights` (plus `unit_key`, `label`, the item's promotion and the night's `season_name`), so a converted quote books exactly what was quoted.
 
 **`deposit_policies`**
 `id, tenant_id, property_id, name, type, min_percent, default_percent, max_percent, fixed_amount, due_within_hours, auto_cancel_unpaid, balance_due_rule, balance_due_days, is_default`

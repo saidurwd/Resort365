@@ -53,6 +53,9 @@ class DemoSeeder extends Seeder
         // (the cache is a separate Redis database from sessions).
         Cache::flush();
 
+        // Demo bookings and payments send no guest emails: queued jobs are discarded while seeding.
+        config(['queue.connections.demo-discard' => ['driver' => 'null'], 'queue.default' => 'demo-discard']);
+
         $this->call(ReferenceDataSeeder::class);
 
         $rodela = $this->tenant('rodela', 'Rodela Eco Resort', 'info@rodelaresort.com');

@@ -46,11 +46,13 @@ class CreateReservation extends Action
     ) {}
 
     /**
+     * @param  BookingQuote|null  $quoted  prices agreed earlier (a converted quote) instead of pricing the booking now
+     *
      * @throws BookingNotPossible|DepositBelowMinimum|RoomNoLongerAvailable
      */
-    public function handle(NewReservation $data): Reservation
+    public function handle(NewReservation $data, ?BookingQuote $quoted = null): Reservation
     {
-        $quote = $this->quoter->quote($data);
+        $quote = $quoted ?? $this->quoter->quote($data);
 
         if (! $quote->depositWithinLimits && ! $data->allowDepositOverride) {
             throw new DepositBelowMinimum(__('A deposit of :percent% is outside the deposit policy. A manager can allow it.', ['percent' => (string) $data->depositPercent]));

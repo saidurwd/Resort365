@@ -22,6 +22,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
     case Confirmed = 'confirmed';
     case Cancelled = 'cancelled';
     case Expired = 'expired';
+    case EmailSent = 'email_sent';
 
     public function label(): string
     {
@@ -36,6 +37,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
             self::Confirmed => __('Confirmed'),
             self::Cancelled => __('Cancelled'),
             self::Expired => __('Hold expired'),
+            self::EmailSent => __('Email'),
         };
     }
 
@@ -46,6 +48,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
             self::PaymentApplied => 'success',
             self::Cancelled, self::Expired => 'danger',
             self::DepositChanged => 'warning',
+            self::EmailSent => 'info',
             default => 'secondary',
         };
     }

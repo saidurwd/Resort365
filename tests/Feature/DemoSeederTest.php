@@ -30,6 +30,7 @@ use Modules\Rates\Models\RatePlan;
 use Modules\Rates\Services\RateCalendar;
 use Modules\Reservation\Jobs\ExpireTentativeHolds;
 use Modules\Reservation\Models\InventoryLock;
+use Modules\Reservation\Models\Quote;
 use Modules\Reservation\Models\Reservation;
 
 use function Pest\Laravel\seed;
@@ -132,7 +133,7 @@ it('seeds taxes, seasons, rate plans and rates (Step 1.3)', function (): void {
     app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(RatePlan::query()->pluck('code')->sort()->values()->all())->toBe(['BB', 'RO']));
 });
 
-it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and an overdue hold (Steps 1.6, 1.7)', function (): void {
+it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and an overdue hold (Steps 1.6–1.8)', function (): void {
     seed(DatabaseSeeder::class);
 
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
@@ -144,7 +145,8 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
             ->and($bookings[1]->deposit_percent)->toBe('50.00')
             ->and($bookings[2]->amount_paid)->toBe($bookings[2]->deposit_required)
             ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(1)
-            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(1 + 2 + 3 + 3 * 3);
+            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(1 + 2 + 3 + 3 * 3)
+            ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
     ExpireTentativeHolds::dispatchSync();
