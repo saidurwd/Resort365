@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\FrontOffice\Http\Controllers\CheckInController;
 use Modules\FrontOffice\Http\Controllers\CheckOutController;
 use Modules\FrontOffice\Http\Controllers\FrontDeskController;
+use Modules\FrontOffice\Http\Controllers\StayChangeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +26,14 @@ Route::prefix('frontoffice')->name('frontoffice.')->middleware(['auth', 'verifie
             Route::post('/identity', 'identity')->name('identity');
             Route::post('/room', 'room')->name('room');
             Route::get('/card', 'card')->name('card');
+        });
+
+    Route::prefix('stay/{reservation}')->whereNumber('reservation')->name('stay.')->middleware('can:frontoffice.stay.change')
+        ->controller(StayChangeController::class)->group(function (): void {
+            Route::get('/', 'show')->name('show');
+            Route::post('/move', 'move')->name('move');
+            Route::post('/extend', 'extend')->name('extend');
+            Route::post('/shorten', 'shorten')->name('shorten');
         });
 
     Route::prefix('check-out/{reservation}')->whereNumber('reservation')->name('check-out.')->middleware('can:frontoffice.checkout.perform')

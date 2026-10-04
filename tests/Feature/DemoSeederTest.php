@@ -90,7 +90,8 @@ it('seeds guests to search at scale, with a duplicate pair and a blacklisted gue
     seed(DatabaseSeeder::class);
 
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
-        expect(Guest::query()->count())->toBe(10_000)
+        // 10,000 seeded, plus three guests named on the demo group's rooming list (Step 2.4).
+        expect(Guest::query()->count())->toBe(10_003)
             ->and(Company::query()->count())->toBe(8)
             ->and(TravelAgent::query()->count())->toBe(5)
             ->and(Guest::query()->where('phone', '+8801711000001')->count())->toBe(2)
@@ -145,20 +146,25 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
 
         // In house in 402 (2 nights, leaving today), arriving today in 201 (2 nights), room 601 (overdue hold, 1 night),
         // room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights).
+        $group = Reservation::query()->whereNotNull('group_name')->sole();
+        expect([$group->group_name, $group->items()->count(), $group->status->value])->toBe(['Dhaka Bank offsite', 6, 'confirmed'])
+            ->and(Folio::query()->where('reservation_id', $group->id)->where('type', 'master')->exists())->toBeTrue();
+        $bookings = $bookings->reject(fn (Reservation $reservation): bool => $reservation->id === $group->id)->values();
+
         expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative'])
             ->and($bookings[2]->deposit_due_at?->isPast())->toBeTrue()
             ->and($bookings[3]->deposit_percent)->toBe('50.00')
             ->and($bookings[4]->amount_paid)->toBe($bookings[4]->deposit_required)
-            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(3)
-            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 2 + 3 + 3 * 3)
+            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(4)
+            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 2 + 3 + 3 * 3 + 6 * 2)
             ->and(ExtraService::query()->count())->toBe(6)
             ->and(CityLedgerEntry::query()->sole()->due_on->isPast())->toBeTrue()
-            ->and(Folio::query()->count())->toBe(6)
+            ->and(Folio::query()->count())->toBe(8)
             ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
     ExpireTentativeHolds::dispatchSync();
     app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->orderBy('check_in')->pluck('status')->map->value->all())
-        ->toBe(['checked_in', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative']));
+        ->toBe(['checked_in', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative']));
 });

@@ -4,6 +4,7 @@ namespace Modules\Reservation\Contracts;
 
 use Modules\Reservation\DTOs\ReservationSummary;
 use Modules\Reservation\DTOs\RoomNightCharge;
+use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Exceptions\StayNotPossible;
 
 /**
@@ -13,11 +14,14 @@ use Modules\Reservation\Exceptions\StayNotPossible;
 interface StayOperations
 {
     /**
-     * Checks a confirmed booking in (arrival on or before the property's business date).
+     * Checks a confirmed booking in (arrival on or before the property's business date): every room
+     * and cottage not in yet, or one item (a group arriving room by room).
+     *
+     * @return list<int> the items checked in now
      *
      * @throws StayNotPossible
      */
-    public function checkIn(int $reservationId, ?int $userId = null): ReservationSummary;
+    public function checkIn(int $reservationId, ?int $userId = null, ?int $itemId = null): array;
 
     /**
      * Gives a room item another free room of the same room type for the rest of its stay; the
@@ -30,16 +34,38 @@ interface StayOperations
     /**
      * The booking's room items as id => [label, room id, room type id], for room confirmation.
      *
-     * @return array<int, array{label: string, room_id: int|null, room_type_id: int|null}>
+     * @return array<int, array{label: string, room_id: int|null, room_type_id: int|null, status: ReservationStatus}>
      */
     public function roomItems(int $reservationId): array;
 
     /**
-     * Every room the booking occupies (a whole cottage counts all its rooms).
+     * Every room the booking (or these items of it) occupies; a whole cottage counts all its rooms.
      *
+     * @param  list<int>|null  $itemIds
      * @return list<int>
      */
-    public function roomIds(int $reservationId): array;
+    public function roomIds(int $reservationId, ?array $itemIds = null): array;
+
+    /**
+     * Moves an in-house room to another room for the remaining nights (rate kept unless reprice).
+     *
+     * @throws StayNotPossible
+     */
+    public function moveRoom(int $reservationItemId, int $roomId, bool $reprice = false, ?int $userId = null): void;
+
+    /**
+     * Extends an in-house stay to a later departure (Y-m-d), pricing and locking the extra nights.
+     *
+     * @throws StayNotPossible
+     */
+    public function extendStay(int $reservationId, string $checkOut, ?int $userId = null): ReservationSummary;
+
+    /**
+     * Ends an in-house stay early (Y-m-d), releasing the rooms and removing unbilled nights.
+     *
+     * @throws StayNotPossible
+     */
+    public function shortenStay(int $reservationId, string $checkOut, ?int $userId = null): ReservationSummary;
 
     /**
      * The booking's nights not yet posted to a folio, in date order.

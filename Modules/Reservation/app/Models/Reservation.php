@@ -28,6 +28,7 @@ use Modules\Reservation\Enums\ReservationStatus;
  * @property ReservationStatus $status
  * @property PaymentStatus $payment_status
  * @property ReservationSource $source
+ * @property string|null $group_name
  * @property int $primary_guest_id
  * @property int|null $company_id
  * @property int|null $travel_agent_id
@@ -70,7 +71,7 @@ use Modules\Reservation\Enums\ReservationStatus;
  */
 #[UseFactory(ReservationFactory::class)]
 #[Fillable([
-    'property_id', 'code', 'status', 'payment_status', 'source', 'primary_guest_id', 'company_id', 'travel_agent_id', 'rate_plan_id',
+    'property_id', 'code', 'status', 'payment_status', 'source', 'group_name', 'primary_guest_id', 'company_id', 'travel_agent_id', 'rate_plan_id',
     'check_in', 'check_out', 'adults', 'children', 'currency_code', 'exchange_rate', 'subtotal', 'discount_total', 'tax_total', 'grand_total',
     'deposit_policy_id', 'deposit_percent', 'deposit_required', 'deposit_due_at', 'auto_cancel_unpaid', 'deposit_override_by', 'amount_paid',
     'balance_due', 'balance_due_on', 'cancellation_policy_id', 'promo_code', 'promotion_id', 'special_requests', 'internal_notes', 'created_by',

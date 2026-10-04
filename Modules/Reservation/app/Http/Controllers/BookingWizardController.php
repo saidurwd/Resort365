@@ -185,6 +185,7 @@ class BookingWizardController extends Controller
             'deposit_percent' => $data['deposit_percent'] ?? null,
             'special_requests' => $data['special_requests'] ?? null,
             'internal_notes' => $data['internal_notes'] ?? null,
+            'group_name' => $data['group_name'] ?? null,
         ]);
 
         if ($data['action'] === 'recalculate') {

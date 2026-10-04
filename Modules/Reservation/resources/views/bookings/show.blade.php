@@ -20,6 +20,7 @@
     <div class="d-flex flex-wrap gap-2 align-items-center mb-3" data-reservation-header>
         <x-status-badge :status="$reservation->status" />
         <x-status-badge :status="$reservation->payment_status" />
+        @if ($reservation->group_name)<span class="badge text-bg-info" data-group><i class="bi bi-people"></i> {{ $reservation->group_name }}</span>@endif
         <span class="text-body-secondary">{{ $reservation->check_in->format('D d M Y') }} → {{ $reservation->check_out->format('D d M Y') }} · {{ trans_choice(':count night|:count nights', $reservation->nights()) }} · {{ $plan?->name }}</span>
     </div>
 
@@ -146,6 +147,11 @@
                     </tbody>
                 </table>
             </x-card>
+            @if (($canUpdate || $reservation->status === \Modules\Reservation\Enums\ReservationStatus::CheckedIn) && $reservation->items->count() > 1)
+                @can('update', $reservation)
+                    <a href="{{ route('reservation.bookings.rooming-list', $reservation) }}" class="btn btn-outline-primary mb-3" data-rooming-list-link><i class="bi bi-list-ol"></i> {{ __('Rooming list') }}</a>
+                @endcan
+            @endif
             @if ($canUpdate)
                 <x-card :title="__('Add a guest')" icon="bi-person-plus">
                     <form method="POST" action="{{ route('reservation.bookings.guests.store', $reservation) }}" class="row g-2 align-items-end" data-add-guest>

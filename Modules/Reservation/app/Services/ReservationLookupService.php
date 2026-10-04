@@ -80,7 +80,8 @@ class ReservationLookupService implements ReservationLookup
             $reservation->items->map(fn (ReservationItem $item): string => $this->labels->of($item))->values()->all(),
             $names[$reservation->primary_guest_id] ?? '',
             $reservation->deposit_due_at?->toIso8601String(),
-            $reservation->adults, $reservation->children,
+            $reservation->adults, $reservation->children, $reservation->group_name, $reservation->items->count(),
+            $reservation->items->filter(fn (ReservationItem $item): bool => $item->status === ReservationStatus::CheckedIn)->count(),
         ))->values()->all();
     }
 }

@@ -35,6 +35,6 @@ class OpenFolio extends Action
         };
 
         return $this->transaction(fn (): Folio => $this->ledger->open($reservation, $type, $billTo, $billTo === BillTo::Guest ? $reservation->primaryGuestId : $billToId,
-            $type === FolioType::Master ? __('Master — :name', ['name' => $name]) : $name), attempts: 3);
+            $type === FolioType::Master ? __('Master — :name', ['name' => $reservation->groupName ?? $name]) : $name), attempts: 3);
     }
 }

@@ -1,6 +1,7 @@
 @php
     $money = fn (?string $amount): string => number_format((float) $amount, 2);
-    $ready = $reservation->status === \Modules\Reservation\Enums\ReservationStatus::Confirmed && $reservation->checkIn <= $property->businessDate;
+    $ready = in_array($reservation->status, [\Modules\Reservation\Enums\ReservationStatus::Confirmed, \Modules\Reservation\Enums\ReservationStatus::CheckedIn], true)
+        && $reservation->checkIn <= $property->businessDate && $reservation->itemsCheckedIn < $reservation->itemsTotal;
 @endphp
 
 <x-layouts::app :title="__('Check in :guest', ['guest' => $reservation->guestName])" :subtitle="$reservation->code"
@@ -40,10 +41,19 @@
                 <table class="table align-middle mb-0" data-rooms>
                     <tbody>
                         @foreach ($items as $itemId => $item)
-                            <tr>
-                                <td class="ps-3">{{ $item['label'] }}</td>
+                            <tr data-item="{{ $itemId }}">
+                                <td class="ps-3">{{ $item['label'] }} <x-status-badge :status="$item['status']" /></td>
+                                <td class="text-nowrap">
+                                    @if ($ready && $item['status'] === \Modules\Reservation\Enums\ReservationStatus::Confirmed && count($items) > 1)
+                                        <form method="POST" action="{{ route('frontoffice.check-in.store', $reservation->id) }}" data-check-in-item="{{ $itemId }}">
+                                            @csrf
+                                            <input type="hidden" name="item_id" value="{{ $itemId }}">
+                                            <button class="btn btn-sm btn-success"><i class="bi bi-box-arrow-in-right"></i> {{ __('Check in') }}</button>
+                                        </form>
+                                    @endif
+                                </td>
                                 <td class="pe-3">
-                                    @if ($item['room_id'] !== null)
+                                    @if ($item['room_id'] !== null && $item['status'] !== \Modules\Reservation\Enums\ReservationStatus::CheckedIn)
                                         <form method="POST" action="{{ route('frontoffice.check-in.room', $reservation->id) }}" class="d-flex gap-2 justify-content-end" data-change-room="{{ $itemId }}">
                                             @csrf
                                             <input type="hidden" name="reservation_item_id" value="{{ $itemId }}">
@@ -94,7 +104,7 @@
 
             {{-- 4. Check in --}}
             <x-card :title="__('4. Check in')" icon="bi-box-arrow-in-right">
-                @if ($reservation->status === \Modules\Reservation\Enums\ReservationStatus::CheckedIn)
+                @if ($reservation->itemsCheckedIn >= $reservation->itemsTotal && $reservation->itemsTotal > 0)
                     <p class="text-success mb-0" data-checked-in><i class="bi bi-house-check"></i> {{ __('Checked in.') }}</p>
                 @else
                     @unless ($ready)
@@ -104,7 +114,7 @@
                     @endunless
                     <form method="POST" action="{{ route('frontoffice.check-in.store', $reservation->id) }}" data-check-in-form>
                         @csrf
-                        <button class="btn btn-success btn-lg w-100" @disabled(! $ready)><i class="bi bi-box-arrow-in-right"></i> {{ __('Check in :guest', ['guest' => $reservation->guestName]) }}</button>
+                        <button class="btn btn-success btn-lg w-100" @disabled(! $ready)><i class="bi bi-box-arrow-in-right"></i> {{ $reservation->itemsTotal > 1 ? __('Check in all :count rooms', ['count' => $reservation->itemsTotal - $reservation->itemsCheckedIn]) : __('Check in :guest', ['guest' => $reservation->guestName]) }}</button>
                     </form>
                 @endif
             </x-card>

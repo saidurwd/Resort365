@@ -14,15 +14,18 @@ use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Rates\Contracts\RateLookup;
 use Modules\Reservation\Actions\CreateReservation;
+use Modules\Reservation\Actions\SaveRoomingList;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\BookingItem;
 use Modules\Reservation\DTOs\NewReservation;
 use Modules\Reservation\Enums\ItemType;
 use Modules\Reservation\Enums\ReservationSource;
+use Modules\Reservation\Models\Reservation;
 
 /**
  * Front-desk demo (Step 2.2) on the property's business date: a paid booking arriving today in
- * room 201, ready to check in, and a guest in house in room 402 who leaves today.
+ * room 201, ready to check in, a guest in house in room 402 who leaves today, and (Step 2.4) a
+ * 6-room group arriving today with a master folio and a partly filled rooming list.
  */
 final class DemoFrontOffice
 {
@@ -52,6 +55,24 @@ final class DemoFrontOffice
                 [new BookingItem(ItemType::Room, $rooms['402']->id, $plan->id, 2)], $staying->id, ReservationSource::WalkIn));
             RecordPayment::make()->handle(new NewPayment($inHouse->id, PaymentMethod::Cash, $inHouse->deposit_required));
             CheckInGuest::make()->handle($inHouse->id);
+
+            // Step 2.4: a 6-room group arriving today, paid, its rooming list half filled in.
+            $groupRooms = ['101', '301', '501', '502', '601', '602'];
+            $organiser = app(GuestLookup::class)->search('01710000030')[0] ?? null;
+
+            if ($organiser !== null && collect($groupRooms)->every(fn (string $number): bool => $rooms->has($number))) {
+                $group = CreateReservation::make()->handle(new NewReservation($propertyId, $today, $today->addDays(2),
+                    array_map(fn (string $number): BookingItem => new BookingItem(ItemType::Room, $rooms[$number]->id, $plan->id, 2), $groupRooms),
+                    $organiser->id, ReservationSource::Corporate, groupName: 'Dhaka Bank offsite'));
+                RecordPayment::make()->handle(new NewPayment($group->id, PaymentMethod::BankTransfer, $group->deposit_required, 'DBL-TT-4410'));
+
+                $items = $group->items()->orderBy('id')->get();
+                SaveRoomingList::make()->handle(Reservation::query()->findOrFail($group->id), [
+                    $items[0]->id => ['new_name' => 'Tahmina Chowdhury'],
+                    $items[1]->id => ['new_name' => 'Imran Hossain'],
+                    $items[2]->id => ['new_name' => 'Farhana Islam'],
+                ]);
+            }
         });
     }
 }

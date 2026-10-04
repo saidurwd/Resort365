@@ -59,13 +59,20 @@ class CheckInController extends Controller
         Gate::authorize('frontoffice.checkin.perform');
         $summary = $this->summary($reservation);
 
+        $itemId = $request->integer('item_id') ?: null;
+
         try {
-            $checkIn->handle($summary->id, $this->userId($request));
+            $after = $checkIn->handle($summary->id, $this->userId($request), $itemId);
         } catch (StayNotPossible $exception) {
             return to_route('frontoffice.check-in.show', $summary->id)->with('error', $exception->getMessage());
         }
 
-        return to_route('frontoffice.desk')->with('success', __(':guest is checked in (:code).', ['guest' => $summary->guestName, 'code' => $summary->code]));
+        // A group checking in room by room stays on this screen until every room is in.
+        if ($itemId !== null && $after->itemsCheckedIn < $after->itemsTotal) {
+            return to_route('frontoffice.check-in.show', $summary->id)->with('success', __(':in of :total rooms checked in.', ['in' => $after->itemsCheckedIn, 'total' => $after->itemsTotal]));
+        }
+
+        return to_route('frontoffice.desk')->with('success', __(':guest is checked in (:code).', ['guest' => $summary->groupName ?? $summary->guestName, 'code' => $summary->code]));
     }
 
     public function identity(RecordIdentityRequest $request, int $reservation, GuestRegistry $registry): RedirectResponse

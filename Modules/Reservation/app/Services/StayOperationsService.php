@@ -2,17 +2,22 @@
 
 namespace Modules\Reservation\Services;
 
+use Carbon\CarbonImmutable;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Rates\Contracts\RateLookup;
 use Modules\Reservation\Actions\ChangeItemRoom;
 use Modules\Reservation\Actions\CheckInReservation;
 use Modules\Reservation\Actions\CheckOutReservation;
+use Modules\Reservation\Actions\ExtendStay;
+use Modules\Reservation\Actions\MoveRoom;
+use Modules\Reservation\Actions\ShortenStay;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\Contracts\StayOperations;
 use Modules\Reservation\DTOs\ReservationSummary;
 use Modules\Reservation\DTOs\RoomNightCharge;
 use Modules\Reservation\Enums\ItemType;
 use Modules\Reservation\Exceptions\StayNotPossible;
+use Modules\Reservation\Models\Reservation;
 use Modules\Reservation\Models\ReservationItem;
 use Modules\Reservation\Models\ReservationItemNight;
 
@@ -26,11 +31,31 @@ class StayOperationsService implements StayOperations
         private readonly InventoryCatalog $catalog,
         private readonly CheckOutReservation $checkOut,
         private readonly RateLookup $rates,
+        private readonly MoveRoom $move,
+        private readonly ExtendStay $extend,
+        private readonly ShortenStay $shorten,
     ) {}
 
-    public function checkIn(int $reservationId, ?int $userId = null): ReservationSummary
+    public function checkIn(int $reservationId, ?int $userId = null, ?int $itemId = null): array
     {
-        $this->checkIn->handle($reservationId, $userId);
+        return $this->checkIn->handle($reservationId, $userId, $itemId);
+    }
+
+    public function moveRoom(int $reservationItemId, int $roomId, bool $reprice = false, ?int $userId = null): void
+    {
+        $this->move->handle(ReservationItem::query()->findOrFail($reservationItemId), $roomId, $reprice, $userId);
+    }
+
+    public function extendStay(int $reservationId, string $checkOut, ?int $userId = null): ReservationSummary
+    {
+        $this->extend->handle(Reservation::query()->findOrFail($reservationId), CarbonImmutable::parse($checkOut), $userId);
+
+        return $this->reservations->find($reservationId) ?? throw new StayNotPossible(__('Unknown reservation.'));
+    }
+
+    public function shortenStay(int $reservationId, string $checkOut, ?int $userId = null): ReservationSummary
+    {
+        $this->shorten->handle(Reservation::query()->findOrFail($reservationId), CarbonImmutable::parse($checkOut), $userId);
 
         return $this->reservations->find($reservationId) ?? throw new StayNotPossible(__('Unknown reservation.'));
     }
@@ -45,18 +70,18 @@ class StayOperationsService implements StayOperations
         $items = [];
 
         foreach (ReservationItem::query()->where('reservation_id', $reservationId)->orderBy('id')->get() as $item) {
-            $items[$item->id] = ['label' => $this->labels->of($item), 'room_id' => $item->item_type === ItemType::Room ? $item->room_id : null, 'room_type_id' => $item->room_type_id];
+            $items[$item->id] = ['label' => $this->labels->of($item), 'room_id' => $item->item_type === ItemType::Room ? $item->room_id : null, 'room_type_id' => $item->room_type_id, 'status' => $item->status];
         }
 
         return $items;
     }
 
-    public function roomIds(int $reservationId): array
+    public function roomIds(int $reservationId, ?array $itemIds = null): array
     {
         $ids = [];
         $cottages = null;
 
-        foreach (ReservationItem::query()->where('reservation_id', $reservationId)->get() as $item) {
+        foreach (ReservationItem::query()->where('reservation_id', $reservationId)->when($itemIds !== null, fn ($query) => $query->whereIn('id', $itemIds))->get() as $item) {
             if ($item->item_type === ItemType::Room && $item->room_id !== null) {
                 $ids[] = $item->room_id;
 

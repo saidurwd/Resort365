@@ -10,6 +10,7 @@ use Modules\Reservation\Http\Controllers\ReservationChangeController;
 use Modules\Reservation\Http\Controllers\ReservationController;
 use Modules\Reservation\Http\Controllers\ReservationDepositController;
 use Modules\Reservation\Http\Controllers\ReservationGuestController;
+use Modules\Reservation\Http\Controllers\RoomingListController;
 
 /*
 |--------------------------------------------------------------------------
@@ -70,6 +71,8 @@ Route::prefix('reservation')->name('reservation.')->middleware(['auth', 'verifie
         Route::post('/guests', [ReservationGuestController::class, 'store'])->name('guests.store');
         Route::delete('/guests/{guest}', [ReservationGuestController::class, 'destroy'])->name('guests.destroy');
         Route::put('/guests/{guest}/primary', [ReservationGuestController::class, 'primary'])->name('guests.primary');
+        Route::get('/rooming-list', [RoomingListController::class, 'edit'])->name('rooming-list');
+        Route::put('/rooming-list', [RoomingListController::class, 'update'])->name('rooming-list.update');
     });
 
     Route::prefix('bookings/{reservation}')->whereNumber('reservation')->name('bookings.')->middleware('can:reservation.booking.cancel')->group(function (): void {

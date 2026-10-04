@@ -76,6 +76,7 @@ class CreateReservation extends Action
             'status' => $confirmed ? ReservationStatus::Confirmed : ReservationStatus::Tentative,
             'payment_status' => PaymentStatus::Unpaid,
             'source' => $data->source,
+            'group_name' => $data->groupName !== null && trim($data->groupName) !== '' ? trim($data->groupName) : null,
             'primary_guest_id' => $data->primaryGuestId,
             'company_id' => $data->companyId,
             'travel_agent_id' => $data->travelAgentId,

@@ -30,5 +30,6 @@ final readonly class NewReservation extends Data
         public ?string $internalNotes = null,
         public ?int $createdBy = null,
         public bool $allowDepositOverride = false,
+        public ?string $groupName = null,
     ) {}
 }

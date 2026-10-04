@@ -24,6 +24,8 @@
                     </table>
                 </x-card>
                 <x-card :title="__('Notes')" icon="bi-chat-left-text">
+                    <x-form.input name="group_name" :label="__('Group name (optional)')" :value="$state['group_name'] ?? null" maxlength="150"
+                        :help="__('For a group: a master folio takes the room charges, and the rooming list names each room\'s guest.')" />
                     <x-form.field name="special_requests" :label="__('Special requests (guest)')">
                         <textarea name="special_requests" id="field-special_requests" rows="2" class="form-control">{{ old('special_requests', $state['special_requests'] ?? '') }}</textarea>
                     </x-form.field>

@@ -29,6 +29,7 @@ class BookingPricingRequest extends FormRequest
             'deposit_percent' => ['nullable', 'decimal:0,2', 'min:0', 'max:100'],
             'special_requests' => ['nullable', 'string', 'max:2000'],
             'internal_notes' => ['nullable', 'string', 'max:2000'],
+            'group_name' => ['nullable', 'string', 'max:150'],
             'action' => ['required', 'in:recalculate,continue'],
         ];
     }

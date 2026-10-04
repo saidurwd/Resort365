@@ -164,6 +164,7 @@ class BookingWizard
             $text('internal_notes'),
             $userId,
             $allowDepositOverride,
+            $text('group_name'),
         );
     }
 }

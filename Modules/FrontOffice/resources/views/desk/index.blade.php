@@ -23,7 +23,7 @@
         </div>
         <div class="col-xl-6">
             <x-card :title="__('In house')" icon="bi-house-check" body-class="p-0">
-                @include('frontoffice::desk.partials.list', ['rows' => $inHouse, 'list' => 'in-house', 'empty' => __('Nobody is checked in.'), 'action' => null])
+                @include('frontoffice::desk.partials.list', ['rows' => $inHouse, 'list' => 'in-house', 'empty' => __('Nobody is checked in.'), 'action' => 'in-house'])
             </x-card>
             @if ($vips !== [])
                 <x-card :title="__('VIPs')" icon="bi-star" body-class="p-0">

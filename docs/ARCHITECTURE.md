@@ -492,7 +492,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - Deposit calculation, hold expiry and auto-cancellation of unpaid tentative bookings.
 - Modifications: dates, rooms, guests, rate plan, with automatic re-pricing and re-locking.
 - Cancellation with policy-driven fees and refunds; no-show handling.
-- Group bookings (one master reservation, a rooming list, a master folio).
+- Group bookings (one master reservation, a rooming list, a master folio). *(Step 2.4: a group is one reservation with a `group_name` (set in the wizard), many rooms or cottages, a rooming list (`/reservation/bookings/{id}/rooming-list`: the guest of each item, picked or created by name) and a master folio that room charges are routed to; there is no separate group table.)*
 - Booking sources: walk-in, phone, email, website, travel agent, corporate, OTA.
 - Travel agents and corporate accounts, with commission and credit limit.
 - Waitlist (optional).
@@ -999,6 +999,7 @@ Locks are bulk-inserted in one statement. Correctness relies on the **database c
 History of every change is kept in `reservation_logs` plus the activity log.
 
 *(Step 1.7: `ModifyReservation` replaces the booking's items, nights and locks in one transaction (the lock insert decides; a clash rolls back and keeps the original), keeps the negotiated deposit percent and the deposit due time, and confirms a tentative booking whose payments now cover the deposit. `CancelReservation` charges the cancellation policy's fee (`RateLookup::cancellationQuote`) and stores the fee; the refund of what was paid above it is paid in Step 2.3. `ChangeDeposit` renegotiates the percent (0% waives it), outside the policy only with `reservation.deposit.override`. Other modules add tabs to the reservation page through Reservation's `ReservationTabs` contract (Billing: Payments), since Reservation may not call them. Room moves, no-shows and early check-out come with the front office (Phase 2).)*
+*(Step 2.4, in house (FrontOffice → Stay changes, Reservation's `StayOperations`): `MoveRoom` moves a room item's remaining nights, from the business date, to any free active room in any cottage — the old room is free from tonight, past nights stay on it; the rate is kept, or with `frontoffice.stay.reprice` the unbilled remaining nights are priced for the new room. `ExtendStay` prices (each item's rate plan) and locks the extra nights; `ShortenStay` releases the rooms from the new departure and removes the unbilled nights. A clash rolls back and keeps the stay. Items check in one at a time (a group arriving room by room): the booking is Checked in with its first item. Moving a whole cottage mid-stay is not built.)*
 
 ### 6.8 Tape Chart (Booking Calendar)
 

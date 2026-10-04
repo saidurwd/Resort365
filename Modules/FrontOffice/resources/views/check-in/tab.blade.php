@@ -2,6 +2,9 @@
     @switch ($reservation->status)
         @case(\Modules\Reservation\Enums\ReservationStatus::CheckedIn)
             <p class="text-success" data-stay="in-house"><i class="bi bi-house-check"></i> {{ __('In house until :date.', ['date' => \Carbon\Carbon::parse($reservation->checkOut)->format('D d M Y')]) }}</p>
+            @can('frontoffice.stay.change')
+                <a href="{{ route('frontoffice.stay.show', $reservation->id) }}" class="btn btn-outline-secondary" data-tab-stay><i class="bi bi-arrow-left-right"></i> {{ __('Stay changes') }}</a>
+            @endcan
             @can('frontoffice.checkout.perform')
                 <a href="{{ route('frontoffice.check-out.show', $reservation->id) }}" class="btn btn-warning" data-tab-check-out><i class="bi bi-box-arrow-right"></i> {{ __('Check out') }}</a>
             @endcan
