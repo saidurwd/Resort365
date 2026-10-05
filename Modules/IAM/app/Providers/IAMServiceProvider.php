@@ -28,6 +28,7 @@ use Modules\IAM\Actions\Fortify\UpdateUserPassword;
 use Modules\IAM\Actions\Fortify\UpdateUserProfileInformation;
 use Modules\IAM\Console\SyncPermissionsCommand;
 use Modules\IAM\Contracts\PosPins;
+use Modules\IAM\Contracts\RoleDirectory;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\Http\Middleware\EnsureTwoFactorEnabled;
 use Modules\IAM\Http\Middleware\EnsureUserIsActive;
@@ -37,6 +38,7 @@ use Modules\IAM\Models\User;
 use Modules\IAM\Policies\RolePolicy;
 use Modules\IAM\Policies\UserPolicy;
 use Modules\IAM\Services\PosPinsService;
+use Modules\IAM\Services\RoleDirectoryService;
 use Modules\IAM\Services\UserDirectoryService;
 use Modules\IAM\Support\TenantLoginRateLimiter;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -82,6 +84,7 @@ class IAMServiceProvider extends ModuleServiceProvider
         $this->app->bind(LoginRateLimiter::class, TenantLoginRateLimiter::class);
         $this->app->singleton(UserDirectory::class, UserDirectoryService::class);
         $this->app->singleton(PosPins::class, PosPinsService::class);
+        $this->app->singleton(RoleDirectory::class, RoleDirectoryService::class);
     }
 
     public function boot(): void

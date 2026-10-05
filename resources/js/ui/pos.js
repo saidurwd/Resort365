@@ -111,7 +111,7 @@ export function posIdle(minutes) {
 }
 
 /** Sends a JSON request to the POS API with the CSRF token; returns [ok, data]. */
-async function posFetch(method, url, body, offline) {
+export async function posFetch(method, url, body, offline) {
     try {
         const response = await fetch(url, {
             method,
@@ -128,14 +128,14 @@ async function posFetch(method, url, body, offline) {
             return [true, data];
         }
 
-        return [false, { message: data.message || Object.values(data.errors ?? {}).flat()[0] || response.statusText }];
+        return [false, { ...data, message: data.message || Object.values(data.errors ?? {}).flat()[0] || response.statusText }];
     } catch {
         return [false, { message: offline }];
     }
 }
 
-/** Prints a kitchen ticket without leaving the order: loads it in a hidden frame that prints itself. */
-function printTicket(url) {
+/** Prints a ticket or bill without leaving the screen: loads it in a hidden frame that prints itself. */
+export function printTicket(url) {
     const frame = document.createElement('iframe');
     frame.className = 'pos-print-frame';
     frame.setAttribute('aria-hidden', 'true');
@@ -197,7 +197,8 @@ export function posOrder(state) {
 
             if (data?.order) {
                 if (data.order.status !== 'open') {
-                    window.location = this.urls.floor;
+                    // Printed from another terminal: show its bill; closed: back to the floor.
+                    window.location = data.order.status === 'bill_printed' ? this.urls.bill : this.urls.floor;
 
                     return;
                 }

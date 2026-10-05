@@ -102,6 +102,7 @@
                 <button type="button" class="btn btn-success btn-lg pos-btn" @click="send()" :disabled="busy || order.pending === 0" data-send>
                     <i class="bi bi-send"></i> {{ __('Send') }} <span class="badge text-bg-light" x-show="order.pending" x-text="order.pending"></span>
                 </button>
+                <a :href="urls.bill" class="btn btn-outline-primary btn-lg pos-btn" :class="{ disabled: order.lines.length === 0 }" data-bill-button><i class="bi bi-receipt"></i> {{ __('Bill') }}</a>
                 <template x-for="course in order.held" :key="course">
                     <button type="button" class="btn btn-warning pos-btn" @click="send(course)" :disabled="busy" :data-fire="course">
                         <i class="bi bi-fire"></i> {{ __('Fire') }} <span x-text="courses.find(c => c.value === course)?.label"></span>

@@ -3,23 +3,31 @@
 namespace Database\Seeders;
 
 use App\Models\Tenant;
+use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
 use Modules\Core\Models\TaxCategory;
 use Modules\IAM\Contracts\PosPins;
+use Modules\IAM\Contracts\RoleDirectory;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\DTOs\UserSummary;
 use Modules\Restaurant\Actions\AddOrderLine;
 use Modules\Restaurant\Actions\OpenOrder;
+use Modules\Restaurant\Actions\OpenPosSession;
+use Modules\Restaurant\Actions\PrintBill;
 use Modules\Restaurant\Actions\RegisterTerminal;
 use Modules\Restaurant\Actions\SaveDiningArea;
 use Modules\Restaurant\Actions\SaveDiningTable;
+use Modules\Restaurant\Actions\SaveDiscountLimits;
 use Modules\Restaurant\Actions\SaveFloorPlan;
 use Modules\Restaurant\Actions\SaveOutlet;
 use Modules\Restaurant\Actions\SavePrinter;
 use Modules\Restaurant\Actions\SaveStation;
 use Modules\Restaurant\Actions\SendOrder;
 use Modules\Restaurant\Actions\SyncOutletAccess;
+use Modules\Restaurant\Actions\TakePayment;
 use Modules\Restaurant\Enums\OrderType;
+use Modules\Restaurant\Enums\PaymentMethod;
+use Modules\Restaurant\Enums\SplitMode;
 use Modules\Restaurant\Enums\TableShape;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
@@ -29,6 +37,7 @@ use Modules\Restaurant\Models\MenuItemVariant;
 use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
+use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
 use Modules\Restaurant\Models\PosTerminal;
@@ -134,6 +143,49 @@ final class DemoRestaurant
             KitchenStation::query()->where('property_id', $propertyId)->where('name', 'Hot kitchen')
                 ->whereIn('outlet_id', Outlet::query()->where('code', 'MR')->select('id'))
                 ->update(['display_token' => hash('sha256', self::DEMO_DISPLAY_TOKEN)]);
+        });
+    }
+
+    /**
+     * Step 3.6: discount limits (waiter and bartender 5%, cashier 10%; managers any), and a settled bill:
+     * the cashier's session is open at the Main Restaurant's cashier desk (3,000 float) and table T6's
+     * lunch was paid by card.
+     */
+    public static function bills(Tenant $tenant, string $domain): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($domain): void {
+            $roles = collect(app(RoleDirectory::class)->all())->keyBy('defaultRole');
+            $limits = [];
+
+            foreach ([[DefaultRole::Waiter, '5'], [DefaultRole::Bartender, '5'], [DefaultRole::OutletCashier, '10']] as [$role, $percent]) {
+                if ($roles->has($role->value)) {
+                    $limits[$roles->get($role->value)->id] = $percent;
+                }
+            }
+
+            SaveDiscountLimits::make()->handle($limits);
+
+            $users = collect(app(UserDirectory::class)->all())->keyBy('email');
+            $cashier = $users->get('cashier@'.$domain);
+            $waiter = $users->get('waiter@'.$domain);
+            $outlet = Outlet::query()->where('code', 'MR')->firstOrFail();
+            $terminal = PosTerminal::query()->where('outlet_id', $outlet->id)->where('name', 'Cashier desk')->first();
+            $table = DiningTable::query()->where('outlet_id', $outlet->id)->where('number', 'T6')->first();
+
+            if (! $cashier instanceof UserSummary || ! $waiter instanceof UserSummary || ! $terminal instanceof PosTerminal || ! $table instanceof DiningTable
+                || PosBill::query()->where('outlet_id', $outlet->id)->exists()) {
+                return; // seeded already
+            }
+
+            $session = OpenPosSession::make()->handle($terminal, $cashier->id, '3000');
+            $order = OpenOrder::make()->handle($outlet, OrderType::DineIn, $waiter->id, $table->id, 2);
+            $item = fn (string $code): int => MenuItem::query()->where('code', $code)->value('id');
+            AddOrderLine::make()->handle($order, ['item_id' => $item('BD06')], $waiter->id, false);
+            AddOrderLine::make()->handle($order, ['item_id' => $item('PR05'), 'quantity' => 2], $waiter->id, false);
+            AddOrderLine::make()->handle($order, ['item_id' => $item('BD05')], $waiter->id, false);
+            SendOrder::make()->handle($order, $waiter->id);
+            [$bill] = PrintBill::make()->handle($order, SplitMode::None, [], $waiter->id);
+            TakePayment::make()->handle($bill, PaymentMethod::Card, (string) $bill->grand_total, '50', null, '4417', $session, $cashier->id);
         });
     }
 

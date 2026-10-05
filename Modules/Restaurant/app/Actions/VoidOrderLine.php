@@ -54,7 +54,7 @@ class VoidOrderLine extends Action
 
             $approval = $mayVoid ? null : ($approvalId !== null
                 ? $this->approvals->consume($approvalId, self::APPROVAL, $userId, 'pos_order_line', $locked->id)
-                : throw new PosNotAllowed(__('Voiding needs a manager\'s approval.')));
+                : throw PosNotAllowed::needsApproval(__('Voiding needs a manager\'s approval.'), self::APPROVAL));
 
             $locked->forceFill([
                 'status' => OrderLineStatus::Voided, 'void_reason' => $reason, 'void_note' => trim((string) $note) ?: null, 'voided_by' => $userId,

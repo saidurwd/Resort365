@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Restaurant\Http\Controllers\DiscountLimitController;
 use Modules\Restaurant\Http\Controllers\Kds\KdsController;
 use Modules\Restaurant\Http\Controllers\MenuCategoryController;
 use Modules\Restaurant\Http\Controllers\MenuImportController;
@@ -9,6 +10,7 @@ use Modules\Restaurant\Http\Controllers\ModifierGroupController;
 use Modules\Restaurant\Http\Controllers\OutletAccessController;
 use Modules\Restaurant\Http\Controllers\OutletController;
 use Modules\Restaurant\Http\Controllers\OutletSetupController;
+use Modules\Restaurant\Http\Controllers\Pos\PosBillController;
 use Modules\Restaurant\Http\Controllers\Pos\PosController;
 use Modules\Restaurant\Http\Controllers\Pos\PosOrderController;
 use Modules\Restaurant\Http\Controllers\Pos\PosSessionController;
@@ -104,6 +106,11 @@ Route::prefix('restaurant')->name('restaurant.')->middleware(['auth', 'verified'
         Route::get('/sessions/{session}/report', [PosSessionsController::class, 'report'])->name('sessions.report');
     });
 
+    Route::middleware('can:restaurant.discount-limit.manage')->group(function (): void {
+        Route::get('/discount-limits', [DiscountLimitController::class, 'index'])->name('discount-limits.index');
+        Route::put('/discount-limits', [DiscountLimitController::class, 'update'])->name('discount-limits.update');
+    });
+
     Route::get('/access', [OutletAccessController::class, 'index'])->middleware('can:restaurant.access.manage')->name('access.index');
     Route::put('/access', [OutletAccessController::class, 'update'])->middleware('can:restaurant.access.manage')->name('access.update');
 });
@@ -152,6 +159,22 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
                     Route::post('/merge', 'merge')->name('merge');
                     Route::post('/cancel', 'cancel')->name('cancel');
                 });
+            });
+
+            // Bills, discounts and payments (Step 3.6).
+            Route::middleware('can:restaurant.order.take')->controller(PosBillController::class)->group(function (): void {
+                Route::get('/orders/{order}/bill', 'show')->name('orders.bill');
+                Route::get('/bills/{bill}/print', 'printView')->name('bills.print');
+                Route::get('/bills/{bill}/receipt', 'receipt')->name('bills.receipt');
+                Route::post('/api/orders/{order}/discount', 'discount')->name('orders.discount');
+                Route::post('/api/orders/{order}/bill/preview', 'preview')->name('orders.bill.preview');
+                Route::post('/api/orders/{order}/bill/print', 'print')->name('orders.bill.print');
+                Route::post('/api/orders/{order}/reopen', 'reopen')->name('orders.reopen');
+            });
+            Route::middleware('can:restaurant.bill.settle')->controller(PosBillController::class)->group(function (): void {
+                Route::post('/api/bills/{bill}/payments', 'pay')->name('bills.pay');
+                Route::post('/api/bills/{bill}/comp', 'comp')->name('bills.comp');
+                Route::post('/api/bills/{bill}/void', 'void')->name('bills.void');
             });
         });
     });

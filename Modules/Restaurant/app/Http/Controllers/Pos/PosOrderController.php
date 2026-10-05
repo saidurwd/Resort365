@@ -114,6 +114,10 @@ class PosOrderController extends Controller
     {
         $this->authorizeOrder($order, $context);
 
+        if ($order->status === OrderStatus::BillPrinted) {
+            return to_route('pos.orders.bill', $order);
+        }
+
         if (! $order->isOpen()) {
             return to_route('pos.floor')->with('error', __('Order :number is closed.', ['number' => $order->order_no]));
         }
@@ -145,6 +149,7 @@ class PosOrderController extends Controller
                     'approve' => route('pos.approvals.store'),
                     'floor' => route('pos.floor'),
                     'order' => route('pos.orders.data', $order),
+                    'bill' => route('pos.orders.bill', $order),
                     'menu' => route('pos.menu'),
                 ],
                 'channel' => RestaurantChannels::outlet($terminal->tenant_id, $terminal->outlet_id),

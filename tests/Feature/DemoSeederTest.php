@@ -38,9 +38,11 @@ use Modules\Reservation\Jobs\ExpireTentativeHolds;
 use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Quote;
 use Modules\Reservation\Models\Reservation;
+use Modules\Restaurant\Enums\BillStatus;
 use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\TableStatus;
 use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\DiscountLimit;
 use Modules\Restaurant\Models\KitchenStation;
 use Modules\Restaurant\Models\Kot;
 use Modules\Restaurant\Models\MenuItem;
@@ -48,6 +50,7 @@ use Modules\Restaurant\Models\MenuItemVariant;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 
 use function Pest\Laravel\seed;
@@ -225,7 +228,7 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
     seed(DatabaseSeeder::class);
 
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
-        $order = PosOrder::query()->with(['lines', 'kots.station', 'table'])->sole();
+        $order = PosOrder::query()->with(['lines', 'kots.station', 'table'])->where('status', 'open')->sole();
 
         expect($order->table?->number)->toBe('T4')
             ->and($order->covers)->toBe(2)
@@ -236,6 +239,9 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
             ->and($order->table?->status)->toBe(TableStatus::Occupied)
             ->and($order->subtotal)->toBe('2900.00')
             // Step 3.5: the Hot kitchen's screen registers with the demo display token.
-            ->and(KitchenStation::query()->where('display_token', hash('sha256', DemoRestaurant::DEMO_DISPLAY_TOKEN))->sole()->name)->toBe('Hot kitchen');
+            ->and(KitchenStation::query()->where('display_token', hash('sha256', DemoRestaurant::DEMO_DISPLAY_TOKEN))->sole()->name)->toBe('Hot kitchen')
+            // Step 3.6: T6's lunch settled by card (with a tip) in the cashier's open session; discount limits per role.
+            ->and(PosBill::query()->sole()->only(['bill_no', 'status', 'grand_total', 'tip_total']))->toBe(['bill_no' => 'MR-B000001', 'status' => BillStatus::Settled, 'grand_total' => '974.05', 'tip_total' => '50.00'])
+            ->and(DiscountLimit::query()->count())->toBe(3);
     });
 });

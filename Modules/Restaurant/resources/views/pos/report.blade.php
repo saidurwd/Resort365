@@ -33,7 +33,17 @@
             @endforeach
         </table>
     @endif
-    <p class="text-center small mb-0">{{ __('Sales and payments by method appear here once the POS takes orders.') }}</p>
+    <table class="table table-sm mb-2" data-by-method>
+        <tr class="fw-bold"><td colspan="2">{{ __('Takings by method') }}</td></tr>
+        @forelse ($byMethod as $method => $amount)
+            <tr><td>{{ \Modules\Restaurant\Enums\PaymentMethod::from($method)->label() }}</td><td class="text-end">{{ $money($amount) }}</td></tr>
+        @empty
+            <tr><td colspan="2">{{ __('No payments yet.') }}</td></tr>
+        @endforelse
+        <tr><td>{{ __('Bills settled') }}</td><td class="text-end">{{ $bills->where('status', \Modules\Restaurant\Enums\BillStatus::Settled)->count() }}</td></tr>
+        <tr><td>{{ __('Bills voided') }}</td><td class="text-end">{{ $bills->where('status', \Modules\Restaurant\Enums\BillStatus::Voided)->count() }}</td></tr>
+        <tr><td>{{ __('Complimentary bills') }}</td><td class="text-end">{{ $bills->where('is_complimentary', true)->count() }}</td></tr>
+    </table>
     <div class="mt-4 border-top pt-1 small">{{ __('Cashier') }}</div>
     <div class="mt-4 border-top pt-1 small">{{ __('Manager') }}</div>
 </x-layouts::print>

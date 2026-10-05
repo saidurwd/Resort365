@@ -24,6 +24,7 @@ use Modules\Restaurant\Http\Middleware\EnsurePosTerminal;
 use Modules\Restaurant\Models\ComboComponent;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\DiscountLimit;
 use Modules\Restaurant\Models\KitchenStation;
 use Modules\Restaurant\Models\Kot;
 use Modules\Restaurant\Models\KotLine;
@@ -36,13 +37,17 @@ use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PosBill;
+use Modules\Restaurant\Models\PosBillLine;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
+use Modules\Restaurant\Models\PosPayment;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
 use Modules\Restaurant\Policies\MenuItemPolicy;
 use Modules\Restaurant\Policies\OutletPolicy;
+use Modules\Restaurant\Policies\PosBillPolicy;
 use Modules\Restaurant\Policies\PosOrderPolicy;
 use Modules\Restaurant\Policies\PrinterPolicy;
 use Modules\Restaurant\Services\KdsContext;
@@ -108,8 +113,13 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             'pos_order_line' => PosOrderLine::class,
             'kot' => Kot::class,
             'kot_line' => KotLine::class,
+            'pos_bill' => PosBill::class,
+            'pos_bill_line' => PosBillLine::class,
+            'pos_payment' => PosPayment::class,
+            'discount_limit' => DiscountLimit::class,
         ]);
         Gate::policy(PosOrder::class, PosOrderPolicy::class);
+        Gate::policy(PosBill::class, PosBillPolicy::class);
         Gate::policy(MenuItemModel::class, MenuItemPolicy::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.terminal', EnsurePosTerminal::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.staff', EnsurePosStaff::class);
@@ -138,6 +148,12 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('restaurant.order.take', 'Take orders and send them to the kitchen', [...$managers, DefaultRole::Waiter, DefaultRole::Bartender, DefaultRole::OutletCashier]),
             new PermissionDefinition('restaurant.order.void', 'Void items sent to the kitchen (others need a manager\'s PIN)', $managers),
             new PermissionDefinition('restaurant.order.open-item', 'Price open items', [...$managers, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.bill.settle', 'Take payments on restaurant bills', [...$managers, DefaultRole::OutletCashier, DefaultRole::Bartender]),
+            new PermissionDefinition('restaurant.bill.reopen', 'Reopen a printed bill (others need a manager\'s PIN)', $managers),
+            new PermissionDefinition('restaurant.bill.comp', 'Make a bill complimentary (others need a manager\'s PIN)', $managers),
+            new PermissionDefinition('restaurant.bill.void', 'Void a settled bill on its business date (others need a manager\'s PIN)', $managers),
+            new PermissionDefinition('restaurant.discount.approve', 'Give or approve any discount', $managers),
+            new PermissionDefinition('restaurant.discount-limit.manage', 'Set the discount limit of each role', $managers),
             new PermissionDefinition('restaurant.kds.use', 'Open a station\'s kitchen display and move tickets on', [...$managers, DefaultRole::Chef, DefaultRole::Bartender]),
         ]);
 
@@ -155,6 +171,8 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             permission: 'restaurant.session.view', module: 'restaurant', active: 'restaurant.sessions.*'));
         $menu->add(new MenuItem('restaurant.kds', 'Kitchen display', route: 'kds.stations', parent: 'restaurant', order: 19,
             permission: 'restaurant.kds.use', module: 'restaurant', active: 'kds.*'));
+        $menu->add(new MenuItem('restaurant.discount-limits', 'Discount limits', route: 'restaurant.discount-limits.index', parent: 'restaurant', order: 25,
+            permission: 'restaurant.discount-limit.manage', module: 'restaurant', active: 'restaurant.discount-limits.*'));
         $menu->add(new MenuItem('restaurant.printers', 'Printers', route: 'restaurant.printers.index', parent: 'restaurant', order: 20,
             permission: 'restaurant.outlet.view', module: 'restaurant', active: 'restaurant.printers.*'));
         $menu->add(new MenuItem('restaurant.access', 'Outlet access', route: 'restaurant.access.index', parent: 'restaurant', order: 30,
@@ -167,6 +185,8 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             SettingScope::Property, 'Restaurant', help: 'The person on a POS terminal is signed out after this many minutes without using it. 0 = never.', rules: ['min:0', 'max:120']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.session_variance_limit', 'Cash difference needing a manager', SettingType::Decimal, '500',
             SettingScope::Property, 'Restaurant', help: 'Closing a POS session with a larger cash over or short needs a manager\'s PIN.', rules: ['min:0']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.service_charge_code', 'Service charge tax code', SettingType::Text, 'SC', SettingScope::Tenant,
+            'Restaurant', help: 'The code of the tax (Setup → Taxes) that is the service charge: bills show it apart from the other taxes.', rules: ['max:20']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.kds_warn_minutes', 'Kitchen ticket turns amber after (minutes)', SettingType::Integer, 10,
             SettingScope::Property, 'Restaurant', help: 'On the kitchen display, a ticket waiting this long is shown in amber.', rules: ['min:1', 'max:240']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.kds_late_minutes', 'Kitchen ticket turns red after (minutes)', SettingType::Integer, 20,

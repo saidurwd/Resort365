@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Modules\Restaurant\Database\Factories\PosOrderLineFactory;
 use Modules\Restaurant\Enums\Course;
+use Modules\Restaurant\Enums\DiscountType;
 use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\VoidReason;
 
@@ -49,6 +50,11 @@ use Modules\Restaurant\Enums\VoidReason;
  * @property int|null $manager_approval_id
  * @property bool $is_wastage
  * @property int|null $added_by
+ * @property DiscountType|null $discount_type
+ * @property string|null $discount_value percent or amount
+ * @property string|null $discount_reason
+ * @property int|null $discount_by
+ * @property int|null $discount_approval_id
  */
 #[UseFactory(PosOrderLineFactory::class)]
 #[Fillable([
@@ -72,6 +78,8 @@ class PosOrderLine extends Model
     protected function casts(): array
     {
         return [
+            'discount_type' => DiscountType::class,
+            'discount_value' => 'decimal:2',
             'modifiers' => 'array',
             'unit_price' => 'decimal:2',
             'modifier_total' => 'decimal:2',

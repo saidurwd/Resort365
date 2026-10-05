@@ -22,13 +22,16 @@ class ManagerApprovals
 
     /**
      * The actions that can be approved by a manager's PIN: action => [permission it needs, subject type].
-     * Later steps add discounts.
      *
      * @var array<string, array{permission: string, subject: string|null, label: string}>
      */
     public const array ACTIONS = [
         'session.close-variance' => ['permission' => 'restaurant.session.approve-variance', 'subject' => 'pos_session', 'label' => 'Close a session with a large cash difference'],
         'order.void-line' => ['permission' => 'restaurant.order.void', 'subject' => 'pos_order_line', 'label' => 'Void an item sent to the kitchen'],
+        'bill.discount' => ['permission' => 'restaurant.discount.approve', 'subject' => 'pos_order', 'label' => 'Give a discount above the limit'],
+        'bill.reopen' => ['permission' => 'restaurant.bill.reopen', 'subject' => 'pos_order', 'label' => 'Reopen a printed bill'],
+        'bill.comp' => ['permission' => 'restaurant.bill.comp', 'subject' => 'pos_bill', 'label' => 'Make a bill complimentary'],
+        'bill.void' => ['permission' => 'restaurant.bill.void', 'subject' => 'pos_bill', 'label' => 'Void a settled bill'],
     ];
 
     private const int ATTEMPTS = 5;

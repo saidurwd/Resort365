@@ -21,7 +21,9 @@ use Modules\Restaurant\Http\Requests\ClosePosSessionRequest;
 use Modules\Restaurant\Http\Requests\ManagerApprovalRequest;
 use Modules\Restaurant\Http\Requests\OpenPosSessionRequest;
 use Modules\Restaurant\Models\ManagerApproval;
+use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
+use Modules\Restaurant\Models\PosPayment;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Services\ManagerApprovals;
 use Modules\Restaurant\Services\PosContext;
@@ -124,6 +126,8 @@ class PosSessionController extends Controller
             'property' => $properties->find($session->property_id),
             'openedBy' => $names[$session->opened_by] ?? '',
             'closedBy' => $session->closed_by !== null ? ($names[$session->closed_by] ?? '') : null,
+            'byMethod' => $cash->byMethod($session),
+            'bills' => PosBill::query()->whereIn('id', PosPayment::query()->where('pos_session_id', $session->id)->select('pos_bill_id'))->get(['status', 'grand_total', 'is_complimentary']),
             'approvedBy' => $session->manager_approval_id !== null ? ($names[ManagerApproval::query()->whereKey($session->manager_approval_id)->value('approved_by')] ?? '') : null,
         ]);
     }

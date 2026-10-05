@@ -12,6 +12,7 @@ import { floorPlan } from './ui/floor-plan';
 import { priceList } from './ui/price-list';
 import { managerApproval, pinPad, posIdle, posOrder } from './ui/pos';
 import { posFloor, posReady } from './ui/pos-live';
+import { posBill } from './ui/pos-bill';
 import { kdsBoard } from './ui/kds';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
@@ -28,6 +29,7 @@ Alpine.data('posOrder', posOrder);
 Alpine.data('posFloor', posFloor);
 Alpine.data('posReady', posReady);
 Alpine.data('kdsBoard', kdsBoard);
+Alpine.data('posBill', posBill);
 Alpine.start();
 
 /**

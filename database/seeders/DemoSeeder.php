@@ -132,6 +132,9 @@ class DemoSeeder extends Seeder
         // Step 3.4: an open order at Main Restaurant table T4 (mains and drinks sent, desserts held).
         DemoRestaurant::orders($rodela, self::DOMAINS['rodela']);
 
+        // Step 3.6: discount limits per role, and table T6's lunch settled by card in the cashier's open session.
+        DemoRestaurant::bills($rodela, self::DOMAINS['rodela']);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],
