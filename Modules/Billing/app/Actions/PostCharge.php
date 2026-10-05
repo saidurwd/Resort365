@@ -16,7 +16,9 @@ use Modules\Billing\Services\FolioMath;
 use Modules\Billing\Services\TaxSplitter;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Contracts\TaxEngine;
+use Modules\Core\DTOs\TaxBreakdown;
 use Modules\Core\DTOs\TaxLine;
+use Modules\Core\Enums\TaxType;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Reservation\Enums\ReservationStatus;
 
@@ -60,8 +62,15 @@ class PostCharge extends Action
             throw new ChargeRejected(__('Quantity must be at least 1 and the price may not be negative.'));
         }
 
-        // TaxEngine taxes the line amount; quantity only counts units for fixed taxes.
-        $tax = $this->taxes->calculate((string) BigDecimal::of($charge->unitPrice)->multipliedBy($charge->quantity)->toScale(2), $code->tax_category_id, $charge->priceIncludesTax, $charge->quantity);
+        if ($charge->outletCharge && $reservation->noRoomCharges) {
+            throw new ChargeRejected(__('Booking :code takes no room charges from outlets.', ['code' => $reservation->code]));
+        }
+
+        // TaxEngine taxes the line amount; quantity only counts units for fixed taxes. Taxes worked out by
+        // the source (a restaurant bill) are posted as they are.
+        $tax = $charge->taxLines !== null
+            ? $this->presetTaxes((string) BigDecimal::of($charge->unitPrice)->multipliedBy($charge->quantity)->toScale(2), $charge->taxLines)
+            : $this->taxes->calculate((string) BigDecimal::of($charge->unitPrice)->multipliedBy($charge->quantity)->toScale(2), $code->tax_category_id, $charge->priceIncludesTax, $charge->quantity);
 
         return $this->transaction(function () use ($charge, $reservation, $code, $tax, $enforceCreditLimit): FolioLine {
             $routed = $this->ledger->folioFor($reservation->id, $code->category);
@@ -111,6 +120,24 @@ class PostCharge extends Action
     }
 
     /**
+     * A breakdown of taxes the source already worked out: net + each tax = gross.
+     *
+     * @param  array<string, string>  $taxLines  name => amount
+     */
+    private function presetTaxes(string $net, array $taxLines): TaxBreakdown
+    {
+        $lines = [];
+
+        foreach ($taxLines as $name => $amount) {
+            $lines[] = new TaxLine((string) $name, (string) $name, TaxType::Percent, '0', (string) BigDecimal::of($amount)->toScale(2));
+        }
+
+        $total = array_reduce($lines, fn (BigDecimal $sum, TaxLine $line): BigDecimal => $sum->plus($line->amount), BigDecimal::zero());
+
+        return new TaxBreakdown($net, $lines, (string) $total->toScale(2), (string) BigDecimal::of($net)->plus($total)->toScale(2));
+    }
+
+    /**
      * Tax name => amount (taxes with the same name are added together).
      *
      * @param  list<TaxLine>  $taxes
@@ -125,7 +152,7 @@ class PostCharge extends Action
      * A company or travel-agent folio uses its account's credit limit; a guest folio the
      * property's billing.guest_credit_limit (0 = none).
      */
-    private function creditLimit(Folio $folio): ?string
+    public function creditLimit(Folio $folio): ?string
     {
         return match ($folio->bill_to_type) {
             BillTo::Company => $folio->bill_to_id !== null ? $this->guests->findCompany($folio->bill_to_id)?->creditLimit : null,

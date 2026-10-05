@@ -4,15 +4,13 @@
 | Bills, discounts & payments (Step 3.6). "Done when": a 4-person table split equally is settled by
 | cash + card (the split always adds up: see BillSplitterTest).
 */
-
 use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Testing\TestResponse;
-use Modules\Restaurant\Actions\OpenPosSession;
 use Modules\Restaurant\Enums\BillStatus;
 use Modules\Restaurant\Enums\OrderStatus;
 use Modules\Restaurant\Enums\TableStatus;
@@ -24,14 +22,10 @@ use Modules\Restaurant\Models\DiscountLimit;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosPayment;
-use Modules\Restaurant\Models\PosSession;
-use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Services\SessionCash;
-use Symfony\Component\HttpFoundation\Response;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
-use function Pest\Laravel\json;
 use function Pest\Laravel\post;
 use function Pest\Laravel\put;
 
@@ -44,56 +38,6 @@ beforeEach(function (): void {
     Notification::fake();
     Event::fake([RestaurantBillSettled::class, RestaurantBillVoided::class, TableStatusChanged::class]);
 });
-
-/**
- * The order setup, with the outlet taxed SC 10% then VAT 15% (the ROOM category of the booking setup).
- *
- * @return array<string, mixed>
- */
-function billSetup(bool $inclusive = false): array
-{
-    $setup = orderSetup();
-    booking(fn () => DB::table('outlets')->where('id', $setup['terminal']->outlet_id)->update([
-        'default_tax_category_id' => DB::table('tax_categories')->where('tenant_id', tenant('sunrise')->id)->where('code', 'ROOM')->value('id'), 'prices_include_tax' => $inclusive,
-    ]));
-
-    return $setup;
-}
-
-/**
- * A sent order at T1: 2 × curry (Full), 4 × naan, 4 × mojito = 3,100.00 before tax.
- *
- * @param  array<string, mixed>  $setup
- */
-function fourCovers(array $setup): PosOrder
-{
-    $order = openTable($setup['tables']['T1'], 4);
-    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['curry'], 'variant_id' => $setup['variants']['Full'], 'modifier_ids' => [$setup['modifiers']['mild']], 'quantity' => 2])->assertOk();
-    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['naan'], 'quantity' => 4, 'seat' => 1])->assertOk();
-    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['mojito'], 'quantity' => 4, 'seat' => 2])->assertOk();
-    orderApi('POST', $order, '/send')->assertOk();
-
-    return $order;
-}
-
-function openSession(PosTerminal $terminal, int $userId): PosSession
-{
-    return booking(fn (): PosSession => OpenPosSession::make()->handle($terminal, $userId, '2000'));
-}
-
-/**
- * @param  array<string, mixed>  $data
- * @return TestResponse<Response>
- */
-function billApi(string $path, array $data = []): TestResponse
-{
-    return json('POST', tenantUrl('sunrise', '/pos/api/'.$path), $data);
-}
-
-function storedBill(string $billNo): PosBill
-{
-    return booking(fn (): PosBill => PosBill::query()->where('bill_no', $billNo)->sole());
-}
 
 it('splits a 4-person table equally and settles it by cash and card (done when)', function (): void {
     $setup = billSetup();
@@ -227,7 +171,8 @@ it('voids settled bills only on their business date', function (): void {
     $bill = billApi("orders/{$order->id}/bill/print", ['mode' => 'none'])->json('billing.bills.0');
     billApi("bills/{$bill['id']}/payments", ['method' => 'card', 'amount' => $bill['grand_total'], 'reference' => '1'])->assertOk();
 
-    booking(fn () => DB::table('properties')->where('id', bookingIds()['property'])->update(['business_date' => now()->addDay()->toDateString()]));
+    $billDate = booking(fn (): string => PosBill::query()->findOrFail($bill['id'])->business_date->toDateString());
+    booking(fn () => DB::table('properties')->where('id', bookingIds()['property'])->update(['business_date' => CarbonImmutable::parse($billDate)->addDay()->toDateString()]));
     billApi("bills/{$bill['id']}/void", ['reason' => 'Late'])->assertStatus(422)->assertJsonPath('message', 'Bill MR-B000001 belongs to an earlier business date: give a refund instead.');
     expect($session->id)->toBeInt();
 });
@@ -246,7 +191,8 @@ it('refuses payments that do not fit', function (): void {
     billApi("bills/{$id}/payments", ['method' => 'cash', 'amount' => '5000'])->assertStatus(422)->assertJsonPath('message', 'Only 3921.50 is still due on this bill; enter anything more as a tip.');
     billApi("bills/{$id}/payments", ['method' => 'cash', 'amount' => '100', 'tendered' => '50'])->assertStatus(422);
     billApi("bills/{$id}/payments", ['method' => 'card', 'amount' => '100'])->assertStatus(422)->assertJsonPath('message', 'Enter the card reference (approval code or last digits).');
-    billApi("bills/{$id}/payments", ['method' => 'room_charge', 'amount' => '100'])->assertStatus(422)->assertJsonPath('message', 'Charge to room is not taken here yet.');
+    billApi("bills/{$id}/payments", ['method' => 'room_charge', 'amount' => '100'])->assertStatus(422)->assertJsonValidationErrors('reservation_id');
+    billApi("bills/{$id}/payments", ['method' => 'package', 'amount' => '100'])->assertStatus(422)->assertJsonPath('message', 'Meal plan is not taken here.');
     billApi("bills/{$id}/payments", ['method' => 'cash', 'amount' => '0'])->assertStatus(422)->assertJsonValidationErrors('amount');
 
     // A partly paid bill keeps the session open.

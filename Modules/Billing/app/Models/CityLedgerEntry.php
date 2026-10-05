@@ -23,6 +23,8 @@ use Modules\Billing\Enums\CityLedgerStatus;
  * @property int $company_id
  * @property int|null $folio_id
  * @property int|null $invoice_id
+ * @property string|null $reference_type
+ * @property int|null $reference_id
  * @property Carbon $posted_on
  * @property Carbon $due_on
  * @property string $description
@@ -32,7 +34,7 @@ use Modules\Billing\Enums\CityLedgerStatus;
  * @property CityLedgerStatus $status
  */
 #[UseFactory(CityLedgerEntryFactory::class)]
-#[Fillable(['property_id', 'company_id', 'folio_id', 'invoice_id', 'posted_on', 'due_on', 'description', 'amount', 'paid', 'credited', 'status'])]
+#[Fillable(['property_id', 'company_id', 'folio_id', 'invoice_id', 'reference_type', 'reference_id', 'posted_on', 'due_on', 'description', 'amount', 'paid', 'credited', 'status'])]
 class CityLedgerEntry extends Model
 {
     use BelongsToProperty;

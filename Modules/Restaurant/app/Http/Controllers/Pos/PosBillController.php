@@ -9,17 +9,22 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use InvalidArgumentException;
+use Modules\Billing\Contracts\CityLedgerAccounts;
+use Modules\Billing\Contracts\FolioPostingContract;
 use Modules\Core\Contracts\Settings;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Restaurant\Actions\CompBill;
 use Modules\Restaurant\Actions\DiscountOrder;
 use Modules\Restaurant\Actions\PrintBill;
+use Modules\Restaurant\Actions\RedeemMealPlan;
 use Modules\Restaurant\Actions\ReopenOrder;
 use Modules\Restaurant\Actions\TakePayment;
 use Modules\Restaurant\Actions\VoidBill;
+use Modules\Restaurant\DTOs\ChargeTarget;
 use Modules\Restaurant\Enums\BillStatus;
 use Modules\Restaurant\Enums\CompReason;
 use Modules\Restaurant\Enums\DiscountType;
+use Modules\Restaurant\Enums\MealPeriod;
 use Modules\Restaurant\Enums\OrderStatus;
 use Modules\Restaurant\Enums\PaymentMethod;
 use Modules\Restaurant\Enums\PosSessionStatus;
@@ -29,14 +34,18 @@ use Modules\Restaurant\Http\Requests\BillDiscountRequest;
 use Modules\Restaurant\Http\Requests\BillExceptionRequest;
 use Modules\Restaurant\Http\Requests\BillPaymentRequest;
 use Modules\Restaurant\Http\Requests\BillSplitRequest;
+use Modules\Restaurant\Http\Requests\MealPlanRequest;
+use Modules\Restaurant\Models\PackageRedemption;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
 use Modules\Restaurant\Models\PosPayment;
 use Modules\Restaurant\Models\PosSession;
+use Modules\Restaurant\Services\BillDocuments;
 use Modules\Restaurant\Services\BillPresenter;
 use Modules\Restaurant\Services\DiscountLimits;
 use Modules\Restaurant\Services\ManagerApprovals;
+use Modules\Restaurant\Services\MealPlans;
 use Modules\Restaurant\Services\OrderBilling;
 use Modules\Restaurant\Services\PosContext;
 
@@ -47,7 +56,7 @@ use Modules\Restaurant\Services\PosContext;
  */
 class PosBillController extends Controller
 {
-    public function show(PosOrder $order, PosContext $context, BillPresenter $presenter, ManagerApprovals $approvals, DiscountLimits $limits, Settings $settings, PropertyDirectory $properties): View|RedirectResponse
+    public function show(PosOrder $order, PosContext $context, BillPresenter $presenter, ManagerApprovals $approvals, DiscountLimits $limits, Settings $settings, PropertyDirectory $properties, MealPlans $mealPlans): View|RedirectResponse
     {
         $this->authorizeOrder($order, $context);
 
@@ -71,13 +80,16 @@ class PosBillController extends Controller
                 'modes' => array_map(fn (SplitMode $mode): array => ['value' => $mode->value, 'label' => $mode->label()], SplitMode::cases()),
                 'methods' => array_map(fn (PaymentMethod $method): array => ['value' => $method->value, 'label' => $method->label()], PaymentMethod::tenders()),
                 'compReasons' => array_map(fn (CompReason $reason): array => ['value' => $reason->value, 'label' => $reason->label()], CompReason::cases()),
+                'periods' => array_map(fn (MealPeriod $period): array => ['value' => $period->value, 'label' => $period->label()], MealPeriod::cases()),
+                'periodNow' => $mealPlans->periodNow($order->property_id)->value,
                 'approvers' => [
                     'bill.discount' => $approvers(DiscountOrder::APPROVAL), 'bill.reopen' => $approvers(ReopenOrder::APPROVAL),
-                    'bill.comp' => $approvers(CompBill::APPROVAL), 'bill.void' => $approvers(VoidBill::APPROVAL),
+                    'bill.comp' => $approvers(CompBill::APPROVAL), 'bill.void' => $approvers(VoidBill::APPROVAL), 'package.over' => $approvers(RedeemMealPlan::APPROVAL),
                 ],
                 'can' => [
                     'settle' => $user?->can('restaurant.bill.settle') ?? false, 'reopen' => $user?->can('restaurant.bill.reopen') ?? false,
                     'comp' => $user?->can('restaurant.bill.comp') ?? false, 'void' => $user?->can('restaurant.bill.void') ?? false,
+                    'redeem' => $user?->can('restaurant.package.redeem') ?? false,
                 ],
                 'discountLimit' => $limits->maxPercent($userId),
                 'urls' => [
@@ -85,6 +97,7 @@ class PosBillController extends Controller
                     'reopen' => route('pos.orders.reopen', $order), 'pay' => route('pos.bills.pay', ['bill' => '__BILL__']), 'comp' => route('pos.bills.comp', ['bill' => '__BILL__']),
                     'void' => route('pos.bills.void', ['bill' => '__BILL__']), 'approve' => route('pos.approvals.store'), 'order' => route('pos.orders.show', $order),
                     'floor' => route('pos.floor'),
+                    'stays' => route('pos.stays'), 'companies' => route('pos.companies'), 'mealPlan' => route('pos.orders.meal-plan', $order),
                 ],
                 'messages' => ['offline' => __('No connection. Try again.')],
             ],
@@ -147,9 +160,12 @@ class PosBillController extends Controller
             return response()->json(['ok' => false, 'message' => __('Open a cash session on this terminal to take payments.')], 422);
         }
 
+        $target = new ChargeTarget($request->filled('reservation_id') ? (int) $request->validated('reservation_id') : null,
+            $request->filled('company_id') ? (int) $request->validated('company_id') : null, $request->validated('signature'));
+
         return $this->respond($presenter, $order, fn (): PosPayment => $take->handle($bill, PaymentMethod::from((string) $request->validated('method')), (string) $request->validated('amount'),
             (string) ($request->validated('tip') ?? '0'), $request->filled('tendered') ? (string) $request->validated('tendered') : null, $request->validated('reference'),
-            $session, (int) $request->user()?->getAuthIdentifier()));
+            $session, (int) $request->user()?->getAuthIdentifier(), $target));
     }
 
     public function comp(BillExceptionRequest $request, PosBill $bill, PosContext $context, CompBill $comp, BillPresenter $presenter): JsonResponse
@@ -179,9 +195,53 @@ class PosBillController extends Controller
     }
 
     /**
+     * In-house guests to charge or redeem a meal plan for, by room, name or booking code.
+     */
+    public function stays(Request $request, PosContext $context, FolioPostingContract $folios): JsonResponse
+    {
+        return response()->json(['ok' => true, 'stays' => $folios->chargeableStays($context->terminal()->property_id, mb_substr((string) $request->query('term', ''), 0, 60))]);
+    }
+
+    /**
+     * Companies to bill on account, by name.
+     */
+    public function companies(Request $request, CityLedgerAccounts $accounts): JsonResponse
+    {
+        return response()->json(['ok' => true, 'companies' => $accounts->accounts(mb_substr((string) $request->query('term', ''), 0, 60))]);
+    }
+
+    /**
+     * What a guest's meal plan still includes for a meal period today.
+     */
+    public function mealPlanLeft(Request $request, PosOrder $order, PosContext $context, MealPlans $plans): JsonResponse
+    {
+        $this->authorizeOrder($order, $context);
+        $period = MealPeriod::tryFrom((string) $request->query('period')) ?? $plans->periodNow($order->property_id);
+
+        return response()->json(['ok' => true, 'period' => $period->value, 'left' => $plans->remaining($order->property_id, $request->integer('reservation'), $period, $order->id)]);
+    }
+
+    public function redeem(MealPlanRequest $request, PosOrder $order, PosContext $context, RedeemMealPlan $redeem, BillPresenter $presenter): JsonResponse
+    {
+        $this->authorizeOrder($order, $context);
+
+        return $this->respond($presenter, $order, fn (): PackageRedemption => $redeem->handle($order, (int) $request->validated('reservation_id'), MealPeriod::from((string) $request->validated('period')),
+            (int) $request->validated('adults'), (int) ($request->validated('children') ?? 0), (int) $request->user()?->getAuthIdentifier(),
+            $request->user()?->can('restaurant.package.override') ?? false, $request->filled('approval_id') ? (int) $request->validated('approval_id') : null));
+    }
+
+    public function clearMealPlan(PosOrder $order, PosContext $context, RedeemMealPlan $redeem, BillPresenter $presenter): JsonResponse
+    {
+        $this->authorizeOrder($order, $context);
+        abort_unless(auth()->user()?->can('restaurant.package.redeem') ?? false, 403);
+
+        return $this->respond($presenter, $order, fn () => $redeem->clear($order));
+    }
+
+    /**
      * The bill (pre-check) on 80 mm paper; reprints are counted.
      */
-    public function printView(Request $request, PosBill $bill, PosContext $context, PropertyDirectory $properties): View
+    public function printView(Request $request, PosBill $bill, PosContext $context, BillDocuments $documents): View
     {
         $this->authorizeBill($bill, $context, 'view');
 
@@ -189,29 +249,18 @@ class PosBillController extends Controller
             $bill->forceFill(['print_count' => $bill->print_count + 1])->save();
         }
 
-        return $this->document($bill, $properties, false);
+        return $documents->render($bill, false);
     }
 
     /**
-     * The receipt of a settled bill; every print after the first is marked COPY.
+     * The receipt of a settled (or voided) bill; every print after the first is marked COPY.
      */
-    public function receipt(PosBill $bill, PosContext $context, PropertyDirectory $properties): View
+    public function receipt(PosBill $bill, PosContext $context, BillDocuments $documents): View
     {
         $this->authorizeBill($bill, $context, 'view');
         abort_unless($bill->status !== BillStatus::Printed, 404);
-        $bill->forceFill(['receipt_count' => $bill->receipt_count + 1])->save();
 
-        return $this->document($bill, $properties, true);
-    }
-
-    private function document(PosBill $bill, PropertyDirectory $properties, bool $receipt): View
-    {
-        $bill->load(['lines', 'payments', 'outlet', 'order.table']);
-
-        return view('restaurant::pos.bill-print', [
-            'bill' => $bill, 'receipt' => $receipt, 'copy' => $receipt ? $bill->receipt_count > 1 : $bill->print_count > 1,
-            'property' => $properties->find($bill->property_id), 'inclusive' => $bill->outlet->prices_include_tax,
-        ]);
+        return $documents->receipt($bill);
     }
 
     /**

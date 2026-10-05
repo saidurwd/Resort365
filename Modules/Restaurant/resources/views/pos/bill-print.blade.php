@@ -37,11 +37,19 @@
         <table class="table table-sm mb-2">
             @foreach ($bill->payments as $payment)
                 <tr><td>{{ $payment->method->label() }}{{ $payment->reference ? ' · '.$payment->reference : '' }}{{ $payment->refund_of_id ? ' ('.__('refund').')' : '' }}</td><td class="text-end">{{ $money($payment->amount) }}</td></tr>
+                @if ($payment->charged_to)<tr><td colspan="2" class="ps-3 small" data-charged-to>{{ $payment->charged_to }}</td></tr>@endif
                 @if ((float) $payment->tip != 0)<tr><td class="ps-3">{{ __('Tip') }}</td><td class="text-end">{{ $money($payment->tip) }}</td></tr>@endif
                 @if ((float) $payment->change_given > 0)<tr><td class="ps-3">{{ __('Cash given') }} {{ $money($payment->tendered) }}</td><td class="text-end">{{ __('Change') }} {{ $money($payment->change_given) }}</td></tr>@endif
             @endforeach
         </table>
         @if ($bill->is_complimentary)<p class="text-center mb-2">{{ __('Complimentary') }}: {{ $bill->comp_reason?->label() }}</p>@endif
+        @foreach ($bill->payments->where('method', \Modules\Restaurant\Enums\PaymentMethod::RoomCharge)->whereNull('refund_of_id') as $payment)
+            @if (isset($signatures[$payment->id]))
+                <div class="text-center mb-2"><img src="{{ $signatures[$payment->id] }}" alt="{{ __('Guest signature') }}" class="receipt-signature" data-signature-image></div>
+            @else
+                <div class="mt-4 border-top pt-1 small" data-signature-line>{{ __('Guest signature') }}</div>
+            @endif
+        @endforeach
     @else
         <p class="text-center small mb-2">{{ __('Tips are welcome and go to the team.') }}</p>
     @endif

@@ -32,6 +32,7 @@ class ManagerApprovals
         'bill.reopen' => ['permission' => 'restaurant.bill.reopen', 'subject' => 'pos_order', 'label' => 'Reopen a printed bill'],
         'bill.comp' => ['permission' => 'restaurant.bill.comp', 'subject' => 'pos_bill', 'label' => 'Make a bill complimentary'],
         'bill.void' => ['permission' => 'restaurant.bill.void', 'subject' => 'pos_bill', 'label' => 'Void a settled bill'],
+        'package.over' => ['permission' => 'restaurant.package.override', 'subject' => 'pos_order', 'label' => 'Redeem more meals than a meal plan includes'],
     ];
 
     private const int ATTEMPTS = 5;

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Modules\IAM\Contracts\PosPins;
 use Modules\IAM\Models\User;
+use Modules\Restaurant\Actions\OpenPosSession;
 use Modules\Restaurant\Actions\RegisterTerminal;
 use Modules\Restaurant\Enums\MenuItemKind;
 use Modules\Restaurant\Enums\StationOutput;
@@ -22,8 +23,10 @@ use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
+use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Services\PosDevice;
 use Symfony\Component\HttpFoundation\Response;
@@ -189,4 +192,54 @@ function storedLine(int $id): PosOrderLine
 function storedOrder(int $id): PosOrder
 {
     return booking(fn (): PosOrder => PosOrder::query()->findOrFail($id));
+}
+
+/**
+ * The order setup, with the outlet taxed SC 10% then VAT 15% (the ROOM category of the booking setup).
+ *
+ * @return array<string, mixed>
+ */
+function billSetup(bool $inclusive = false): array
+{
+    $setup = orderSetup();
+    booking(fn () => DB::table('outlets')->where('id', $setup['terminal']->outlet_id)->update([
+        'default_tax_category_id' => DB::table('tax_categories')->where('tenant_id', tenant('sunrise')->id)->where('code', 'ROOM')->value('id'), 'prices_include_tax' => $inclusive,
+    ]));
+
+    return $setup;
+}
+
+/**
+ * A sent order at T1: 2 × curry (Full), 4 × naan, 4 × mojito = 3,100.00 before tax.
+ *
+ * @param  array<string, mixed>  $setup
+ */
+function fourCovers(array $setup): PosOrder
+{
+    $order = openTable($setup['tables']['T1'], 4);
+    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['curry'], 'variant_id' => $setup['variants']['Full'], 'modifier_ids' => [$setup['modifiers']['mild']], 'quantity' => 2])->assertOk();
+    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['naan'], 'quantity' => 4, 'seat' => 1])->assertOk();
+    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['mojito'], 'quantity' => 4, 'seat' => 2])->assertOk();
+    orderApi('POST', $order, '/send')->assertOk();
+
+    return $order;
+}
+
+function openSession(PosTerminal $terminal, int $userId): PosSession
+{
+    return booking(fn (): PosSession => OpenPosSession::make()->handle($terminal, $userId, '2000'));
+}
+
+/**
+ * @param  array<string, mixed>  $data
+ * @return TestResponse<Response>
+ */
+function billApi(string $path, array $data = []): TestResponse
+{
+    return json('POST', tenantUrl('sunrise', '/pos/api/'.$path), $data);
+}
+
+function storedBill(string $billNo): PosBill
+{
+    return booking(fn (): PosBill => PosBill::query()->where('bill_no', $billNo)->sole());
 }

@@ -2,6 +2,7 @@
 
 namespace Modules\Reservation\Contracts;
 
+use Modules\Reservation\DTOs\MealEntitlement;
 use Modules\Reservation\DTOs\NightOccupancy;
 use Modules\Reservation\DTOs\ReservationSummary;
 use Modules\Reservation\DTOs\RoomOccupancy;
@@ -57,4 +58,10 @@ interface ReservationLookup
      * @return array<int, RoomOccupancy> room id => occupancy
      */
     public function roomOccupancy(int $propertyId, string $date): array;
+
+    /**
+     * The meals the booking's checked-in rooms include on a date (their rate plans' meal plans), as
+     * covers per meal period, for outlets redeeming meal plans.
+     */
+    public function mealEntitlement(int $reservationId, string $date): MealEntitlement;
 }

@@ -9,8 +9,10 @@ use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
+use Modules\Billing\Contracts\CityLedgerAccounts;
 use Modules\Billing\Contracts\DailyTakings;
 use Modules\Billing\Contracts\FolioPostingContract;
+use Modules\Billing\Contracts\FolioReferenceLinks;
 use Modules\Billing\Contracts\FolioSettlement;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\ChargeCode;
@@ -29,6 +31,7 @@ use Modules\Billing\Policies\ExtraServicePolicy;
 use Modules\Billing\Policies\FolioPolicy;
 use Modules\Billing\Policies\InvoicePolicy;
 use Modules\Billing\Policies\PaymentPolicy;
+use Modules\Billing\Services\CityLedgerAccountsService;
 use Modules\Billing\Services\DailyTakingsService;
 use Modules\Billing\Services\FolioPostingService;
 use Modules\Billing\Services\FolioSettlementService;
@@ -69,6 +72,8 @@ class BillingServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->bind(FolioPostingContract::class, FolioPostingService::class);
+        $this->app->bind(CityLedgerAccounts::class, CityLedgerAccountsService::class);
+        $this->app->singleton(FolioReferenceLinks::class);
         $this->app->bind(FolioSettlement::class, FolioSettlementService::class);
         $this->app->bind(DailyTakings::class, DailyTakingsService::class);
     }

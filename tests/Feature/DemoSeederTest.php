@@ -50,6 +50,7 @@ use Modules\Restaurant\Models\MenuItemVariant;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PackageRedemption;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 
@@ -178,7 +179,7 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
             ->and(ExtraService::query()->count())->toBe(6)
             ->and(CityLedgerEntry::query()->sole()->due_on->isPast())->toBeTrue()
             ->and(Folio::query()->count())->toBe(9)
-            ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)'])
+            ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)', 'Main Restaurant bill MR-B000002'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
@@ -228,7 +229,7 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
     seed(DatabaseSeeder::class);
 
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
-        $order = PosOrder::query()->with(['lines', 'kots.station', 'table'])->where('status', 'open')->sole();
+        $order = PosOrder::query()->with(['lines', 'kots.station', 'table'])->whereHas('table', fn ($query) => $query->where('number', 'T4'))->sole();
 
         expect($order->table?->number)->toBe('T4')
             ->and($order->covers)->toBe(2)
@@ -241,7 +242,10 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
             // Step 3.5: the Hot kitchen's screen registers with the demo display token.
             ->and(KitchenStation::query()->where('display_token', hash('sha256', DemoRestaurant::DEMO_DISPLAY_TOKEN))->sole()->name)->toBe('Hot kitchen')
             // Step 3.6: T6's lunch settled by card (with a tip) in the cashier's open session; discount limits per role.
-            ->and(PosBill::query()->sole()->only(['bill_no', 'status', 'grand_total', 'tip_total']))->toBe(['bill_no' => 'MR-B000001', 'status' => BillStatus::Settled, 'grand_total' => '974.05', 'tip_total' => '50.00'])
-            ->and(DiscountLimit::query()->count())->toBe(3);
+            ->and(PosBill::query()->orderBy('id')->first()?->only(['bill_no', 'status', 'grand_total', 'tip_total']))->toBe(['bill_no' => 'MR-B000001', 'status' => BillStatus::Settled, 'grand_total' => '974.05', 'tip_total' => '50.00'])
+            ->and(DiscountLimit::query()->count())->toBe(3)
+            // Step 3.7: room 402's breakfast for two on the meal plan, the coffees on their folio.
+            ->and(PackageRedemption::query()->sole()->only(['covers_adults', 'entitled']))->toBe(['covers_adults' => 2, 'entitled' => 2])
+            ->and(FolioLine::query()->where('reference_type', 'pos_bill')->sole()->total)->toBe('556.60');
     });
 });

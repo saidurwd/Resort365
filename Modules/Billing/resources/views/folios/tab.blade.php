@@ -53,6 +53,9 @@
                                 <td class="ps-3 text-nowrap">{{ $line->posting_date->format('d M') }}</td>
                                 <td>
                                     <span @class(['text-decoration-line-through' => $line->is_voided])>{{ $line->description }}</span>
+                                    @if ($reference = $referenceLinks->link($line->reference_type, $line->reference_id))
+                                        <a href="{{ $reference['url'] }}" target="_blank" class="small ms-1" data-folio-reference>{{ $reference['label'] }}</a>
+                                    @endif
                                     @if ($line->line_type !== \Modules\Billing\Enums\FolioLineType::Charge)<x-status-badge :status="$line->line_type" />@endif
                                     @if ($line->routed_from_folio_id)<span class="badge text-bg-light border" title="{{ __('Routed by a rule') }}"><i class="bi bi-signpost-split"></i></span>@endif
                                     @if ($line->is_voided)<div class="small">{{ __('Void: :reason', ['reason' => $line->void_reason]) }} · {{ $userNames[$line->voided_by] ?? '' }}</div>@endif

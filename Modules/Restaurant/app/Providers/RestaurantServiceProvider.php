@@ -12,10 +12,12 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Modules\Billing\Contracts\FolioReferenceLinks;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
+use Modules\FrontOffice\Contracts\NightAuditBlockers;
 use Modules\Restaurant\Auth\StationDisplay;
 use Modules\Restaurant\Broadcasting\RestaurantChannels;
 use Modules\Restaurant\Http\Middleware\EnsureKdsStation;
@@ -37,6 +39,7 @@ use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PackageRedemption;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosBillLine;
 use Modules\Restaurant\Models\PosOrder;
@@ -52,6 +55,7 @@ use Modules\Restaurant\Policies\PosOrderPolicy;
 use Modules\Restaurant\Policies\PrinterPolicy;
 use Modules\Restaurant\Services\KdsContext;
 use Modules\Restaurant\Services\KdsDevice;
+use Modules\Restaurant\Services\OpenSessionsBlocker;
 use Modules\Restaurant\Services\PosContext;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -117,6 +121,7 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             'pos_bill_line' => PosBillLine::class,
             'pos_payment' => PosPayment::class,
             'discount_limit' => DiscountLimit::class,
+            'package_redemption' => PackageRedemption::class,
         ]);
         Gate::policy(PosOrder::class, PosOrderPolicy::class);
         Gate::policy(PosBill::class, PosBillPolicy::class);
@@ -126,6 +131,9 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         $this->app->make(Router::class)->aliasMiddleware('kds.station', EnsureKdsStation::class);
         Auth::viaRequest('kds-display', fn (Request $request): ?StationDisplay => ($station = app(KdsDevice::class)->fromRequest($request)) instanceof KitchenStation ? new StationDisplay($station) : null);
         RestaurantChannels::register();
+        $this->app->make(NightAuditBlockers::class)->register(OpenSessionsBlocker::class);
+        $this->app->make(FolioReferenceLinks::class)->register('pos_bill', fn (int $billId): ?array => ($bill = PosBill::query()->find($billId)) instanceof PosBill
+            ? ['label' => __('Receipt :no', ['no' => $bill->bill_no]), 'url' => route('restaurant.bills.receipt', $bill)] : null);
         Gate::policy(Outlet::class, OutletPolicy::class);
         Gate::policy(Printer::class, PrinterPolicy::class);
 
@@ -154,6 +162,8 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('restaurant.bill.void', 'Void a settled bill on its business date (others need a manager\'s PIN)', $managers),
             new PermissionDefinition('restaurant.discount.approve', 'Give or approve any discount', $managers),
             new PermissionDefinition('restaurant.discount-limit.manage', 'Set the discount limit of each role', $managers),
+            new PermissionDefinition('restaurant.package.redeem', 'Redeem guests\' meal plans at the outlets', [...$managers, DefaultRole::Waiter, DefaultRole::Bartender, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.package.override', 'Redeem more meals than a meal plan includes (others need a manager\'s PIN)', $managers),
             new PermissionDefinition('restaurant.kds.use', 'Open a station\'s kitchen display and move tickets on', [...$managers, DefaultRole::Chef, DefaultRole::Bartender]),
         ]);
 
@@ -187,6 +197,12 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             SettingScope::Property, 'Restaurant', help: 'Closing a POS session with a larger cash over or short needs a manager\'s PIN.', rules: ['min:0']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.service_charge_code', 'Service charge tax code', SettingType::Text, 'SC', SettingScope::Tenant,
             'Restaurant', help: 'The code of the tax (Setup → Taxes) that is the service charge: bills show it apart from the other taxes.', rules: ['max:20']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.room_charge_code', 'Charge code for restaurant room charges', SettingType::Text, 'FNB', SettingScope::Tenant,
+            'Restaurant', help: 'The charge code (Setup → Charge codes) restaurant bills charged to a room are posted with on the guest\'s folio.', rules: ['max:20']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.breakfast_until', 'Breakfast is served until', SettingType::Text, '11:00', SettingScope::Property,
+            'Restaurant', help: 'Meal plans: before this time the POS suggests breakfast (HH:MM).', rules: ['regex:/^([01]\d|2[0-3]):[0-5]\d$/']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.lunch_until', 'Lunch is served until', SettingType::Text, '16:00', SettingScope::Property,
+            'Restaurant', help: 'Meal plans: before this time (after breakfast) the POS suggests lunch, after it dinner (HH:MM).', rules: ['regex:/^([01]\d|2[0-3]):[0-5]\d$/']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.kds_warn_minutes', 'Kitchen ticket turns amber after (minutes)', SettingType::Integer, 10,
             SettingScope::Property, 'Restaurant', help: 'On the kitchen display, a ticket waiting this long is shown in amber.', rules: ['min:1', 'max:240']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.kds_late_minutes', 'Kitchen ticket turns red after (minutes)', SettingType::Integer, 20,

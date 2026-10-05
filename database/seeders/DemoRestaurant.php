@@ -5,6 +5,9 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
+use Brick\Math\BigDecimal;
+use Modules\Billing\Contracts\FolioPostingContract;
+use Modules\Billing\DTOs\ChargeableStay;
 use Modules\Core\Models\TaxCategory;
 use Modules\IAM\Contracts\PosPins;
 use Modules\IAM\Contracts\RoleDirectory;
@@ -14,6 +17,7 @@ use Modules\Restaurant\Actions\AddOrderLine;
 use Modules\Restaurant\Actions\OpenOrder;
 use Modules\Restaurant\Actions\OpenPosSession;
 use Modules\Restaurant\Actions\PrintBill;
+use Modules\Restaurant\Actions\RedeemMealPlan;
 use Modules\Restaurant\Actions\RegisterTerminal;
 use Modules\Restaurant\Actions\SaveDiningArea;
 use Modules\Restaurant\Actions\SaveDiningTable;
@@ -25,10 +29,15 @@ use Modules\Restaurant\Actions\SaveStation;
 use Modules\Restaurant\Actions\SendOrder;
 use Modules\Restaurant\Actions\SyncOutletAccess;
 use Modules\Restaurant\Actions\TakePayment;
+use Modules\Restaurant\DTOs\ChargeTarget;
+use Modules\Restaurant\Enums\MealPeriod;
+use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\OrderType;
 use Modules\Restaurant\Enums\PaymentMethod;
+use Modules\Restaurant\Enums\PosSessionStatus;
 use Modules\Restaurant\Enums\SplitMode;
 use Modules\Restaurant\Enums\TableShape;
+use Modules\Restaurant\Enums\TableStatus;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\KitchenStation;
@@ -37,9 +46,12 @@ use Modules\Restaurant\Models\MenuItemVariant;
 use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
+use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PackageRedemption;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
+use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
 
@@ -186,6 +198,47 @@ final class DemoRestaurant
             SendOrder::make()->handle($order, $waiter->id);
             [$bill] = PrintBill::make()->handle($order, SplitMode::None, [], $waiter->id);
             TakePayment::make()->handle($bill, PaymentMethod::Card, (string) $bill->grand_total, '50', null, '4417', $session, $cashier->id);
+        });
+    }
+
+    /**
+     * Step 3.7: room 402's guest (Bed & Breakfast) had breakfast for two at the Main Restaurant (table T3):
+     * the breakfast is redeemed on the meal plan at nothing, and the coffees are charged to the room (on the
+     * guest's folio, linked to the receipt).
+     */
+    public static function packages(Tenant $tenant, int $propertyId, string $domain): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId, $domain): void {
+            $users = collect(app(UserDirectory::class)->all())->keyBy('email');
+            $cashier = $users->get('cashier@'.$domain);
+            $waiter = $users->get('waiter@'.$domain);
+            $outlet = Outlet::query()->where('code', 'MR')->firstOrFail();
+            $table = DiningTable::query()->where('outlet_id', $outlet->id)->where('status', TableStatus::Available->value)->orderByRaw("number = 'T3' desc")->orderBy('id')->first();
+            $session = PosSession::query()->where('outlet_id', $outlet->id)->where('status', PosSessionStatus::Open->value)->first();
+            $stay = collect(app(FolioPostingContract::class)->chargeableStays($propertyId, '402'))->first();
+
+            if (! $cashier instanceof UserSummary || ! $waiter instanceof UserSummary || ! $table instanceof DiningTable || ! $session instanceof PosSession
+                || ! $stay instanceof ChargeableStay || PackageRedemption::query()->exists()) {
+                return; // seeded already, or nothing to seed it on
+            }
+
+            $order = OpenOrder::make()->handle($outlet, OrderType::DineIn, $waiter->id, $table->id, 2);
+            // Breakfast is on the menu only until 10:30: the plates are put on the order as the POS would.
+            $paratha = MenuItem::query()->where('code', 'BF01')->firstOrFail();
+            $price = (string) OutletMenuItem::query()->where('outlet_id', $outlet->id)->where('menu_item_id', $paratha->id)->value('price');
+            PosOrderLine::query()->create([
+                'property_id' => $order->property_id, 'pos_order_id' => $order->id, 'menu_item_id' => $paratha->id, 'name_snapshot' => $paratha->translated('name'),
+                'quantity' => 2, 'unit_price' => $price, 'line_total' => (string) BigDecimal::of($price)->multipliedBy(2)->toScale(2), 'course' => $paratha->course,
+                'kitchen_station_id' => KitchenStation::query()->where('outlet_id', $outlet->id)->where('name', 'Hot kitchen')->value('id'), 'status' => OrderLineStatus::Pending,
+                'added_by' => $waiter->id,
+            ]);
+            AddOrderLine::make()->handle($order, ['item_id' => MenuItem::query()->where('code', 'HD01')->value('id'),
+                'variant_id' => MenuItemVariant::query()->where('menu_item_id', MenuItem::query()->where('code', 'HD01')->value('id'))->where('name', 'Regular')->value('id'), 'quantity' => 2],
+                $waiter->id, false);
+            RedeemMealPlan::make()->handle($order, $stay->reservationId, MealPeriod::Breakfast, 2, 0, $waiter->id, false);
+            SendOrder::make()->handle($order, $waiter->id);
+            [$bill] = PrintBill::make()->handle($order, SplitMode::None, [], $waiter->id);
+            TakePayment::make()->handle($bill, PaymentMethod::RoomCharge, (string) $bill->grand_total, '0', null, null, $session, $cashier->id, new ChargeTarget($stay->reservationId));
         });
     }
 

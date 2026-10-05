@@ -8,7 +8,8 @@ use Illuminate\Validation\Rule;
 use Modules\Restaurant\Enums\PaymentMethod;
 
 /**
- * A payment on a bill (JSON): method, amount towards the bill, tip, cash tendered, reference.
+ * A payment on a bill (JSON): method, amount towards the bill, tip, cash tendered, reference; for a
+ * room charge the booking (and the guest's signature), for the city ledger the company.
  */
 class BillPaymentRequest extends FormRequest
 {
@@ -28,6 +29,9 @@ class BillPaymentRequest extends FormRequest
             'tip' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'tendered' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'reference' => ['nullable', 'string', 'max:100'],
+            'reservation_id' => ['nullable', 'required_if:method,room_charge', 'integer'],
+            'company_id' => ['nullable', 'required_if:method,city_ledger', 'integer'],
+            'signature' => ['nullable', 'string', 'max:600000'],
         ];
     }
 }

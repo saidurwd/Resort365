@@ -39,6 +39,7 @@ final readonly class ReservationSummary extends Data
         public ?string $groupName = null,
         public int $itemsTotal = 0,
         public int $itemsCheckedIn = 0,
+        public bool $noRoomCharges = false,
     ) {}
 
     /**

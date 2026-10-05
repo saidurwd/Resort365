@@ -17,7 +17,8 @@ use Modules\Restaurant\Enums\PaymentMethod;
 /**
  * A payment on a restaurant bill (ARCHITECTURE §5.10.7, §8.4), taken in a POS session on the business
  * date: amount towards the bill, the tip on top, and for cash what was tendered and the change. A
- * refund (a voided bill) is a negative payment pointing at the one it refunds.
+ * refund (a voided bill) is a negative payment pointing at the one it refunds. A room charge points at
+ * the folio line it posted; a city-ledger payment at the company's account entry (Step 3.7).
  *
  * @property int $id
  * @property int $tenant_id
@@ -33,12 +34,19 @@ use Modules\Restaurant\Enums\PaymentMethod;
  * @property string $change_given
  * @property string|null $reference
  * @property int|null $refund_of_id
+ * @property int|null $reservation_id charged to this booking's folio
+ * @property int|null $folio_id
+ * @property int|null $folio_line_id
+ * @property int|null $company_id billed to this company's account
+ * @property int|null $city_ledger_entry_id
+ * @property string|null $charged_to who it was charged to, for the receipt
+ * @property string|null $signature_path the guest's signature (TenantStorage)
  * @property int|null $created_by
  */
 #[UseFactory(PosPaymentFactory::class)]
 #[Fillable([
     'property_id', 'outlet_id', 'pos_bill_id', 'pos_session_id', 'business_date', 'method', 'amount', 'tip', 'tendered', 'change_given', 'reference',
-    'refund_of_id', 'created_by',
+    'refund_of_id', 'created_by', 'reservation_id', 'folio_id', 'folio_line_id', 'company_id', 'city_ledger_entry_id', 'charged_to', 'signature_path',
 ])]
 class PosPayment extends Model
 {

@@ -9,10 +9,15 @@ use App\Support\DTOs\Data;
  * decimal string, net of tax unless priceIncludesTax. folioId null = the folio the reservation's
  * routing rules choose for the charge code's category (else the guest folio).
  * revenuePostedBySource: the source module already recognised the revenue (ARCHITECTURE §7), so
- * Billing only moves the receivable.
+ * Billing only moves the receivable. taxLines (tax name => amount): the source already taxed the charge
+ * (a restaurant bill, Step 3.7), so unitPrice is the net and these taxes are posted as they are.
+ * outletCharge: an outlet charging the room, refused when the booking takes no room charges.
  */
 final readonly class FolioCharge extends Data
 {
+    /**
+     * @param  array<string, string>|null  $taxLines  tax name => amount
+     */
     public function __construct(
         public int $reservationId,
         public int $chargeCodeId,
@@ -26,5 +31,7 @@ final readonly class FolioCharge extends Data
         public ?int $referenceId = null,
         public bool $revenuePostedBySource = false,
         public ?int $postedBy = null,
+        public ?array $taxLines = null,
+        public bool $outletCharge = false,
     ) {}
 }

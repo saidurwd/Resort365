@@ -4,6 +4,7 @@ namespace Modules\Billing\Services;
 
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
+use Modules\Billing\Contracts\FolioReferenceLinks;
 use Modules\Billing\Enums\BillTo;
 use Modules\Billing\Enums\ChargeCategory;
 use Modules\Billing\Enums\FolioType;
@@ -54,6 +55,7 @@ class FoliosTab
         return view('billing::folios.tab', [
             'reservation' => $reservation,
             'folios' => Folio::query()->with(['lines.chargeCode'])->where('reservation_id', $reservationId)->orderBy('id')->get(),
+            'referenceLinks' => app(FolioReferenceLinks::class),
             'routes' => FolioRoutingRule::query()->where('reservation_id', $reservationId)->get()->keyBy(fn (FolioRoutingRule $rule): string => $rule->category->value),
             'extras' => ExtraService::query()->where('property_id', $reservation->propertyId)->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
             'codes' => ChargeCode::query()->where('is_active', true)->orderBy('sort_order')->get(),

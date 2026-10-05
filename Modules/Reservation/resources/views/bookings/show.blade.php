@@ -54,6 +54,21 @@
                             <dt class="col-sm-4">{{ __('Rooms and cottages') }}</dt><dd class="col-sm-8">{{ $reservation->items->map($itemLabel)->implode(', ') }}</dd>
                             <dt class="col-sm-4">{{ __('Rate plan') }}</dt><dd class="col-sm-8">{{ $plan?->name }}</dd>
                             <dt class="col-sm-4">{{ __('Source') }}</dt><dd class="col-sm-8"><x-status-badge :status="$reservation->source" /></dd>
+                            <dt class="col-sm-4">{{ __('Outlet charges') }}</dt>
+                            <dd class="col-sm-8 d-flex flex-wrap align-items-center gap-2" data-room-charges="{{ $reservation->no_room_charges ? 'blocked' : 'allowed' }}">
+                                @if ($reservation->no_room_charges)
+                                    <span class="badge text-bg-warning">{{ __('No room charges') }}</span>
+                                @else
+                                    <span>{{ __('Restaurant and outlets may charge the room') }}</span>
+                                @endif
+                                @can('reservation.booking.update')
+                                    <form method="POST" action="{{ route('reservation.bookings.room-charges', $reservation) }}" data-room-charges-form>
+                                        @csrf @method('PUT')
+                                        <input type="hidden" name="no_room_charges" value="{{ $reservation->no_room_charges ? 0 : 1 }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">{{ $reservation->no_room_charges ? __('Allow room charges') : __('Block room charges') }}</button>
+                                    </form>
+                                @endcan
+                            </dd>
                             @if ($reservation->special_requests)<dt class="col-sm-4">{{ __('Requests') }}</dt><dd class="col-sm-8">{{ $reservation->special_requests }}</dd>@endif
                             @if ($reservation->internal_notes)<dt class="col-sm-4">{{ __('Internal notes') }}</dt><dd class="col-sm-8">{{ $reservation->internal_notes }}</dd>@endif
                         </dl>

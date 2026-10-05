@@ -14,9 +14,10 @@ use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
 
 /**
- * An order's money as bills (ARCHITECTURE §5.10.7). Each line not voided is discounted (its own
- * discount, then its share of the bill discount: DiscountAllocator) and taxed on what is left with the
- * item's tax category, else the outlet's (Core's TaxEngine, inclusive or exclusive as the outlet prices).
+ * An order's money as bills (ARCHITECTURE §5.10.7). Items covered by a meal plan cost nothing. Each line
+ * not voided is discounted (its own discount, then its share of the bill discount: DiscountAllocator) and
+ * taxed on what is left with the item's tax category, else the outlet's (Core's TaxEngine, inclusive or
+ * exclusive as the outlet prices).
  * BillSplitter then makes one bill or a split, which always adds up to the order. The service charge is
  * the tax lines whose code is restaurant.service_charge_code; the rest is tax.
  */
@@ -42,7 +43,8 @@ class OrderBilling
         $categories = MenuItem::query()->whereIn('id', $lines->pluck('menu_item_id'))->pluck('tax_category_id', 'id');
         $inclusive = $order->outlet->prices_include_tax;
 
-        $amounts = $lines->map(fn (PosOrderLine $line): int => $this->cents($line->line_total))->values()->all();
+        // Items covered by a guest's meal plan go on the bill at nothing (§5.10.9).
+        $amounts = $lines->map(fn (PosOrderLine $line): int => $line->package_redemption_id !== null ? 0 : $this->cents($line->line_total))->values()->all();
         $own = $lines->map(fn (PosOrderLine $line, int $index): int => $line->discount_type === null ? 0
             : $this->discounts->amount($amounts[$index], $line->discount_type, (string) $line->discount_value))->values()->all();
         $after = array_map(fn (int $amount, int $discount): int => $amount - $discount, $amounts, $own);
@@ -63,7 +65,7 @@ class OrderBilling
 
             $result[] = [
                 'id' => $line->id, 'quantity' => $line->quantity, 'seat' => $line->seat_no,
-                'name' => $line->name_snapshot.($line->variant_snapshot ? ' ('.$line->variant_snapshot.')' : ''),
+                'name' => $line->name_snapshot.($line->variant_snapshot ? ' ('.$line->variant_snapshot.')' : '').($line->package_redemption_id !== null ? ' · '.__('meal plan') : ''),
                 'amount' => $amounts[$index], 'discount' => $discount, 'taxes' => $taxes,
             ];
         }

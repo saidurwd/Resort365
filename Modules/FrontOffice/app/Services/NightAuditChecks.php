@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use InvalidArgumentException;
 use Modules\Billing\Contracts\DailyTakings;
 use Modules\Core\Contracts\Settings;
+use Modules\FrontOffice\Contracts\NightAuditBlockers;
 use Modules\FrontOffice\Enums\NightAuditStatus;
 use Modules\FrontOffice\Models\NightAudit;
 use Modules\Property\Contracts\PropertyDirectory;
@@ -19,7 +20,8 @@ use Modules\Reservation\Enums\ReservationStatus;
  * What the night audit of a property's business date will find (ARCHITECTURE §5.7 step 1), for the
  * wizard and for the audit itself: departures still in house block it; expected arrivals not
  * checked in will be no-shows; rooms of a group not arrived yet are left as they are (a warning);
- * the in-house stays and their nights to post; open cashier shifts (a warning).
+ * the in-house stays and their nights to post; open cashier shifts (a warning); and whatever other
+ * modules register (NightAuditBlockers, e.g. the restaurant's open POS sessions).
  */
 class NightAuditChecks
 {
@@ -30,6 +32,7 @@ class NightAuditChecks
         private readonly DailyTakings $takings,
         private readonly Settings $settings,
         private readonly NightAuditSchedule $schedule,
+        private readonly NightAuditBlockers $blockers,
     ) {}
 
     /**
@@ -48,9 +51,9 @@ class NightAuditChecks
         $nightsToPost = $nightly ? array_sum(array_map(fn (ReservationSummary $stay): int => count($this->stays->unpostedNights($stay->id, $date)), $inHouse)) : 0;
         $openShifts = $this->takings->forDate($propertyId, $date)->openShifts;
 
-        $blocking = array_map(fn (ReservationSummary $stay): string => __(':code (:guest) was due to leave on :date and is still in house: check out or extend the stay.', [
+        $blocking = [...array_map(fn (ReservationSummary $stay): string => __(':code (:guest) was due to leave on :date and is still in house: check out or extend the stay.', [
             'code' => $stay->code, 'guest' => $stay->groupName ?? $stay->guestName, 'date' => CarbonImmutable::parse($stay->checkOut)->format('d M'),
-        ]), $departures);
+        ]), $departures), ...$this->blockers->blocking($propertyId, $date)];
         $warnings = [
             ...array_map(fn (ReservationSummary $stay): string => __(':code: :in of :total rooms checked in; the others stay booked.', [
                 'code' => $stay->code, 'in' => $stay->itemsCheckedIn, 'total' => $stay->itemsTotal]), $partialGroups),

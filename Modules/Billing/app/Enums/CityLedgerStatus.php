@@ -14,12 +14,14 @@ enum CityLedgerStatus: string implements HasLabelAndColor
 
     case Open = 'open';
     case Paid = 'paid';
+    case Cancelled = 'cancelled';
 
     public function label(): string
     {
         return match ($this) {
             self::Open => __('Open'),
             self::Paid => __('Paid'),
+            self::Cancelled => __('Cancelled'),
         };
     }
 
@@ -28,6 +30,7 @@ enum CityLedgerStatus: string implements HasLabelAndColor
         return match ($this) {
             self::Open => 'warning',
             self::Paid => 'success',
+            self::Cancelled => 'secondary',
         };
     }
 }

@@ -10,6 +10,7 @@ use Modules\Reservation\Http\Controllers\ReservationChangeController;
 use Modules\Reservation\Http\Controllers\ReservationController;
 use Modules\Reservation\Http\Controllers\ReservationDepositController;
 use Modules\Reservation\Http\Controllers\ReservationGuestController;
+use Modules\Reservation\Http\Controllers\RoomChargesController;
 use Modules\Reservation\Http\Controllers\RoomingListController;
 use Modules\Reservation\Http\Controllers\TapeChartController;
 
@@ -72,6 +73,7 @@ Route::prefix('reservation')->name('reservation.')->middleware(['auth', 'verifie
         Route::post('/edit', [ReservationChangeController::class, 'review'])->name('review');
         Route::put('/', [ReservationChangeController::class, 'update'])->name('update');
         Route::put('/deposit', [ReservationDepositController::class, 'update'])->name('deposit');
+        Route::put('/room-charges', [RoomChargesController::class, 'update'])->name('room-charges');
         Route::post('/guests', [ReservationGuestController::class, 'store'])->name('guests.store');
         Route::delete('/guests/{guest}', [ReservationGuestController::class, 'destroy'])->name('guests.destroy');
         Route::put('/guests/{guest}/primary', [ReservationGuestController::class, 'primary'])->name('guests.primary');

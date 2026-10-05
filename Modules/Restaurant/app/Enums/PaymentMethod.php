@@ -6,8 +6,8 @@ use App\Support\Enums\EnumHelpers;
 use App\Support\Enums\HasLabelAndColor;
 
 /**
- * How a restaurant bill is paid (ARCHITECTURE §5.10.7). Room charge, city ledger and package come
- * with Step 3.7; complimentary settles a whole bill (CompBill).
+ * How a restaurant bill is paid (ARCHITECTURE §5.10.7). Complimentary settles a whole bill (CompBill);
+ * meal plans put the items they cover on the bill at nothing (RedeemMealPlan), so `package` is not tendered.
  */
 enum PaymentMethod: string implements HasLabelAndColor
 {
@@ -47,12 +47,12 @@ enum PaymentMethod: string implements HasLabelAndColor
     }
 
     /**
-     * Methods a cashier takes on the payment screen now. TODO(step-3.7): room charge, city ledger, package.
+     * Methods a cashier takes on the payment screen.
      *
      * @return list<self>
      */
     public static function tenders(): array
     {
-        return [self::Cash, self::Card, self::Wallet, self::BankTransfer];
+        return [self::Cash, self::Card, self::Wallet, self::BankTransfer, self::RoomCharge, self::CityLedger];
     }
 }

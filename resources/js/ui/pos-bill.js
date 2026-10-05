@@ -1,4 +1,5 @@
 import { posFetch, printTicket } from './pos';
+import { getJson } from './live';
 
 /**
  * The POS bill screen (ARCHITECTURE §5.10.7, §10.3, §12 rule 15): discounts, the split with a live
@@ -21,6 +22,10 @@ export function posBill(state) {
         paying: null,
         exception: null,
         approval: null,
+        meal: null,
+        stays: [],
+        companies: [],
+        signed: false,
 
         init() {
             this.resetAssign();
@@ -110,10 +115,10 @@ export function posBill(state) {
             this.preview();
         },
 
-        async call(url, body, after = null, retry = null) {
+        async call(url, body, after = null, retry = null, method = 'POST') {
             this.busy = true;
             this.error = '';
-            const [ok, data] = await posFetch('POST', url, body, this.messages.offline);
+            const [ok, data] = await posFetch(method, url, body, this.messages.offline);
             this.busy = false;
 
             if (data.billing) {
@@ -193,9 +198,105 @@ export function posBill(state) {
             }, (id) => this.reopen(id));
         },
 
+        // In-house guests and company accounts
+        async searchStays(term) {
+            const data = await getJson(`${this.urls.stays}?term=${encodeURIComponent(term ?? '')}`);
+            this.stays = data?.stays ?? [];
+        },
+
+        async searchCompanies(term) {
+            const data = await getJson(`${this.urls.companies}?term=${encodeURIComponent(term ?? '')}`);
+            this.companies = data?.companies ?? [];
+        },
+
+        // Meal plans
+        startMeal() {
+            this.meal = { term: '', stay: null, period: this.periodNow, adults: 1, children: 0, left: null };
+            this.searchStays('');
+        },
+
+        async pickMealStay(stay) {
+            this.meal.stay = stay;
+            await this.mealLeft();
+        },
+
+        async mealLeft() {
+            const data = await getJson(`${this.urls.mealPlan}?reservation=${this.meal.stay.reservationId}&period=${this.meal.period}`);
+            this.meal.left = data?.left ?? null;
+
+            if (this.meal.left) {
+                this.meal.adults = Math.max(1, this.meal.left.left);
+            }
+        },
+
+        async redeem(approvalId = null) {
+            const meal = this.meal;
+            const ok = await this.call(this.urls.mealPlan, {
+                reservation_id: meal.stay.reservationId, period: meal.period, adults: meal.adults, children: meal.children, approval_id: approvalId,
+            }, null, (id) => this.redeem(id));
+
+            if (ok) {
+                this.meal = null;
+            }
+        },
+
+        clearMeal() {
+            return this.call(this.urls.mealPlan, {}, null, null, 'DELETE');
+        },
+
+        // Signature on screen (room charges)
+        sign(event, stage) {
+            const canvas = this.$refs.signature;
+
+            if (!canvas) {
+                return;
+            }
+
+            const context = canvas.getContext('2d');
+            const box = canvas.getBoundingClientRect();
+            const x = (event.clientX - box.left) * (canvas.width / box.width);
+            const y = (event.clientY - box.top) * (canvas.height / box.height);
+
+            if (stage === 'start') {
+                this.drawing = true;
+                context.lineWidth = 3;
+                context.lineCap = 'round';
+                context.strokeStyle = '#111';
+                context.beginPath();
+                context.moveTo(x, y);
+            } else if (stage === 'move' && this.drawing) {
+                context.lineTo(x, y);
+                context.stroke();
+                this.signed = true;
+            } else {
+                this.drawing = false;
+            }
+        },
+
+        clearSignature() {
+            const canvas = this.$refs.signature;
+            canvas?.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            this.signed = false;
+        },
+
         // Payments
         startPayment(bill) {
-            this.paying = { bill, method: 'cash', amount: bill.due, tip: '', tendered: '', reference: '' };
+            this.paying = { bill, method: 'cash', amount: bill.due, tip: '', tendered: '', reference: '', term: '', stay: null, company: null };
+            this.signed = false;
+            this.stays = [];
+            this.companies = [];
+        },
+
+        pickMethod(method) {
+            this.paying.method = method;
+
+            if (method === 'room_charge' && this.stays.length === 0) {
+                this.searchStays(this.billing.redemption?.code ?? '');
+            }
+
+            if (method === 'city_ledger' && this.companies.length === 0) {
+                this.searchCompanies('');
+            }
         },
 
         get change() {
@@ -220,6 +321,9 @@ export function posBill(state) {
             const ok = await this.call(this.url('pay', payment.bill.id), {
                 method: payment.method, amount: payment.amount, tip: payment.tip || 0,
                 tendered: payment.method === 'cash' && payment.tendered !== '' ? payment.tendered : null, reference: payment.reference,
+                reservation_id: payment.method === 'room_charge' ? payment.stay?.reservationId : null,
+                company_id: payment.method === 'city_ledger' ? payment.company?.companyId : null,
+                signature: payment.method === 'room_charge' && this.signed ? this.$refs.signature.toDataURL('image/png') : null,
             });
 
             if (ok) {

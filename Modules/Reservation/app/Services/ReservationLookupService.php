@@ -7,7 +7,9 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Modules\Guest\Contracts\GuestLookup;
+use Modules\Rates\Contracts\RateLookup;
 use Modules\Reservation\Contracts\ReservationLookup;
+use Modules\Reservation\DTOs\MealEntitlement;
 use Modules\Reservation\DTOs\NightOccupancy;
 use Modules\Reservation\DTOs\ReservationSummary;
 use Modules\Reservation\DTOs\RoomOccupancy;
@@ -23,6 +25,8 @@ class ReservationLookupService implements ReservationLookup
     public function __construct(
         private readonly ItemLabels $labels,
         private readonly GuestLookup $guests,
+        private readonly RateLookup $rates,
+        private readonly MealEntitlements $meals,
     ) {}
 
     public function find(int $reservationId): ?ReservationSummary
@@ -129,6 +133,25 @@ class ReservationLookupService implements ReservationLookup
         return $result;
     }
 
+    public function mealEntitlement(int $reservationId, string $date): MealEntitlement
+    {
+        $items = ReservationItem::query()->where('reservation_id', $reservationId)->where('status', ReservationStatus::CheckedIn->value)->get();
+        $periods = [];
+        $plans = [];
+
+        foreach ($items as $item) {
+            $plan = $this->rates->ratePlan($item->rate_plan_id)?->mealPlan->value ?? 'EP';
+            $plans[] = $plan;
+
+            foreach ($this->meals->periods($plan, $item->check_in->toDateString(), $item->check_out->toDateString(), $date) as $period) {
+                $periods[$period]['adults'] = ($periods[$period]['adults'] ?? 0) + $item->adults;
+                $periods[$period]['children'] = ($periods[$period]['children'] ?? 0) + $item->children;
+            }
+        }
+
+        return new MealEntitlement($reservationId, $date, $periods, array_values(array_unique($plans)));
+    }
+
     /**
      * @param  Builder<Reservation>  $query
      * @return list<ReservationSummary>
@@ -156,6 +179,7 @@ class ReservationLookupService implements ReservationLookup
             $reservation->deposit_due_at?->toIso8601String(),
             $reservation->adults, $reservation->children, $reservation->group_name, $reservation->items->count(),
             $reservation->items->filter(fn (ReservationItem $item): bool => $item->status === ReservationStatus::CheckedIn)->count(),
+            $reservation->no_room_charges,
         ))->values()->all();
     }
 }

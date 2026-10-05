@@ -29,6 +29,7 @@ use Modules\Reservation\Enums\ReservationStatus;
  * @property PaymentStatus $payment_status
  * @property ReservationSource $source
  * @property string|null $group_name
+ * @property bool $no_room_charges outlets may not charge the folio
  * @property int $primary_guest_id
  * @property int|null $company_id
  * @property int|null $travel_agent_id
@@ -92,6 +93,7 @@ class Reservation extends Model
     protected function casts(): array
     {
         return [
+            'no_room_charges' => 'boolean',
             'status' => ReservationStatus::class,
             'payment_status' => PaymentStatus::class,
             'source' => ReservationSource::class,

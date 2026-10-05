@@ -26,6 +26,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
     case CheckedIn = 'checked_in';
     case CheckedOut = 'checked_out';
     case NoShow = 'no_show';
+    case RoomChargesChanged = 'room_charges_changed';
 
     public function label(): string
     {
@@ -44,6 +45,7 @@ enum ReservationLogAction: string implements HasLabelAndColor
             self::CheckedIn => __('Checked in'),
             self::CheckedOut => __('Checked out'),
             self::NoShow => __('No-show'),
+            self::RoomChargesChanged => __('Room charges'),
         };
     }
 

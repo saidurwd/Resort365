@@ -90,3 +90,9 @@ body.print-document {
         --bs-table-cell-padding-x: 0;
     }
 }
+
+// Restaurant room-charge receipts: the guest's on-screen signature.
+.receipt-signature {
+    max-height: 60px;
+    max-width: 100%;
+}

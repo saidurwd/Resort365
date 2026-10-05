@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Restaurant\Http\Controllers\BillReceiptController;
 use Modules\Restaurant\Http\Controllers\DiscountLimitController;
 use Modules\Restaurant\Http\Controllers\Kds\KdsController;
 use Modules\Restaurant\Http\Controllers\MenuCategoryController;
@@ -106,6 +107,8 @@ Route::prefix('restaurant')->name('restaurant.')->middleware(['auth', 'verified'
         Route::get('/sessions/{session}/report', [PosSessionsController::class, 'report'])->name('sessions.report');
     });
 
+    Route::get('/bills/{bill}/receipt', [BillReceiptController::class, 'show'])->whereNumber('bill')->name('bills.receipt');
+
     Route::middleware('can:restaurant.discount-limit.manage')->group(function (): void {
         Route::get('/discount-limits', [DiscountLimitController::class, 'index'])->name('discount-limits.index');
         Route::put('/discount-limits', [DiscountLimitController::class, 'update'])->name('discount-limits.update');
@@ -170,9 +173,14 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
                 Route::post('/api/orders/{order}/bill/preview', 'preview')->name('orders.bill.preview');
                 Route::post('/api/orders/{order}/bill/print', 'print')->name('orders.bill.print');
                 Route::post('/api/orders/{order}/reopen', 'reopen')->name('orders.reopen');
+                Route::get('/api/stays', 'stays')->name('stays');
+                Route::get('/api/orders/{order}/meal-plan', 'mealPlanLeft')->name('orders.meal-plan');
+                Route::post('/api/orders/{order}/meal-plan', 'redeem')->name('orders.meal-plan.redeem');
+                Route::delete('/api/orders/{order}/meal-plan', 'clearMealPlan')->name('orders.meal-plan.clear');
             });
             Route::middleware('can:restaurant.bill.settle')->controller(PosBillController::class)->group(function (): void {
                 Route::post('/api/bills/{bill}/payments', 'pay')->name('bills.pay');
+                Route::get('/api/companies', 'companies')->name('companies');
                 Route::post('/api/bills/{bill}/comp', 'comp')->name('bills.comp');
                 Route::post('/api/bills/{bill}/void', 'void')->name('bills.void');
             });

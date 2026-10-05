@@ -55,6 +55,7 @@ use Modules\Restaurant\Enums\VoidReason;
  * @property string|null $discount_reason
  * @property int|null $discount_by
  * @property int|null $discount_approval_id
+ * @property int|null $package_redemption_id covered by a guest's meal plan: on the bill at nothing
  */
 #[UseFactory(PosOrderLineFactory::class)]
 #[Fillable([

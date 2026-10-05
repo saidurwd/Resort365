@@ -17,6 +17,7 @@ use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
 use Modules\FrontOffice\Console\NightAuditCommand;
+use Modules\FrontOffice\Contracts\NightAuditBlockers;
 use Modules\FrontOffice\Jobs\RunDueNightAudits;
 use Modules\FrontOffice\Models\DailyStatistic;
 use Modules\FrontOffice\Models\NightAudit;
@@ -56,6 +57,13 @@ class FrontOfficeServiceProvider extends ModuleServiceProvider
     protected array $commands = [
         NightAuditCommand::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->singleton(NightAuditBlockers::class);
+    }
 
     public function boot(): void
     {

@@ -667,6 +667,7 @@ sequenceDiagram
 - Allowed only for **checked-in** guests, and blocked after check-out.
 - The folio line keeps a link to the restaurant bill, so the guest sees each bill at check-out and the itemised receipt can be reprinted from the folio.
 - A reservation can be flagged **"no room charges"** (e.g. paid by a travel agent with strict terms).
+- *Implemented in Step 3.7: the payment sheet's **Charge to room** searches in-house guests by room, name or booking (`FolioPostingContract::chargeableStays`: folio, balance, credit left, "no room charges"), optionally captures the guest's signature on screen (stored privately through `TenantStorage`; otherwise the receipt has a line to sign), and `TakePayment` posts the payment's part of the bill to the folio synchronously (AD-16) with the bill's own taxes (`FolioCharge::$taxLines`, shared by the pure `TaxShare` on part payments), `revenue_posted_by_source`, a `pos_bill` reference (the folio shows a link to the receipt through Billing's `FolioReferenceLinks`) and the charge code of `restaurant.room_charge_code` (`FNB`). Billing refuses (`ChargeRejected`, the payment is rolled back) when the guest is not checked in, the folio is closed, over its credit limit, or the booking is flagged "no room charges" (`reservations.no_room_charges`, a switch on the booking page; `FolioCharge::$outletCharge`). **City ledger:** the bill (or part of it) goes to a company's account through Billing's new `CityLedgerAccounts` contract, within its credit limit. Room charges and city-ledger payments take no tip. Voiding a settled bill voids its folio line (`reverseCharge`) or cancels its account entry, and is refused once the guest checked out or the account was paid (a credit note at the front desk instead).*
 
 #### 5.10.9 Meal-Plan (Package) Redemption
 
@@ -677,6 +678,8 @@ Resort guests often book a rate that includes meals (CP = breakfast, MAP = half 
 3. Items on the outlet's **package menu** are charged at zero to the guest. Items outside it (e.g. alcohol, premium dishes) are billed normally and can be charged to room.
 4. Redemption over the entitlement shows a warning and needs a permission.
 5. Each redemption is recorded (covers, items, cost) for headcount, food cost and "meals included but not taken" reports.
+
+*Implemented in Step 3.7: on the bill screen, **Guest meal plan** looks up the in-house guest and the meal period (suggested from `restaurant.breakfast_until` / `restaurant.lunch_until`). Reservation's `ReservationLookup::mealEntitlement` gives the covers the booking's checked-in rooms include (rate-plan meal plan × adults and children: CP breakfast, MAP breakfast and dinner, AP all three; breakfast the morning after a night stayed, lunch and dinner on a night being stayed; the pure `MealEntitlements`). `RedeemMealPlan` checks it against what the booking already took that day (`MealPlans`), needs `restaurant.package.override` or a manager's PIN (`package.over`) for more, puts the order's items on the outlet's meal-plan menu (the price list's meal-plan flag) on the bill at nothing and records a `package_redemptions` row (covers, how many were still included, order and bill; cost waits for recipes). A bill that comes to nothing is settled when printed. The `package` payment method is not used: a redemption is not a tender.*
 
 **Revenue:** a redemption posts no revenue itself. The meal component of the package rate is recognised as **F&B revenue** during night audit (see [§7.1](#71-default-posting-rules)). This matches USALI package allocation.
 
@@ -697,7 +700,7 @@ Resort guests often book a rate that includes meals (CP = breakfast, MAP = half 
 - **X report** (mid-shift summary) at any time.
 - **Closing:** the cashier counts cash by denomination; the system compares it with expected cash and records any over/short with a reason. A **Z report** is produced and the session is locked.
 - A session cannot close while it has open bills; open bills must be settled or transferred to another session.
-- The restaurant uses the property's **business date**. Night audit is blocked until all outlet sessions for the day are closed (or force-closed by a manager).
+- The restaurant uses the property's **business date**. Night audit is blocked until all outlet sessions for the day are closed (or force-closed by a manager). *(Step 3.7: FrontOffice's `NightAuditBlockers` registry takes blockers from other modules; Restaurant's `OpenSessionsBlocker` names each open session. There is no force-close: a manager closes the session on the POS.)*
 - *Implemented in Step 3.3: a tablet becomes a terminal by entering its device token once (`/pos/register`; an encrypted cookie "terminal id | token hash", `EnsurePosTerminal`); the lock screen shows the staff who may work there and a PIN pad; `pos_sessions` (one open per terminal via `open_terminal_id`) open with a float on the business date, X report at any time, close with a count by denomination (`App\Support\Cash\CashCount`, shared with Billing's cashier shifts; `billing.cash_denominations`), a reason for a difference and a manager PIN above the limit, Z report on 80 mm paper (`<x-layouts::print paper="receipt">`). Restaurant → POS sessions lists them. Not yet: cash payments and open bills (Step 3.6, `SessionCash`), the night-audit check (Step 3.7).*
 
 #### 5.10.12 Restaurant Table Reservations
@@ -1310,6 +1313,8 @@ Unique: `(outlet_id, bill_no)`
 
 **`pos_payments`**
 `id, tenant_id, pos_bill_id, pos_session_id, method(cash|card|wallet|bank_transfer|room_charge|city_ledger|package|complimentary), amount, tendered, change_given, reference, reservation_id, folio_id, folio_line_id, company_id, comp_reason, signature_path, created_by`
+
+*Step 3.7 as built: `pos_payments` gains `reservation_id`, `folio_id`, `folio_line_id`, `company_id`, `city_ledger_entry_id`, `charged_to` (who, for the receipt) and `signature_path` (the comp reason stays on the bill); `package_redemptions` adds `outlet_id`, `reservation_code`, `guest_name`, `entitled` (covers still included when redeemed), `pos_order_id`, `manager_approval_id` and `created_by`; `pos_order_lines.package_redemption_id` marks the items it covers. `city_ledger_entries` gains `reference_type`/`reference_id` and the status `cancelled`; `reservations` gains `no_room_charges`.*
 
 **`package_redemptions`**
 `id, tenant_id, property_id, outlet_id, reservation_id, business_date, meal_period(breakfast|lunch|dinner), covers_adults, covers_children, pos_bill_id, cost_amount`
