@@ -66,7 +66,12 @@
 
         <section class="pos-card">
             <h1 class="h4"><i class="bi bi-receipt-cutoff"></i> {{ __('Orders') }}</h1>
-            <p class="text-body-secondary mb-4">{{ __('Taking orders, tables and kitchen tickets come next.') }}</p>
+            @if ($canTakeOrders)
+                <p class="text-body-secondary">{{ trans_choice(':count order is open in this outlet.|:count orders are open in this outlet.', $openOrders) }}</p>
+                <a href="{{ route('pos.floor') }}" class="btn btn-primary btn-lg pos-btn w-100 mb-4" data-floor><i class="bi bi-grid-3x3"></i> {{ __('Tables and orders') }}</a>
+            @else
+                <p class="text-body-secondary mb-4">{{ __('You cannot take orders.') }}</p>
+            @endif
             @if ($recent->isNotEmpty())
                 <h2 class="h6">{{ __('Recent sessions here') }}</h2>
                 @foreach ($recent as $past)

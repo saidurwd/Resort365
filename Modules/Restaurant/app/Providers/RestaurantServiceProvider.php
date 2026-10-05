@@ -20,6 +20,8 @@ use Modules\Restaurant\Models\ComboComponent;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\KitchenStation;
+use Modules\Restaurant\Models\Kot;
+use Modules\Restaurant\Models\KotLine;
 use Modules\Restaurant\Models\ManagerApproval;
 use Modules\Restaurant\Models\MenuCategory;
 use Modules\Restaurant\Models\MenuItem as MenuItemModel;
@@ -29,11 +31,14 @@ use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PosOrder;
+use Modules\Restaurant\Models\PosOrderLine;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
 use Modules\Restaurant\Policies\MenuItemPolicy;
 use Modules\Restaurant\Policies\OutletPolicy;
+use Modules\Restaurant\Policies\PosOrderPolicy;
 use Modules\Restaurant\Policies\PrinterPolicy;
 use Modules\Restaurant\Services\PosContext;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -88,7 +93,12 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             'outlet_menu_item' => OutletMenuItem::class,
             'pos_session' => PosSession::class,
             'manager_approval' => ManagerApproval::class,
+            'pos_order' => PosOrder::class,
+            'pos_order_line' => PosOrderLine::class,
+            'kot' => Kot::class,
+            'kot_line' => KotLine::class,
         ]);
+        Gate::policy(PosOrder::class, PosOrderPolicy::class);
         Gate::policy(MenuItemModel::class, MenuItemPolicy::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.terminal', EnsurePosTerminal::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.staff', EnsurePosStaff::class);
@@ -111,6 +121,9 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('restaurant.session.manage', 'Open and close POS sessions', [...$managers, DefaultRole::OutletCashier]),
             new PermissionDefinition('restaurant.session.view', 'View every POS session and its reports', [...$managers, DefaultRole::Accountant]),
             new PermissionDefinition('restaurant.session.approve-variance', 'Approve closing a session with a large cash difference', $managers),
+            new PermissionDefinition('restaurant.order.take', 'Take orders and send them to the kitchen', [...$managers, DefaultRole::Waiter, DefaultRole::Bartender, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.order.void', 'Void items sent to the kitchen (others need a manager\'s PIN)', $managers),
+            new PermissionDefinition('restaurant.order.open-item', 'Price open items', [...$managers, DefaultRole::OutletCashier]),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);

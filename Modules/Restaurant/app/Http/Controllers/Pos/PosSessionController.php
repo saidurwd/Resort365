@@ -14,12 +14,14 @@ use Modules\IAM\DTOs\UserSummary;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Restaurant\Actions\ClosePosSession;
 use Modules\Restaurant\Actions\OpenPosSession;
+use Modules\Restaurant\Enums\OrderStatus;
 use Modules\Restaurant\Enums\PosSessionStatus;
 use Modules\Restaurant\Exceptions\PosNotAllowed;
 use Modules\Restaurant\Http\Requests\ClosePosSessionRequest;
 use Modules\Restaurant\Http\Requests\ManagerApprovalRequest;
 use Modules\Restaurant\Http\Requests\OpenPosSessionRequest;
 use Modules\Restaurant\Models\ManagerApproval;
+use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Services\ManagerApprovals;
 use Modules\Restaurant\Services\PosContext;
@@ -47,6 +49,8 @@ class PosSessionController extends Controller
             'recent' => PosSession::query()->where('pos_terminal_id', $terminal->id)->where('status', PosSessionStatus::Closed->value)->latest('closed_at')->limit(3)->get(),
             'currency' => $properties->find($terminal->property_id)->currencyCode ?? '',
             'canManage' => auth()->user()?->can('restaurant.session.manage') ?? false,
+            'canTakeOrders' => auth()->user()?->can('restaurant.order.take') ?? false,
+            'openOrders' => PosOrder::query()->where('outlet_id', $terminal->outlet_id)->where('status', OrderStatus::Open->value)->count(),
             'autoLockMinutes' => (int) $settings->get('restaurant.pos_auto_lock_minutes', $terminal->property_id),
         ]);
     }

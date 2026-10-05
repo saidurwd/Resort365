@@ -9,6 +9,7 @@ use Modules\Restaurant\Http\Controllers\OutletAccessController;
 use Modules\Restaurant\Http\Controllers\OutletController;
 use Modules\Restaurant\Http\Controllers\OutletSetupController;
 use Modules\Restaurant\Http\Controllers\Pos\PosController;
+use Modules\Restaurant\Http\Controllers\Pos\PosOrderController;
 use Modules\Restaurant\Http\Controllers\Pos\PosSessionController;
 use Modules\Restaurant\Http\Controllers\PosSessionsController;
 use Modules\Restaurant\Http\Controllers\PriceListController;
@@ -20,7 +21,7 @@ use Modules\Restaurant\Http\Controllers\PrinterController;
 |--------------------------------------------------------------------------
 |
 | URLs are prefixed with /restaurant; route names follow `restaurant.resource.action`.
-| Setup screens work on the property chosen in the navbar. The POS (/pos) comes in Step 3.3.
+| Setup screens work on the property chosen in the navbar. The POS lives under /pos (below).
 |
 */
 
@@ -125,6 +126,26 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
             Route::post('/session/close', [PosSessionController::class, 'close'])->name('session.close');
             Route::get('/sessions/{session}/report', [PosSessionController::class, 'report'])->name('sessions.report');
             Route::post('/api/approvals', [PosSessionController::class, 'approve'])->middleware('throttle:30,1')->name('approvals.store');
+
+            // Orders and kitchen tickets (Step 3.4): the floor, the order screen and its JSON endpoints.
+            Route::middleware('can:restaurant.order.take')->controller(PosOrderController::class)->group(function (): void {
+                Route::get('/floor', 'floor')->name('floor');
+                Route::post('/orders', 'open')->name('orders.open');
+                Route::get('/orders/{order}', 'show')->name('orders.show');
+                Route::get('/kots/{kot}/print', 'printKot')->name('kots.print');
+
+                Route::prefix('api/orders/{order}')->name('orders.')->scopeBindings()->group(function (): void {
+                    Route::get('/', 'data')->name('data');
+                    Route::post('/lines', 'addLine')->name('lines.store');
+                    Route::patch('/lines/{line}', 'changeLine')->name('lines.update');
+                    Route::delete('/lines/{line}', 'removeLine')->name('lines.destroy');
+                    Route::post('/lines/{line}/void', 'voidLine')->name('lines.void');
+                    Route::post('/send', 'send')->name('send');
+                    Route::post('/transfer', 'transfer')->name('transfer');
+                    Route::post('/merge', 'merge')->name('merge');
+                    Route::post('/cancel', 'cancel')->name('cancel');
+                });
+            });
         });
     });
 });

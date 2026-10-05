@@ -22,12 +22,13 @@ class ManagerApprovals
 
     /**
      * The actions that can be approved by a manager's PIN: action => [permission it needs, subject type].
-     * Later steps add voids and discounts.
+     * Later steps add discounts.
      *
      * @var array<string, array{permission: string, subject: string|null, label: string}>
      */
     public const array ACTIONS = [
         'session.close-variance' => ['permission' => 'restaurant.session.approve-variance', 'subject' => 'pos_session', 'label' => 'Close a session with a large cash difference'],
+        'order.void-line' => ['permission' => 'restaurant.order.void', 'subject' => 'pos_order_line', 'label' => 'Void an item sent to the kitchen'],
     ];
 
     private const int ATTEMPTS = 5;

@@ -37,12 +37,16 @@ use Modules\Reservation\Jobs\ExpireTentativeHolds;
 use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Quote;
 use Modules\Reservation\Models\Reservation;
+use Modules\Restaurant\Enums\OrderLineStatus;
+use Modules\Restaurant\Enums\TableStatus;
 use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\Kot;
 use Modules\Restaurant\Models\MenuItem;
 use Modules\Restaurant\Models\MenuItemVariant;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PosOrder;
 
 use function Pest\Laravel\seed;
 
@@ -212,5 +216,22 @@ it('seeds a menu of about 60 items priced differently at the outlets (Step 3.2)'
             ->and([$price('FJ04', 'MR'), $price('FJ04', 'PB'), $price('FJ04', 'RS')])->toBe(['180.00', '198.00', '207.00'])
             ->and([$price('BD01', 'MR', 'Full'), $price('BD01', 'RS', 'Full'), $price('BD01', 'PB', 'Full')])->toBe(['650.00', '748.00', null])
             ->and(OutletMenuItem::query()->where('outlet_id', $outlets['MR'])->where('is_available', false)->count())->toBe(2);
+    });
+});
+
+it('seeds an open order at table T4 with mains and drinks sent and desserts held (Step 3.4)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $order = PosOrder::query()->with(['lines', 'kots.station', 'table'])->sole();
+
+        expect($order->table?->number)->toBe('T4')
+            ->and($order->covers)->toBe(2)
+            ->and($order->order_no)->toBe('MR-0001')
+            ->and($order->lines->where('status', OrderLineStatus::Sent))->toHaveCount(4)
+            ->and($order->lines->where('is_held', true)->pluck('name_snapshot')->all())->toBe(['Rasmalai'])
+            ->and($order->kots->map(fn (Kot $kot): ?string => $kot->station?->name)->all())->toBe(['Hot kitchen', 'Bar'])
+            ->and($order->table?->status)->toBe(TableStatus::Occupied)
+            ->and($order->subtotal)->toBe('2900.00');
     });
 });

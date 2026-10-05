@@ -8,6 +8,8 @@ use Modules\Core\Models\TaxCategory;
 use Modules\IAM\Contracts\PosPins;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\DTOs\UserSummary;
+use Modules\Restaurant\Actions\AddOrderLine;
+use Modules\Restaurant\Actions\OpenOrder;
 use Modules\Restaurant\Actions\RegisterTerminal;
 use Modules\Restaurant\Actions\SaveDiningArea;
 use Modules\Restaurant\Actions\SaveDiningTable;
@@ -15,10 +17,19 @@ use Modules\Restaurant\Actions\SaveFloorPlan;
 use Modules\Restaurant\Actions\SaveOutlet;
 use Modules\Restaurant\Actions\SavePrinter;
 use Modules\Restaurant\Actions\SaveStation;
+use Modules\Restaurant\Actions\SendOrder;
 use Modules\Restaurant\Actions\SyncOutletAccess;
+use Modules\Restaurant\Enums\OrderType;
 use Modules\Restaurant\Enums\TableShape;
 use Modules\Restaurant\Models\DiningArea;
+use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\MenuItem;
+use Modules\Restaurant\Models\MenuItemVariant;
+use Modules\Restaurant\Models\Modifier;
+use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
+use Modules\Restaurant\Models\PosOrder;
+use Modules\Restaurant\Models\PosOrderLine;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
 
@@ -114,6 +125,36 @@ final class DemoRestaurant
 
             PosTerminal::query()->where('property_id', $propertyId)->where('name', 'Cashier desk')
                 ->update(['device_token' => hash('sha256', self::DEMO_DEVICE_TOKEN)]);
+        });
+    }
+
+    /**
+     * Step 3.4: an open order at table T4 of the Main Restaurant for 2 covers, taken by the waiter: mains
+     * and drinks sent (a ticket to the hot kitchen and one to the bar), desserts held until fired.
+     */
+    public static function orders(Tenant $tenant, string $domain): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($domain): void {
+            $outlet = Outlet::query()->where('code', 'MR')->firstOrFail();
+            $table = DiningTable::query()->where('outlet_id', $outlet->id)->where('number', 'T4')->firstOrFail();
+            $waiter = collect(app(UserDirectory::class)->all())->firstWhere('email', 'waiter@'.$domain);
+            $item = fn (string $code): MenuItem => MenuItem::query()->where('code', $code)->firstOrFail();
+            $variant = fn (string $code, string $name): ?int => MenuItemVariant::query()->where('menu_item_id', $item($code)->id)->where('name', $name)->value('id');
+            $modifier = fn (string $group, string $name): ?int => Modifier::query()->where('name', $name)
+                ->whereIn('modifier_group_id', ModifierGroup::query()->where('name', $group)->select('id'))->value('id');
+
+            if (! $waiter instanceof UserSummary || PosOrder::query()->where('outlet_id', $outlet->id)->exists()) {
+                return; // seeded already
+            }
+
+            $order = OpenOrder::make()->handle($outlet, OrderType::DineIn, $waiter->id, $table->id, 2);
+            $add = fn (array $line): PosOrderLine => AddOrderLine::make()->handle($order, $line, $waiter->id, false);
+            $add(['item_id' => $item('BD01')->id, 'variant_id' => $variant('BD01', 'Full'), 'modifier_ids' => [$modifier('Spice level', 'Medium')], 'seat' => 1]);
+            $add(['item_id' => $item('BD04')->id, 'seat' => 2, 'notes' => 'Less mustard']);
+            $add(['item_id' => $item('PR06')->id, 'variant_id' => $variant('PR06', 'Butter'), 'quantity' => 2]);
+            $add(['item_id' => $item('MK01')->id, 'quantity' => 2]);
+            $add(['item_id' => $item('DS02')->id, 'quantity' => 2, 'held' => true]);
+            SendOrder::make()->handle($order, $waiter->id);
         });
     }
 
