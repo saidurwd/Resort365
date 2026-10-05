@@ -4,6 +4,7 @@ namespace Modules\Restaurant\Actions;
 
 use App\Support\Actions\Action;
 use Brick\Math\BigDecimal;
+use Modules\Restaurant\Events\MenuAvailabilityChanged;
 use Modules\Restaurant\Exceptions\RestaurantSetupInvalid;
 use Modules\Restaurant\Models\KitchenStation;
 use Modules\Restaurant\Models\MenuItem;
@@ -70,6 +71,8 @@ class SavePriceList extends Action
                 ])->save();
                 $sold++;
             }
+
+            MenuAvailabilityChanged::dispatch($outlet->tenant_id, $outlet->id);
 
             return $sold;
         });

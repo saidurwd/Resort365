@@ -5,6 +5,7 @@ use App\Support\Tenancy\PropertyAccess;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\DemoRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\CityLedgerEntry;
@@ -40,6 +41,7 @@ use Modules\Reservation\Models\Reservation;
 use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\TableStatus;
 use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\KitchenStation;
 use Modules\Restaurant\Models\Kot;
 use Modules\Restaurant\Models\MenuItem;
 use Modules\Restaurant\Models\MenuItemVariant;
@@ -232,6 +234,8 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
             ->and($order->lines->where('is_held', true)->pluck('name_snapshot')->all())->toBe(['Rasmalai'])
             ->and($order->kots->map(fn (Kot $kot): ?string => $kot->station?->name)->all())->toBe(['Hot kitchen', 'Bar'])
             ->and($order->table?->status)->toBe(TableStatus::Occupied)
-            ->and($order->subtotal)->toBe('2900.00');
+            ->and($order->subtotal)->toBe('2900.00')
+            // Step 3.5: the Hot kitchen's screen registers with the demo display token.
+            ->and(KitchenStation::query()->where('display_token', hash('sha256', DemoRestaurant::DEMO_DISPLAY_TOKEN))->sole()->name)->toBe('Hot kitchen');
     });
 });

@@ -6,6 +6,7 @@ use App\Support\Audit\RecordsActivity;
 use App\Support\Tenancy\BelongsToProperty;
 use App\Support\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,8 @@ use Modules\Restaurant\Enums\StationOutput;
 
 /**
  * Where an outlet's dishes are prepared (hot kitchen, grill, pastry, bar…): orders are split into one
- * ticket per station (Step 3.5), shown on its kitchen display, printed, or both (ARCHITECTURE §5.10.6).
+ * ticket per station, shown on its kitchen display, printed, or both (ARCHITECTURE §5.10.6). A station
+ * whose output includes the display gets a device token for its screen (Step 3.5).
  *
  * @property int $id
  * @property int $tenant_id
@@ -24,9 +26,11 @@ use Modules\Restaurant\Enums\StationOutput;
  * @property string $name
  * @property StationOutput $output
  * @property int|null $printer_id
+ * @property string|null $display_token SHA-256 of the kitchen display's device token
  * @property int $sort_order
  */
 #[UseFactory(KitchenStationFactory::class)]
+#[Hidden(['display_token'])]
 #[Fillable([
     'property_id', 'outlet_id', 'name', 'output', 'printer_id', 'sort_order',
 ])]
@@ -56,5 +60,10 @@ class KitchenStation extends Model
     public function outlet(): BelongsTo
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    public function hasDisplay(): bool
+    {
+        return $this->output !== StationOutput::Printer;
     }
 }

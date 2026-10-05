@@ -1,7 +1,10 @@
 @php
-    $money = fn (?string $amount): string => number_format((float) $amount, 2);
     $canvas = ['width' => \Modules\Restaurant\Services\FloorPlanGeometry::WIDTH, 'height' => \Modules\Restaurant\Services\FloorPlanGeometry::HEIGHT];
 @endphp
+{{--
+    The POS floor (ARCHITECTURE §10.3): dining areas as tabs, tables coloured by state with the running
+    total and minutes seated. Alpine (posFloor) keeps it live from the outlet's channel (Step 3.5).
+--}}
 <x-layouts::pos :title="__('Floor')" :terminal="$terminal">
     <x-slot:status>
         @if ($businessDate)<span class="pos-bar__meta"><i class="bi bi-calendar3"></i> {{ \Illuminate\Support\Carbon::parse($businessDate)->format('D d M') }}</span>@endif
@@ -10,7 +13,7 @@
 
     <div x-data="posIdle({{ $autoLockMinutes }})"></div>
 
-    <div class="pos-floor" x-data="{ area: {{ $areas->first()->id ?? 0 }}, table: null }">
+    <div class="pos-floor" x-data="posFloor(@js(['floor' => $floor, 'channel' => $channel, 'urls' => ['floor' => route('pos.floor.data')]]))" x-init="area = {{ $areas->first()->id ?? 0 }}">
         <section class="pos-card pos-floor__plan">
             @if ($areas->isEmpty())
                 <x-empty-state icon="bi-grid-3x3" :title="__('No tables in this outlet')" :message="__('Use takeaway, or add dining areas and tables in the outlet setup.')" />
@@ -19,6 +22,9 @@
                     @foreach ($areas as $area)
                         <button type="button" class="btn pos-btn" :class="area === {{ $area->id }} ? 'btn-primary' : 'btn-outline-primary'" @click="area = {{ $area->id }}" data-area="{{ $area->id }}">{{ $area->name }}</button>
                     @endforeach
+                    <span class="ms-auto small align-self-center" :class="online ? 'text-success' : 'text-body-secondary'" data-live>
+                        <i class="bi" :class="online ? 'bi-broadcast' : 'bi-arrow-repeat'"></i> <span x-text="online ? '{{ __('Live') }}' : '{{ __('Refreshing every 5 s') }}'"></span>
+                    </span>
                 </div>
                 @foreach ($areas as $area)
                     <svg viewBox="0 0 {{ $canvas['width'] }} {{ $canvas['height'] }}" class="floor-plan pos-floor__svg" role="img" aria-label="{{ __('Tables in :area', ['area' => $area->name]) }}" x-show="area === {{ $area->id }}" @if (! $loop->first) x-cloak @endif>
@@ -26,24 +32,20 @@
                         @foreach ($area->tables as $table)
                             @php
                                 [$w, $h] = $table->shape->size($table->seats);
-                                $order = $byTable->get($table->id);
+                                $now = $floor['tables'][$table->id] ?? ['status' => $table->status->value, 'subtotal' => null, 'minutes' => null];
                             @endphp
-                            <g transform="translate({{ $table->pos_x }} {{ $table->pos_y }})" @class(['floor-table', 'pos-table', 'pos-table--'.($order ? 'occupied' : $table->status->value)])
-                                data-pos-table="{{ $table->number }}" data-status="{{ $order ? 'occupied' : $table->status->value }}" role="button" tabindex="0"
-                                @if ($order) @click="window.location = @js(route('pos.orders.show', $order))" @keydown.enter="window.location = @js(route('pos.orders.show', $order))"
-                                @else @click="table = { id: {{ $table->id }}, number: @js($table->number), seats: {{ $table->seats }} }" @keydown.enter="table = { id: {{ $table->id }}, number: @js($table->number), seats: {{ $table->seats }} }" @endif>
+                            <g transform="translate({{ $table->pos_x }} {{ $table->pos_y }})" class="floor-table pos-table pos-table--{{ $now['status'] }}" :class="'pos-table--' + state({{ $table->id }}).status"
+                                data-pos-table="{{ $table->number }}" data-status="{{ $now['status'] }}" :data-status="state({{ $table->id }}).status" role="button" tabindex="0"
+                                @click="pick({{ $table->id }}, @js($table->number), {{ $table->seats }})" @keydown.enter="pick({{ $table->id }}, @js($table->number), {{ $table->seats }})">
                                 @if ($table->shape === \Modules\Restaurant\Enums\TableShape::Round)
                                     <ellipse cx="{{ $w / 2 }}" cy="{{ $h / 2 }}" rx="{{ $w / 2 }}" ry="{{ $h / 2 }}" class="floor-table__top" />
                                 @else
                                     <rect width="{{ $w }}" height="{{ $h }}" rx="8" class="floor-table__top" />
                                 @endif
-                                <text x="{{ $w / 2 }}" y="{{ $h / 2 - ($order ? 10 : 2) }}" text-anchor="middle" class="floor-table__number">{{ $table->number }}</text>
-                                @if ($order)
-                                    <text x="{{ $w / 2 }}" y="{{ $h / 2 + 8 }}" text-anchor="middle" class="floor-table__seats">{{ $money($order->subtotal) }}</text>
-                                    <text x="{{ $w / 2 }}" y="{{ $h / 2 + 24 }}" text-anchor="middle" class="floor-table__seats" data-elapsed>{{ __(':minutes min', ['minutes' => (int) $order->opened_at->diffInMinutes(now())]) }}</text>
-                                @else
-                                    <text x="{{ $w / 2 }}" y="{{ $h / 2 + 16 }}" text-anchor="middle" class="floor-table__seats">{{ trans_choice(':count seat|:count seats', $table->seats) }}</text>
-                                @endif
+                                <text x="{{ $w / 2 }}" y="{{ $h / 2 - 2 }}" text-anchor="middle" class="floor-table__number" :y="state({{ $table->id }}).order_url ? {{ $h / 2 - 10 }} : {{ $h / 2 - 2 }}">{{ $table->number }}</text>
+                                <text x="{{ $w / 2 }}" y="{{ $h / 2 + 16 }}" text-anchor="middle" class="floor-table__seats" x-show="! state({{ $table->id }}).order_url">{{ trans_choice(':count seat|:count seats', $table->seats) }}</text>
+                                <text x="{{ $w / 2 }}" y="{{ $h / 2 + 8 }}" text-anchor="middle" class="floor-table__seats" x-show="state({{ $table->id }}).order_url" x-text="state({{ $table->id }}).subtotal" x-cloak></text>
+                                <text x="{{ $w / 2 }}" y="{{ $h / 2 + 24 }}" text-anchor="middle" class="floor-table__seats" x-show="state({{ $table->id }}).order_url" x-text="state({{ $table->id }}).minutes + ' {{ __('min') }}'" x-cloak data-elapsed></text>
                             </g>
                         @endforeach
                     </svg>
@@ -85,17 +87,20 @@
             </form>
 
             <h2 class="h6">{{ __('Open orders') }}</h2>
-            @forelse ($byTable->values()->concat($takeaway)->sortBy('opened_at') as $open)
-                <a href="{{ route('pos.orders.show', $open) }}" class="pos-order-link" data-open-order="{{ $open->order_no }}">
-                    <span>
-                        <span class="fw-semibold">{{ $open->dining_table_id ? __('Table :number', ['number' => $open->table?->number]) : __('Takeaway') }}</span>
-                        <span class="d-block small text-body-secondary">{{ $open->order_no }} · {{ $names[$open->waiter_id] ?? '' }} · {{ __(':minutes min', ['minutes' => (int) $open->opened_at->diffInMinutes(now())]) }}</span>
-                    </span>
-                    <span class="font-monospace">{{ $money($open->subtotal) }}</span>
+            @foreach ($floor['orders'] as $open)
+                {{-- Rendered by the server first (also without JavaScript), then kept live by Alpine below. --}}
+                <a href="{{ $open['url'] }}" class="pos-order-link" data-open-order="{{ $open['order_no'] }}" x-show="false">
+                    <span><span class="fw-semibold">{{ $open['where'] }}</span><span class="d-block small text-body-secondary">{{ $open['meta'] }}</span></span>
+                    <span class="font-monospace">{{ $open['subtotal'] }}</span>
                 </a>
-            @empty
-                <p class="text-body-secondary">{{ __('No open orders.') }}</p>
-            @endforelse
+            @endforeach
+            <template x-for="open in floor.orders" :key="open.id">
+                <a :href="open.url" class="pos-order-link" :data-live-order="open.order_no">
+                    <span><span class="fw-semibold" x-text="open.where"></span><span class="d-block small text-body-secondary" x-text="open.meta"></span></span>
+                    <span class="font-monospace" x-text="open.subtotal"></span>
+                </a>
+            </template>
+            <p class="text-body-secondary" x-show="floor.orders.length === 0" @if ($floor['orders'] !== []) x-cloak @endif>{{ __('No open orders.') }}</p>
         </aside>
     </div>
 </x-layouts::pos>

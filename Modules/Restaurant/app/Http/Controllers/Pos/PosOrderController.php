@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Modules\Core\Contracts\Settings;
@@ -18,9 +19,14 @@ use Modules\Restaurant\Actions\MoveOrder;
 use Modules\Restaurant\Actions\OpenOrder;
 use Modules\Restaurant\Actions\SendOrder;
 use Modules\Restaurant\Actions\VoidOrderLine;
+use Modules\Restaurant\Broadcasting\RestaurantChannels;
 use Modules\Restaurant\Enums\Course;
+use Modules\Restaurant\Enums\KotStatus;
+use Modules\Restaurant\Enums\KotType;
+use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\OrderStatus;
 use Modules\Restaurant\Enums\OrderType;
+use Modules\Restaurant\Enums\TableStatus;
 use Modules\Restaurant\Enums\VoidReason;
 use Modules\Restaurant\Exceptions\PosNotAllowed;
 use Modules\Restaurant\Http\Requests\ChangeOrderLineRequest;
@@ -48,20 +54,48 @@ class PosOrderController extends Controller
     public function floor(PosContext $context, Settings $settings, PropertyDirectory $properties, UserDirectory $users): View
     {
         $terminal = $context->terminal();
-        $orders = PosOrder::query()->where('outlet_id', $terminal->outlet_id)->where('status', OrderStatus::Open->value)->with('table')->orderBy('opened_at')->get();
-        $names = $this->names($users);
 
         return view('restaurant::pos.floor', [
             'terminal' => $terminal,
             'areas' => DiningArea::query()->where('outlet_id', $terminal->outlet_id)->with(['tables' => fn ($query) => $query->where('is_active', true)->orderBy('number')])->orderBy('sort_order')->get(),
-            'byTable' => $orders->whereNotNull('dining_table_id')->keyBy('dining_table_id'),
-            'takeaway' => $orders->whereNull('dining_table_id')->values(),
-            'names' => $names,
+            'floor' => $this->floorState($terminal->outlet_id, $users),
+            'channel' => RestaurantChannels::outlet($terminal->tenant_id, $terminal->outlet_id),
             'currency' => $properties->find($terminal->property_id)->currencyCode ?? '',
             'businessDate' => $properties->find($terminal->property_id)->businessDate ?? null,
-            'canTake' => auth()->user()?->can('restaurant.order.take') ?? false,
             'autoLockMinutes' => (int) $settings->get('restaurant.pos_auto_lock_minutes', $terminal->property_id),
         ]);
+    }
+
+    /**
+     * The floor as JSON, for live updates and the polling fallback.
+     */
+    public function floorData(PosContext $context, UserDirectory $users): JsonResponse
+    {
+        return response()->json(['ok' => true, 'floor' => $this->floorState($context->terminal()->outlet_id, $users)]);
+    }
+
+    /**
+     * The outlet's menu now, reloaded by the order screen after an 86 or a price change.
+     */
+    public function menu(PosContext $context, MenuCatalog $catalog): JsonResponse
+    {
+        return response()->json(['ok' => true, 'menu' => $catalog->forOutlet($context->outlet())]);
+    }
+
+    /**
+     * Dishes made ready since a moment (the polling fallback of the ready notifications).
+     */
+    public function ready(Request $request, PosContext $context): JsonResponse
+    {
+        $since = rescue(fn (): Carbon => Carbon::parse((string) $request->query('since')), now()->subMinute(), false);
+        $kots = Kot::query()->where('outlet_id', $context->terminal()->outlet_id)->where('type', KotType::New->value)->where('status', KotStatus::Ready->value)
+            ->where('ready_at', '>', $since)->with(['order.table', 'lines.line'])->orderBy('ready_at')->limit(20)->get();
+
+        return response()->json(['ok' => true, 'now' => now()->toIso8601String(), 'ready' => $kots->map(fn (Kot $kot): array => [
+            'kot_id' => $kot->id, 'order_id' => $kot->pos_order_id, 'order_no' => $kot->order->order_no, 'table' => $kot->order->table?->number, 'waiter_id' => $kot->order->waiter_id,
+            'items' => $kot->lines->filter(fn ($line): bool => $line->line->status !== OrderLineStatus::Voided)
+                ->map(fn ($line): string => $line->quantity.' × '.$line->line->name_snapshot.($line->line->variant_snapshot ? ' ('.$line->line->variant_snapshot.')' : ''))->values()->all(),
+        ])->values()->all()]);
     }
 
     public function open(OpenOrderRequest $request, PosContext $context, OpenOrder $open): RedirectResponse
@@ -110,7 +144,10 @@ class PosOrderController extends Controller
                     'cancel' => route('pos.orders.cancel', $order),
                     'approve' => route('pos.approvals.store'),
                     'floor' => route('pos.floor'),
+                    'order' => route('pos.orders.data', $order),
+                    'menu' => route('pos.menu'),
                 ],
+                'channel' => RestaurantChannels::outlet($terminal->tenant_id, $terminal->outlet_id),
                 'messages' => ['offline' => __('No connection. Try again.'), 'cancel' => __('Cancel this order?'), 'cancelYes' => __('Cancel order'), 'keep' => __('Keep it'),
                     'soldOut' => __(':item is sold out.'), 'notServed' => __(':item is not served at this time.')],
             ],
@@ -238,6 +275,40 @@ class PosOrderController extends Controller
     {
         abort_unless($order->outlet_id === $context->terminal()->outlet_id, 404);
         Gate::authorize('update', $order);
+    }
+
+    /**
+     * Each active table's state (with its open order) and the open orders of the outlet.
+     *
+     * @return array{tables: array<int, array<string, mixed>>, orders: list<array<string, mixed>>}
+     */
+    private function floorState(int $outletId, UserDirectory $users): array
+    {
+        $names = $this->names($users);
+        $orders = PosOrder::query()->where('outlet_id', $outletId)->where('status', OrderStatus::Open->value)->with('table')->orderBy('opened_at')->get();
+        $byTable = $orders->whereNotNull('dining_table_id')->keyBy('dining_table_id');
+        $minutes = fn (PosOrder $order): int => (int) $order->opened_at->diffInMinutes(now());
+        $tables = DiningTable::query()->where('outlet_id', $outletId)->where('is_active', true)->get(['id', 'status'])
+            ->mapWithKeys(function (DiningTable $table) use ($byTable, $minutes): array {
+                $order = $byTable->get($table->id);
+
+                return [$table->id => [
+                    'status' => $order instanceof PosOrder ? ($table->status === TableStatus::BillPrinted ? TableStatus::BillPrinted->value : TableStatus::Occupied->value) : $table->status->value,
+                    'order_url' => $order instanceof PosOrder ? route('pos.orders.show', $order) : null,
+                    'subtotal' => $order instanceof PosOrder ? number_format((float) $order->subtotal, 2) : null,
+                    'minutes' => $order instanceof PosOrder ? $minutes($order) : null,
+                ]];
+            })->all();
+
+        return [
+            'tables' => $tables,
+            'orders' => $orders->map(fn (PosOrder $order): array => [
+                'id' => $order->id, 'order_no' => $order->order_no, 'url' => route('pos.orders.show', $order),
+                'where' => $order->table ? __('Table :number', ['number' => $order->table->number]) : __('Takeaway'),
+                'meta' => $order->order_no.' · '.($names[$order->waiter_id] ?? '').' · '.__(':minutes min', ['minutes' => $minutes($order)]),
+                'subtotal' => number_format((float) $order->subtotal, 2),
+            ])->values()->all(),
+        ];
     }
 
     /**

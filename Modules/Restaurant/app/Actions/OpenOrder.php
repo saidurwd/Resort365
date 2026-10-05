@@ -7,6 +7,7 @@ use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Restaurant\Enums\OrderStatus;
 use Modules\Restaurant\Enums\OrderType;
 use Modules\Restaurant\Enums\TableStatus;
+use Modules\Restaurant\Events\TableStatusChanged;
 use Modules\Restaurant\Exceptions\PosNotAllowed;
 use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\Outlet;
@@ -52,6 +53,7 @@ class OpenOrder extends Action
             ]);
 
             $table?->forceFill(['status' => TableStatus::Occupied])->save();
+            TableStatusChanged::dispatch($order->tenant_id, $outlet->id, $table instanceof DiningTable ? [$table->id] : []);
 
             return $order;
         });

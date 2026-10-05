@@ -8,12 +8,17 @@ use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
+use Modules\Restaurant\Auth\StationDisplay;
+use Modules\Restaurant\Broadcasting\RestaurantChannels;
+use Modules\Restaurant\Http\Middleware\EnsureKdsStation;
 use Modules\Restaurant\Http\Middleware\EnsurePosStaff;
 use Modules\Restaurant\Http\Middleware\EnsurePosTerminal;
 use Modules\Restaurant\Models\ComboComponent;
@@ -40,6 +45,8 @@ use Modules\Restaurant\Policies\MenuItemPolicy;
 use Modules\Restaurant\Policies\OutletPolicy;
 use Modules\Restaurant\Policies\PosOrderPolicy;
 use Modules\Restaurant\Policies\PrinterPolicy;
+use Modules\Restaurant\Services\KdsContext;
+use Modules\Restaurant\Services\KdsDevice;
 use Modules\Restaurant\Services\PosContext;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -70,6 +77,10 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->scoped(PosContext::class);
+        $this->app->scoped(KdsContext::class);
+
+        // The `kds` guard: a kitchen display signed in with its station's device token (Step 3.5).
+        config(['auth.guards.kds' => ['driver' => 'kds-display']]);
     }
 
     public function boot(): void
@@ -102,6 +113,9 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         Gate::policy(MenuItemModel::class, MenuItemPolicy::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.terminal', EnsurePosTerminal::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.staff', EnsurePosStaff::class);
+        $this->app->make(Router::class)->aliasMiddleware('kds.station', EnsureKdsStation::class);
+        Auth::viaRequest('kds-display', fn (Request $request): ?StationDisplay => ($station = app(KdsDevice::class)->fromRequest($request)) instanceof KitchenStation ? new StationDisplay($station) : null);
+        RestaurantChannels::register();
         Gate::policy(Outlet::class, OutletPolicy::class);
         Gate::policy(Printer::class, PrinterPolicy::class);
 
@@ -124,6 +138,7 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('restaurant.order.take', 'Take orders and send them to the kitchen', [...$managers, DefaultRole::Waiter, DefaultRole::Bartender, DefaultRole::OutletCashier]),
             new PermissionDefinition('restaurant.order.void', 'Void items sent to the kitchen (others need a manager\'s PIN)', $managers),
             new PermissionDefinition('restaurant.order.open-item', 'Price open items', [...$managers, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.kds.use', 'Open a station\'s kitchen display and move tickets on', [...$managers, DefaultRole::Chef, DefaultRole::Bartender]),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
@@ -138,6 +153,8 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             permission: 'restaurant.menu.view', module: 'restaurant', active: 'restaurant.menu.modifiers.*'));
         $menu->add(new MenuItem('restaurant.sessions', 'POS sessions', route: 'restaurant.sessions.index', parent: 'restaurant', order: 18,
             permission: 'restaurant.session.view', module: 'restaurant', active: 'restaurant.sessions.*'));
+        $menu->add(new MenuItem('restaurant.kds', 'Kitchen display', route: 'kds.stations', parent: 'restaurant', order: 19,
+            permission: 'restaurant.kds.use', module: 'restaurant', active: 'kds.*'));
         $menu->add(new MenuItem('restaurant.printers', 'Printers', route: 'restaurant.printers.index', parent: 'restaurant', order: 20,
             permission: 'restaurant.outlet.view', module: 'restaurant', active: 'restaurant.printers.*'));
         $menu->add(new MenuItem('restaurant.access', 'Outlet access', route: 'restaurant.access.index', parent: 'restaurant', order: 30,
@@ -150,5 +167,9 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             SettingScope::Property, 'Restaurant', help: 'The person on a POS terminal is signed out after this many minutes without using it. 0 = never.', rules: ['min:0', 'max:120']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.session_variance_limit', 'Cash difference needing a manager', SettingType::Decimal, '500',
             SettingScope::Property, 'Restaurant', help: 'Closing a POS session with a larger cash over or short needs a manager\'s PIN.', rules: ['min:0']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.kds_warn_minutes', 'Kitchen ticket turns amber after (minutes)', SettingType::Integer, 10,
+            SettingScope::Property, 'Restaurant', help: 'On the kitchen display, a ticket waiting this long is shown in amber.', rules: ['min:1', 'max:240']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.kds_late_minutes', 'Kitchen ticket turns red after (minutes)', SettingType::Integer, 20,
+            SettingScope::Property, 'Restaurant', help: 'On the kitchen display, a ticket waiting this long is shown in red as late.', rules: ['min:1', 'max:240']));
     }
 }

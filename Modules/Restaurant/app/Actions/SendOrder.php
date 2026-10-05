@@ -7,6 +7,7 @@ use Modules\Restaurant\Enums\Course;
 use Modules\Restaurant\Enums\KotStatus;
 use Modules\Restaurant\Enums\KotType;
 use Modules\Restaurant\Enums\OrderLineStatus;
+use Modules\Restaurant\Events\KotSent;
 use Modules\Restaurant\Exceptions\PosNotAllowed;
 use Modules\Restaurant\Models\Kot;
 use Modules\Restaurant\Models\KotLine;
@@ -18,7 +19,7 @@ use Modules\Restaurant\Services\PosNumbers;
 /**
  * Sends an order to the kitchen (ARCHITECTURE §5.10.6): the pending lines not on hold — or, firing a
  * course, its held lines — are grouped by station into one KOT each, numbered per outlet and business
- * date, and become sent. TODO(step-3.5): tell the stations' kitchen displays at once.
+ * date, and become sent. Each station's kitchen display hears of its ticket at once (KotSent).
  */
 class SendOrder extends Action
 {
@@ -67,6 +68,7 @@ class SendOrder extends Action
 
                 PosOrderLine::query()->whereIn('id', $lineIds)->update(['status' => OrderLineStatus::Sent->value, 'is_held' => false, 'sent_at' => $now]);
                 $kots[] = $kot;
+                KotSent::dispatch($locked->tenant_id, $locked->outlet_id, $kot->kitchen_station_id, $locked->id, [$kot->id]);
             }
 
             return $kots;

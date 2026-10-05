@@ -5,7 +5,8 @@
 
 {{--
     POS layout (ARCHITECTURE §10.1, AD-15): full screen for touch tablets on the service floor, no
-    sidebar, touch targets of at least 48 px, light or dark per device (bars).
+    sidebar, touch targets of at least 48 px, light or dark per device (bars). Staff who take orders see
+    the kitchen's "ready to serve" notices here (Step 3.5).
 
     <x-layouts::pos :title="__('POS')" :terminal="$terminal">…</x-layouts::pos>
 --}}
@@ -24,7 +25,8 @@
         } catch (e) {}
     </script>
 </head>
-<body class="pos" x-data="{ dark: document.documentElement.getAttribute('data-bs-theme') === 'dark' }">
+<body class="pos" data-theme-key="pos-theme" data-theme-default="light"
+    x-data="{ dark: (() => { try { return (localStorage.getItem('pos-theme') || 'light') === 'dark' } catch (e) { return false } })() }">
     <header class="pos-bar">
         <span class="pos-bar__brand"><i class="bi bi-cup-hot"></i> {{ $terminal?->outlet->name ?? config('app.name') }}</span>
         @if ($terminal)
@@ -49,5 +51,26 @@
         <x-flash-messages />
         {{ $slot }}
     </main>
+
+    @if ($user && $terminal && $user->can('restaurant.order.take'))
+        {{-- "Ready to serve" and 86 notices from the kitchen (Step 3.5). --}}
+        <div class="pos-notices" aria-live="polite" x-data="posReady(@js([
+            'channel' => \Modules\Restaurant\Broadcasting\RestaurantChannels::outlet($terminal->tenant_id, $terminal->outlet_id),
+            'urls' => ['ready' => route('pos.ready'), 'order' => route('pos.orders.show', ['order' => '__ORDER__'])],
+            'userId' => $user->getAuthIdentifier(),
+            'labels' => ['table' => __('Table'), 'ready' => __('ready to serve')],
+        ]))">
+            <template x-for="notice in notices" :key="notice.key">
+                <div class="pos-notice" :class="{ 'pos-notice--mine': notice.mine }" role="status" data-notice>
+                    <i class="bi" :class="notice.icon"></i>
+                    <a :href="notice.url" class="pos-notice__text" x-show="notice.url">
+                        <span class="fw-semibold" x-text="notice.title"></span><span class="d-block small" x-text="notice.body"></span>
+                    </a>
+                    <span class="pos-notice__text fw-semibold" x-show="! notice.url" x-text="notice.title"></span>
+                    <button type="button" class="btn-close" @click="dismiss(notice.key)" aria-label="{{ __('Close') }}"></button>
+                </div>
+            </template>
+        </div>
+    @endif
 </body>
 </html>

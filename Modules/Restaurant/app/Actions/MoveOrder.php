@@ -7,6 +7,7 @@ use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\OrderStatus;
 use Modules\Restaurant\Enums\OrderType;
 use Modules\Restaurant\Enums\TableStatus;
+use Modules\Restaurant\Events\TableStatusChanged;
 use Modules\Restaurant\Exceptions\PosNotAllowed;
 use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\PosOrder;
@@ -44,6 +45,7 @@ class MoveOrder extends Action
             $this->free($locked->dining_table_id);
             $locked->forceFill(['dining_table_id' => $table->id, 'order_type' => OrderType::DineIn])->save();
             $table->forceFill(['status' => TableStatus::Occupied])->save();
+            TableStatusChanged::dispatch($locked->tenant_id, $locked->outlet_id, array_values(array_filter([$order->dining_table_id, $table->id])));
 
             return $locked;
         });
@@ -68,6 +70,7 @@ class MoveOrder extends Action
             $locked->forceFill(['covers' => $locked->covers + $other->covers])->save();
             $this->free($other->dining_table_id);
             $this->totals->refresh($locked);
+            TableStatusChanged::dispatch($locked->tenant_id, $locked->outlet_id, $other->dining_table_id === null ? [] : [$other->dining_table_id]);
 
             return $locked;
         });
@@ -88,6 +91,7 @@ class MoveOrder extends Action
             PosOrderLine::query()->where('pos_order_id', $locked->id)->delete();
             $locked->forceFill(['status' => OrderStatus::Cancelled, 'closed_at' => now(), 'subtotal' => '0.00'])->save();
             $this->free($locked->dining_table_id);
+            TableStatusChanged::dispatch($locked->tenant_id, $locked->outlet_id, $locked->dining_table_id === null ? [] : [$locked->dining_table_id]);
 
             return $locked;
         });

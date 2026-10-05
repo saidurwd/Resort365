@@ -7,6 +7,7 @@ use Modules\Restaurant\Enums\KotStatus;
 use Modules\Restaurant\Enums\KotType;
 use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\VoidReason;
+use Modules\Restaurant\Events\KotItemVoided;
 use Modules\Restaurant\Exceptions\PosNotAllowed;
 use Modules\Restaurant\Models\Kot;
 use Modules\Restaurant\Models\KotLine;
@@ -67,6 +68,7 @@ class VoidOrderLine extends Action
             ]);
             KotLine::query()->create(['property_id' => $order->property_id, 'kot_id' => $kot->id, 'pos_order_line_id' => $locked->id, 'quantity' => $locked->quantity, 'status' => KotStatus::New]);
             $this->totals->refresh($order);
+            KotItemVoided::dispatch($order->tenant_id, $order->outlet_id, $locked->kitchen_station_id, $order->id, $locked->id, $kot->id, $wastage);
 
             return $kot;
         });

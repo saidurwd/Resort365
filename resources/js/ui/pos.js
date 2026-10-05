@@ -1,4 +1,5 @@
 import { confirmAction } from './confirm';
+import { getJson, live } from './live';
 
 /**
  * POS screen helpers (Restaurant, ARCHITECTURE §10.1). The server checks everything again; these only
@@ -163,6 +164,55 @@ export function posOrder(state) {
         error: '',
         managerId: null,
         pin: '',
+        online: false,
+        polls: 0,
+
+        init() {
+            live({
+                channel: this.channel,
+                on: {
+                    'kot.status': (event) => event.order_id === this.order.id && this.reloadOrder(),
+                    'table.status': () => this.reloadOrder(),
+                    'menu.changed': () => this.reloadMenu(),
+                },
+                poll: () => {
+                    this.reloadOrder();
+                    // The menu changes rarely: reload it every sixth poll.
+                    if (this.polls++ % 6 === 0) {
+                        this.reloadMenu();
+                    }
+                },
+                onState: (state) => {
+                    this.online = state;
+                },
+            });
+        },
+
+        async reloadOrder() {
+            if (this.busy) {
+                return;
+            }
+
+            const data = await getJson(this.urls.order);
+
+            if (data?.order) {
+                if (data.order.status !== 'open') {
+                    window.location = this.urls.floor;
+
+                    return;
+                }
+
+                this.order = data.order;
+            }
+        },
+
+        async reloadMenu() {
+            const data = await getJson(this.urls.menu);
+
+            if (data?.menu) {
+                this.menu = data.menu;
+            }
+        },
 
         get items() {
             const term = this.search.trim().toLowerCase();

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Restaurant\Http\Controllers\Kds\KdsController;
 use Modules\Restaurant\Http\Controllers\MenuCategoryController;
 use Modules\Restaurant\Http\Controllers\MenuImportController;
 use Modules\Restaurant\Http\Controllers\MenuItemController;
@@ -48,6 +49,7 @@ Route::prefix('restaurant')->name('restaurant.')->middleware(['auth', 'verified'
             Route::post('/terminals', 'storeTerminal')->name('terminals.store');
             Route::put('/terminals/{terminal}', 'updateTerminal')->name('terminals.update');
             Route::post('/terminals/{terminal}/token', 'newToken')->name('terminals.token');
+            Route::post('/stations/{station}/display-token', 'displayToken')->name('stations.display-token');
         });
     });
 
@@ -134,6 +136,11 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
                 Route::get('/orders/{order}', 'show')->name('orders.show');
                 Route::get('/kots/{kot}/print', 'printKot')->name('kots.print');
 
+                // Live updates (Step 3.5): what the screens reload when told of a change, or poll without WebSockets.
+                Route::get('/api/floor', 'floorData')->name('floor.data');
+                Route::get('/api/menu', 'menu')->name('menu');
+                Route::get('/api/ready', 'ready')->name('ready');
+
                 Route::prefix('api/orders/{order}')->name('orders.')->scopeBindings()->group(function (): void {
                     Route::get('/', 'data')->name('data');
                     Route::post('/lines', 'addLine')->name('lines.store');
@@ -147,5 +154,22 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
                 });
             });
         });
+    });
+});
+
+/*
+| The kitchen display (Step 3.5, ARCHITECTURE §10.1): a station's screen registered with its display
+| token (no idle timeout), or a person signed in to the app with restaurant.kds.use who picks a station.
+*/
+Route::prefix('kds')->name('kds.')->controller(KdsController::class)->group(function (): void {
+    Route::get('/register', 'register')->name('register');
+    Route::post('/register', 'storeDevice')->middleware('throttle:10,1')->name('register.store');
+    Route::get('/stations', 'stations')->middleware(['auth', 'verified', 'can:restaurant.kds.use'])->name('stations');
+
+    Route::middleware('kds.station')->group(function (): void {
+        Route::get('/', 'board')->name('board');
+        Route::post('/sign-out', 'signOut')->name('sign-out');
+        Route::get('/api/board', 'boardData')->name('api.board');
+        Route::post('/api/kots/{kot}', 'progress')->middleware('throttle:120,1')->name('api.progress');
     });
 });

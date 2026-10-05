@@ -11,6 +11,8 @@ import { tapeChart } from './ui/tape-chart';
 import { floorPlan } from './ui/floor-plan';
 import { priceList } from './ui/price-list';
 import { managerApproval, pinPad, posIdle, posOrder } from './ui/pos';
+import { posFloor, posReady } from './ui/pos-live';
+import { kdsBoard } from './ui/kds';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
 window.bootstrap = bootstrap;
@@ -23,6 +25,9 @@ Alpine.data('pinPad', pinPad);
 Alpine.data('managerApproval', managerApproval);
 Alpine.data('posIdle', posIdle);
 Alpine.data('posOrder', posOrder);
+Alpine.data('posFloor', posFloor);
+Alpine.data('posReady', posReady);
+Alpine.data('kdsBoard', kdsBoard);
 Alpine.start();
 
 /**
@@ -41,6 +46,26 @@ window.initUi = (root = document) => {
 
 initConfirm();
 initThemePersistence();
+
+// POS and kitchen screens keep their own colour mode per device (<body data-theme-key>), not the admin's:
+// re-apply it after AdminLTE's colour mode has run on load.
+document.addEventListener('DOMContentLoaded', () => {
+    const key = document.body?.dataset.themeKey;
+
+    if (!key) {
+        return;
+    }
+
+    let mode = document.body.dataset.themeDefault || 'light';
+
+    try {
+        mode = localStorage.getItem(key) || mode;
+    } catch {
+        // storage blocked: keep the default
+    }
+
+    document.documentElement.setAttribute('data-bs-theme', mode);
+});
 
 // A button that opens a modal with data-modal-action="url" points the modal's form at that URL
 // (one modal shared by every row of a list, e.g. lost & found's "Return / dispose").

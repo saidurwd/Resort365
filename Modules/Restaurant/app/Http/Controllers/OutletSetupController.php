@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
+use Modules\Restaurant\Actions\RegisterStationDisplay;
 use Modules\Restaurant\Actions\RegisterTerminal;
 use Modules\Restaurant\Actions\SaveDiningArea;
 use Modules\Restaurant\Actions\SaveDiningTable;
@@ -72,6 +73,23 @@ class OutletSetupController extends Controller
 
         return $this->back($outlet, 'terminals', __('New device token for :name; the old one no longer works.', ['name' => $terminal->name]))
             ->with('terminal_token', ['id' => $terminal->id, 'token' => $token]);
+    }
+
+    /**
+     * A (new) device token for the station's kitchen display, shown once.
+     */
+    public function displayToken(Outlet $outlet, KitchenStation $station, RegisterStationDisplay $register): RedirectResponse
+    {
+        Gate::authorize('update', $outlet);
+
+        try {
+            $token = $register->handle($station);
+        } catch (RestaurantSetupInvalid $exception) {
+            return $this->back($outlet, 'stations', null)->with('error', $exception->getMessage());
+        }
+
+        return $this->back($outlet, 'stations', __('Kitchen display token for :name; a screen with an older token is signed out.', ['name' => $station->name]))
+            ->with('display_token', ['id' => $station->id, 'token' => $token]);
     }
 
     public function storeArea(DiningAreaRequest $request, Outlet $outlet, SaveDiningArea $save): RedirectResponse

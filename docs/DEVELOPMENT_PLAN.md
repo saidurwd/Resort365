@@ -116,7 +116,7 @@ The AI ticks a step here when it commits the step.
 | **0. Foundation** | [x] 0.1 · [x] 0.2 · [x] 0.3 · [x] 0.4 · [x] 0.5 · [x] 0.6 · [x] 0.7 · [x] 0.8 |
 | **1. Property & Booking** | [x] 1.1 · [x] 1.2 · [x] 1.3 · [x] 1.4 · [x] 1.5 · [x] 1.6 · [x] 1.7 · [x] 1.8 |
 | **2. Front Office, Billing & Housekeeping** | [x] 2.1 · [x] 2.2 · [x] 2.3 · [x] 2.4 · [x] 2.5 · [x] 2.6 · [x] 2.7 |
-| **3. Restaurant POS** | [x] 3.1 · [x] 3.2 · [x] 3.3 · [x] 3.4 · [ ] 3.5 · [ ] 3.6 · [ ] 3.7 · [ ] 3.8 |
+| **3. Restaurant POS** | [x] 3.1 · [x] 3.2 · [x] 3.3 · [x] 3.4 · [x] 3.5 · [ ] 3.6 · [ ] 3.7 · [ ] 3.8 |
 | **4. Accounting** | [ ] 4.1 · [ ] 4.2 · [ ] 4.3 · [ ] 4.4 · [ ] 4.5 |
 | **5. Inventory & Procurement** | [ ] 5.1 · [ ] 5.2 · [ ] 5.3 · [ ] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7 · [ ] 5.8 |
 | **6. HR & Payroll** | [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 |

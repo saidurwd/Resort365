@@ -349,3 +349,43 @@ body.pos {
     position: absolute;
     width: 0;
 }
+
+// Kitchen notices (Step 3.5): "ready to serve" and 86 changes, bottom right of every POS screen.
+.pos-notices {
+    bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    max-width: min(420px, calc(100vw - 2rem));
+    position: fixed;
+    right: 1rem;
+    z-index: 1060;
+}
+
+.pos-notice {
+    align-items: center;
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-left: 6px solid var(--bs-success);
+    border-radius: var(--bs-border-radius);
+    box-shadow: var(--bs-box-shadow);
+    display: flex;
+    gap: .75rem;
+    min-height: 56px;
+    padding: .5rem .75rem;
+
+    > .bi {
+        color: var(--bs-success);
+        font-size: 1.4rem;
+    }
+}
+
+.pos-notice--mine {
+    background-color: var(--bs-success-bg-subtle);
+}
+
+.pos-notice__text {
+    color: var(--bs-body-color);
+    flex: 1 1 auto;
+    text-decoration: none;
+}

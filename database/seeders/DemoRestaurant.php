@@ -23,6 +23,7 @@ use Modules\Restaurant\Enums\OrderType;
 use Modules\Restaurant\Enums\TableShape;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
+use Modules\Restaurant\Models\KitchenStation;
 use Modules\Restaurant\Models\MenuItem;
 use Modules\Restaurant\Models\MenuItemVariant;
 use Modules\Restaurant\Models\Modifier;
@@ -108,6 +109,9 @@ final class DemoRestaurant
      *
      * @var array<string, string>
      */
+    /** The demo kitchen display token of the Main Restaurant's Hot kitchen (Step 3.5). */
+    public const string DEMO_DISPLAY_TOKEN = 'DEMO-HOT-KITCHEN-0001';
+
     public const array DEMO_PINS = ['waiter' => '1111', 'cashier' => '2222', 'bartender' => '3333', 'chef' => '4444', 'gm' => '8888', 'fnb' => '9999'];
 
     public static function pos(Tenant $tenant, int $propertyId, string $domain): void
@@ -125,6 +129,11 @@ final class DemoRestaurant
 
             PosTerminal::query()->where('property_id', $propertyId)->where('name', 'Cashier desk')
                 ->update(['device_token' => hash('sha256', self::DEMO_DEVICE_TOKEN)]);
+
+            // Step 3.5: the Main Restaurant's hot kitchen screen.
+            KitchenStation::query()->where('property_id', $propertyId)->where('name', 'Hot kitchen')
+                ->whereIn('outlet_id', Outlet::query()->where('code', 'MR')->select('id'))
+                ->update(['display_token' => hash('sha256', self::DEMO_DISPLAY_TOKEN)]);
         });
     }
 

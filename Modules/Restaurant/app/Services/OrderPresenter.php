@@ -29,7 +29,7 @@ class OrderPresenter
             'lines' => $order->lines->map(fn (PosOrderLine $line): array => [
                 'id' => $line->id, 'name' => $line->name_snapshot, 'variant' => $line->variant_snapshot, 'quantity' => $line->quantity, 'unit_price' => $line->unit_price,
                 'modifiers' => $line->modifiers ?? [], 'line_total' => $line->line_total, 'course' => $line->course->value, 'course_label' => $line->course->label(),
-                'seat' => $line->seat_no, 'notes' => $line->notes, 'status' => $line->status->value, 'status_label' => $line->status->label(), 'held' => $line->is_held,
+                'seat' => $line->seat_no, 'notes' => $line->notes, 'status' => $line->status->value, 'status_label' => $line->status->label(), 'status_color' => $line->status->color(), 'held' => $line->is_held,
                 'void_reason' => $line->void_reason?->label(),
             ])->values()->all(),
             'kots' => $order->kots->map(fn (Kot $kot): array => ['id' => $kot->id, 'no' => $kot->kot_no, 'type' => $kot->type->value, 'print' => in_array($kot->id, $printKotIds, true),

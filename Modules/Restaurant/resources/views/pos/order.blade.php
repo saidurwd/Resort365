@@ -71,7 +71,7 @@
                         <div class="small d-flex flex-wrap gap-1 mt-1">
                             <span class="badge text-bg-secondary" x-text="line.course_label"></span>
                             <span class="badge text-bg-secondary" x-show="line.seat" x-text="'{{ __('Seat') }} ' + line.seat"></span>
-                            <span class="badge" :class="{ 'text-bg-warning': line.held, 'text-bg-info': ! line.held && line.status === 'pending', 'text-bg-success': line.status === 'sent', 'text-bg-danger': line.status === 'voided' }"
+                            <span class="badge" :class="line.held ? 'text-bg-warning' : 'text-bg-' + line.status_color"
                                 x-text="line.held ? '{{ __('On hold') }}' : line.status_label" :data-line-status="line.status"></span>
                             <span class="small text-danger" x-show="line.void_reason" x-text="line.void_reason"></span>
                         </div>

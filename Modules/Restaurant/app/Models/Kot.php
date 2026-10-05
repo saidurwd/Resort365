@@ -17,8 +17,8 @@ use Modules\Restaurant\Enums\KotType;
 
 /**
  * A kitchen order ticket (ARCHITECTURE §5.10.6): what one Send (or one void) tells one station, numbered
- * per outlet and business date. Shown on the kitchen display (Step 3.5) and printed for stations
- * that print. A kitchen record, written once by SendOrder / VoidOrderLine, so not activity-logged.
+ * per outlet and business date. Shown on the kitchen display, which starts, readies and bumps it
+ * (Step 3.5), and printed for stations that print. A kitchen record, written once by SendOrder / VoidOrderLine, so not activity-logged.
  *
  * @property int $id
  * @property int $tenant_id
@@ -31,13 +31,16 @@ use Modules\Restaurant\Enums\KotType;
  * @property KotType $type
  * @property KotStatus $status
  * @property Carbon $fired_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $ready_at
+ * @property Carbon|null $done_at
  * @property Carbon|null $printed_at
  * @property int|null $created_by
  */
 #[UseFactory(KotFactory::class)]
 #[Fillable([
-    'property_id', 'outlet_id', 'pos_order_id', 'kitchen_station_id', 'kot_no', 'business_date', 'type', 'status', 'fired_at', 'printed_at',
-    'created_by',
+    'property_id', 'outlet_id', 'pos_order_id', 'kitchen_station_id', 'kot_no', 'business_date', 'type', 'status', 'fired_at', 'started_at',
+    'ready_at', 'done_at', 'printed_at', 'created_by',
 ])]
 class Kot extends Model
 {
@@ -57,6 +60,9 @@ class Kot extends Model
             'type' => KotType::class,
             'status' => KotStatus::class,
             'fired_at' => 'datetime',
+            'started_at' => 'datetime',
+            'ready_at' => 'datetime',
+            'done_at' => 'datetime',
             'printed_at' => 'datetime',
         ];
     }

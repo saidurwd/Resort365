@@ -1,0 +1,186 @@
+// Kitchen display (Restaurant, ARCHITECTURE §10.1, §10.3): a wall screen of ticket cards in three
+// columns, large type readable from a distance; amber and red as tickets wait.
+body.kds {
+    background-color: var(--bs-tertiary-bg);
+    min-height: 100vh;
+}
+
+.kds-bar {
+    align-items: center;
+    background-color: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    padding: .5rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.kds-bar__brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.kds-bar__meta {
+    color: var(--bs-secondary-color);
+    font-size: 1.1rem;
+}
+
+.kds-bar__live {
+    font-size: .95rem;
+    padding: .45rem .7rem;
+}
+
+.kds-main {
+    padding: 1rem;
+}
+
+.kds-board {
+    align-items: start;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    > .alert {
+        grid-column: 1 / -1;
+    }
+
+    @media (max-width: 900px) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.kds-column {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+
+.kds-column__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.kds-ticket {
+    background-color: var(--bs-body-bg);
+    border: 2px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    padding: .75rem;
+    transition: box-shadow .3s;
+}
+
+.kds-ticket--warn {
+    border-color: var(--bs-warning);
+
+    .kds-ticket__age {
+        color: var(--bs-warning-text-emphasis);
+    }
+}
+
+.kds-ticket--late {
+    background-color: var(--bs-danger-bg-subtle);
+    border-color: var(--bs-danger);
+
+    .kds-ticket__age {
+        color: var(--bs-danger-text-emphasis);
+    }
+}
+
+.kds-ticket--void {
+    background-color: var(--bs-danger-bg-subtle);
+    border-color: var(--bs-danger);
+    border-style: dashed;
+}
+
+.kds-ticket--fresh {
+    box-shadow: 0 0 0 4px var(--bs-info);
+}
+
+.kds-ticket__head {
+    align-items: baseline;
+    display: flex;
+    font-size: 1.2rem;
+    gap: .5rem;
+}
+
+.kds-ticket__no {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.kds-ticket__age {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.kds-ticket__meta {
+    color: var(--bs-secondary-color);
+    font-size: .95rem;
+}
+
+.kds-ticket__void {
+    color: var(--bs-danger-text-emphasis);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.kds-ticket__lines {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    li {
+        border-top: 1px solid var(--bs-border-color-translucent);
+        padding: .35rem 0;
+    }
+}
+
+.kds-line__item {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.kds-line__modifier,
+.kds-line__meta {
+    color: var(--bs-secondary-color);
+    font-size: 1rem;
+}
+
+.kds-line__modifier {
+    color: var(--bs-body-color);
+    padding-left: 1rem;
+}
+
+.kds-line__note {
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding-left: 1rem;
+}
+
+.kds-line__allergens {
+    background-color: var(--bs-warning-bg-subtle);
+    border-radius: var(--bs-border-radius-sm);
+    color: var(--bs-warning-text-emphasis);
+    display: inline-block;
+    font-weight: 700;
+    margin-top: .2rem;
+    padding: .1rem .4rem;
+}
+
+.kds-line--voided {
+    color: var(--bs-secondary-color);
+    text-decoration: line-through;
+}
+
+.kds-ticket__actions {
+    display: flex;
+    gap: .5rem;
+    margin-top: .25rem;
+}

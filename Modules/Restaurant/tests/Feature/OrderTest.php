@@ -11,27 +11,17 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Modules\Restaurant\Actions\RegisterTerminal;
 use Modules\Restaurant\Enums\KotType;
-use Modules\Restaurant\Enums\MenuItemKind;
 use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\OrderStatus;
-use Modules\Restaurant\Enums\StationOutput;
 use Modules\Restaurant\Enums\TableStatus;
-use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
-use Modules\Restaurant\Models\KitchenStation;
 use Modules\Restaurant\Models\Kot;
-use Modules\Restaurant\Models\MenuItem;
-use Modules\Restaurant\Models\MenuItemVariant;
-use Modules\Restaurant\Models\Modifier;
-use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
-use Modules\Restaurant\Models\PosTerminal;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
-use Symfony\Component\HttpFoundation\Response;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\json;
@@ -45,116 +35,6 @@ beforeEach(function (): void {
     bookingSetup(withDefaultRoles(Tenant::factory()->create(['slug' => 'sunrise'])));
     Notification::fake();
 });
-
-/**
- * The Main Restaurant's terminal, three tables, a Hot kitchen (prints), a Grill (display only) and a
- * Bar (prints), and a small menu: curry (Half/Full, spice level required), naan (add-ons), lava cake,
- * mojito, lemonade, an open item, a sold-out item, and an item another outlet sells.
- *
- * @return array{terminal: PosTerminal, tables: array<string, int>, items: array<string, int>, variants: array<string, int>, modifiers: array<string, int>, stations: array<string, int>}
- */
-function orderSetup(): array
-{
-    [$terminal] = posTerminal();
-
-    return booking(function () use ($terminal): array {
-        $outlet = $terminal->outlet;
-        $other = Outlet::factory()->create(['property_id' => $outlet->property_id, 'code' => 'PB', 'name' => 'Pool Bar']);
-        $area = DiningArea::factory()->create(['outlet_id' => $outlet->id, 'name' => 'Indoor']);
-        $tables = [];
-
-        foreach (['T1', 'T2', 'T3'] as $number) {
-            $tables[$number] = DiningTable::factory()->create(['outlet_id' => $outlet->id, 'dining_area_id' => $area->id, 'number' => $number])->id;
-        }
-
-        $stations = [];
-
-        foreach (['Hot kitchen' => StationOutput::Both, 'Grill' => StationOutput::Display, 'Bar' => StationOutput::Printer] as $name => $output) {
-            $stations[$name] = KitchenStation::factory()->create(['outlet_id' => $outlet->id, 'name' => $name, 'output' => $output, 'sort_order' => count($stations)])->id;
-        }
-
-        $spice = ModifierGroup::factory()->create(['name' => 'Spice level', 'min_select' => 1, 'max_select' => 1]);
-        $addOns = ModifierGroup::factory()->create(['name' => 'Add-ons', 'min_select' => 0, 'max_select' => 2]);
-        $modifiers = [
-            'mild' => Modifier::factory()->create(['modifier_group_id' => $spice->id, 'name' => 'Mild'])->id,
-            'hot' => Modifier::factory()->create(['modifier_group_id' => $spice->id, 'name' => 'Hot'])->id,
-            'butter' => Modifier::factory()->create(['modifier_group_id' => $addOns->id, 'name' => 'Extra butter', 'price_delta' => '30.00'])->id,
-            'garlic' => Modifier::factory()->create(['modifier_group_id' => $addOns->id, 'name' => 'Garlic', 'price_delta' => '20.00'])->id,
-        ];
-
-        $items = [];
-        $variants = [];
-        $sell = function (string $key, string $name, string $course, string $price, ?string $station, array $extra = [], ?Outlet $at = null) use (&$items, $outlet, $stations): MenuItem {
-            $item = MenuItem::factory()->create(['code' => strtoupper($key), 'name' => ['en' => $name], 'course' => $course, ...$extra]);
-            $items[$key] = $item->id;
-            OutletMenuItem::factory()->create(['outlet_id' => ($at ?? $outlet)->id, 'menu_item_id' => $item->id, 'price' => $price, 'kitchen_station_id' => $station !== null ? $stations[$station] : null]);
-
-            return $item;
-        };
-
-        $curry = MenuItem::factory()->create(['code' => 'CURRY', 'name' => ['en' => 'Chicken curry'], 'course' => 'main']);
-        $items['curry'] = $curry->id;
-        $curry->modifierGroups()->attach($spice->id, ['tenant_id' => $curry->tenant_id, 'sort_order' => 0]);
-
-        foreach (['Half' => '380.00', 'Full' => '650.00'] as $size => $price) {
-            $variant = MenuItemVariant::factory()->create(['menu_item_id' => $curry->id, 'name' => $size]);
-            $variants[$size] = $variant->id;
-            OutletMenuItem::factory()->create(['outlet_id' => $outlet->id, 'menu_item_id' => $curry->id, 'menu_item_variant_id' => $variant->id, 'variant_key' => $variant->id,
-                'price' => $price, 'kitchen_station_id' => $stations['Hot kitchen']]);
-        }
-
-        $naan = $sell('naan', 'Naan', 'side', '100.00', 'Hot kitchen');
-        $naan->modifierGroups()->attach($addOns->id, ['tenant_id' => $naan->tenant_id, 'sort_order' => 0]);
-        $sell('cake', 'Lava cake', 'dessert', '450.00', 'Hot kitchen');
-        $sell('mojito', 'Virgin mojito', 'drink', '350.00', 'Bar');
-        $sell('lemonade', 'Lemonade', 'drink', '200.00', 'Bar');
-        $sell('steak', 'Steak', 'main', '1800.00', null);
-        $sell('special', 'Chef\'s special', 'main', '0.00', 'Hot kitchen', ['kind' => MenuItemKind::Open]);
-        $sell('lobster', 'Lobster', 'main', '3500.00', 'Hot kitchen');
-        OutletMenuItem::query()->where('menu_item_id', $items['lobster'])->update(['is_available' => false]);
-        $sell('beer', 'Pool bar only', 'drink', '300.00', null, [], $other);
-
-        return ['terminal' => $terminal, 'tables' => $tables, 'items' => $items, 'variants' => $variants, 'modifiers' => $modifiers, 'stations' => $stations];
-    });
-}
-
-/**
- * A member of staff signed in by PIN on the terminal.
- */
-function onTerminal(PosTerminal $terminal, DefaultRole $role, string $pin): void
-{
-    $user = posStaff($role, $pin, $terminal);
-    onDevice($terminal);
-    pinSignIn($user, $pin)->assertRedirect(tenantUrl('sunrise', '/pos/main'));
-}
-
-/**
- * @param  array<string, mixed>  $data
- * @return TestResponse<Response>
- */
-function orderApi(string $method, PosOrder|int $order, string $path = '', array $data = []): TestResponse
-{
-    $id = $order instanceof PosOrder ? $order->id : $order;
-
-    return json($method, tenantUrl('sunrise', '/pos/api/orders/'.$id.$path), $data);
-}
-
-function openTable(int $tableId, int $covers = 2): PosOrder
-{
-    post(tenantUrl('sunrise', '/pos/orders'), ['type' => 'dine_in', 'table_id' => $tableId, 'covers' => $covers])->assertRedirect();
-
-    return booking(fn (): PosOrder => PosOrder::query()->where('dining_table_id', $tableId)->where('status', 'open')->sole());
-}
-
-function storedLine(int $id): PosOrderLine
-{
-    return booking(fn (): PosOrderLine => PosOrderLine::query()->findOrFail($id));
-}
-
-function storedOrder(int $id): PosOrder
-{
-    return booking(fn (): PosOrder => PosOrder::query()->findOrFail($id));
-}
 
 it('takes a table\'s order with modifiers and sends one ticket per station (done when)', function (): void {
     $setup = orderSetup();
