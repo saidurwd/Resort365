@@ -3,6 +3,7 @@
 namespace Modules\Billing\Actions;
 
 use App\Support\Actions\Action;
+use App\Support\Cash\CashCount;
 use Brick\Math\BigDecimal;
 use Modules\Billing\Enums\CashierShiftStatus;
 use Modules\Billing\Enums\PaymentMethod;
@@ -11,7 +12,6 @@ use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Exceptions\PaymentNotAllowed;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\Payment;
-use Modules\Billing\Services\CashCount;
 
 /**
  * Closes a shift with the cash counted by denomination (ARCHITECTURE §5.9): the cash received and

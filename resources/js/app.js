@@ -10,6 +10,7 @@ import { initThemePersistence } from './ui/theme';
 import { tapeChart } from './ui/tape-chart';
 import { floorPlan } from './ui/floor-plan';
 import { priceList } from './ui/price-list';
+import { managerApproval, pinPad, posIdle } from './ui/pos';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
 window.bootstrap = bootstrap;
@@ -18,6 +19,9 @@ window.Alpine = Alpine;
 Alpine.data('tapeChart', tapeChart);
 Alpine.data('floorPlan', floorPlan);
 Alpine.data('priceList', priceList);
+Alpine.data('pinPad', pinPad);
+Alpine.data('managerApproval', managerApproval);
+Alpine.data('posIdle', posIdle);
 Alpine.start();
 
 /**

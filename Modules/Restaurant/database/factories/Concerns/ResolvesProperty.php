@@ -66,4 +66,29 @@ trait ResolvesProperty
             'name' => 'Area '.fake()->unique()->numberBetween(1, 99999), 'created_at' => now(), 'updated_at' => now(),
         ]);
     }
+
+    /**
+     * A user of the property's tenant (a new one each time).
+     */
+    protected function userId(int $propertyId): int
+    {
+        return DB::table('users')->insertGetId([
+            'tenant_id' => (int) DB::table('properties')->where('id', $propertyId)->value('tenant_id'), 'name' => fake()->name(), 'email' => fake()->unique()->safeEmail(),
+            'password' => bcrypt('password'), 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * A terminal of the outlet (or a new one).
+     */
+    protected function terminalId(int $outletId): int
+    {
+        $outlet = DB::table('outlets')->where('id', $outletId)->first(['tenant_id', 'property_id']);
+        $existing = DB::table('pos_terminals')->where('outlet_id', $outletId)->orderBy('id')->value('id');
+
+        return is_numeric($existing) ? (int) $existing : DB::table('pos_terminals')->insertGetId([
+            'tenant_id' => $outlet?->tenant_id, 'property_id' => $outlet?->property_id, 'outlet_id' => $outletId, 'name' => 'Tablet',
+            'device_token' => hash('sha256', fake()->unique()->uuid()), 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
 }

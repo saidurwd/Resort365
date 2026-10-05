@@ -1,0 +1,145 @@
+// POS layout (Restaurant, ARCHITECTURE §10.1): full screen, touch targets of at least 48 px.
+body.pos {
+    background-color: var(--bs-tertiary-bg);
+    min-height: 100vh;
+}
+
+.pos-bar {
+    align-items: center;
+    background-color: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    padding: .5rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.pos-bar__brand {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.pos-bar__meta,
+.pos-bar__user {
+    color: var(--bs-secondary-color);
+}
+
+.pos-bar__badge {
+    font-size: .9rem;
+    padding: .5rem .75rem;
+}
+
+.pos-btn {
+    min-height: 48px;
+    min-width: 48px;
+}
+
+.pos-main {
+    margin: 0 auto;
+    max-width: 1200px;
+    padding: 1rem;
+}
+
+.pos-card {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    max-width: 640px;
+    padding: 1.25rem;
+}
+
+.pos-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+
+    .pos-card {
+        max-width: none;
+    }
+}
+
+// Lock screen: staff tiles and the PIN pad.
+.pos-lock {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.pos-staff {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+}
+
+.pos-staff__tile {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    min-height: 96px;
+    padding: .75rem;
+}
+
+.pos-keypad {
+    max-width: 360px;
+}
+
+.pos-keypad__display {
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    font-size: 1.75rem;
+    letter-spacing: .5rem;
+    margin-bottom: .75rem;
+    min-height: 64px;
+    padding: .5rem 1rem;
+    text-align: center;
+}
+
+.pos-keypad__keys {
+    display: grid;
+    gap: .5rem;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.pos-keypad__key {
+    font-size: 1.5rem;
+    min-height: 64px;
+}
+
+// Closing a session: a count field per note and coin.
+.pos-count {
+    display: grid;
+    gap: .5rem;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.pos-count__row {
+    align-items: center;
+    display: flex;
+    gap: .5rem;
+
+    span {
+        min-width: 3rem;
+        text-align: right;
+    }
+
+    input {
+        min-height: 48px;
+    }
+}
+
+.pos-approval {
+    background-color: var(--bs-warning-bg-subtle);
+    border: 1px solid var(--bs-warning-border-subtle);
+    border-radius: var(--bs-border-radius);
+    margin-top: 1rem;
+    padding: 1rem;
+}
+
+.pos-approval__pin {
+    max-width: 10rem;
+}

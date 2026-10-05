@@ -1,5 +1,6 @@
 @props([
     'title' => null,
+    'paper' => 'a4',
 ])
 
 {{-- A4 document layout (invoices, vouchers, payslips). No app chrome; the toolbar is hidden when printing. --}}
@@ -14,7 +15,7 @@
     @fonts
     @vite('resources/scss/print.scss')
 </head>
-<body class="print-document">
+<body @class(['print-document', 'print-document--receipt' => $paper === 'receipt'])>
     <div class="print-toolbar d-flex justify-content-end gap-2">
         <a href="{{ url()->previous() }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left"></i> {{ __('Back') }}

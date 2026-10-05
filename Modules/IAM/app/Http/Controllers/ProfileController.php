@@ -8,12 +8,15 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\View\View;
 use Modules\IAM\Actions\UpdatePreferences;
+use Modules\IAM\Contracts\PosPins;
+use Modules\IAM\Exceptions\PosPinNotAllowed;
+use Modules\IAM\Http\Requests\UpdatePosPinRequest;
 use Modules\IAM\Http\Requests\UpdatePreferencesRequest;
 use Modules\IAM\Models\User;
 
 /**
  * The signed-in user's own profile: details and password (posted to Fortify),
- * preferences, two-factor authentication and recent sign-ins.
+ * preferences, the POS PIN, two-factor authentication and recent sign-ins.
  */
 class ProfileController extends Controller
 {
@@ -37,6 +40,25 @@ class ProfileController extends Controller
         }
 
         return to_route('iam.profile.show')->with('success', __('Preferences saved.'));
+    }
+
+    public function updatePosPin(UpdatePosPinRequest $request, PosPins $pins): RedirectResponse
+    {
+        $user = $this->user($request);
+
+        if ($request->boolean('remove')) {
+            $pins->clear($user->id);
+
+            return redirect()->to(route('iam.profile.show').'#pos-pin')->with('success', __('POS PIN removed.'));
+        }
+
+        try {
+            $pins->set($user->id, (string) $request->validated('pin'));
+        } catch (PosPinNotAllowed $exception) {
+            return redirect()->to(route('iam.profile.show').'#pos-pin')->withErrors(['pin' => $exception->getMessage()], 'posPin');
+        }
+
+        return redirect()->to(route('iam.profile.show').'#pos-pin')->with('success', __('POS PIN saved.'));
     }
 
     private function user(Request $request): User

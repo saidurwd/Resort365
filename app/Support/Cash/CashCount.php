@@ -1,12 +1,12 @@
 <?php
 
-namespace Modules\Billing\Services;
+namespace App\Support\Cash;
 
 use Brick\Math\BigDecimal;
 use InvalidArgumentException;
 
 /**
- * Cash-count arithmetic for closing a shift (ARCHITECTURE §5.9), without the database: the counted
+ * Cash-count arithmetic for closing a cashier shift or a POS session (ARCHITECTURE §5.9, §5.10.11), without the database: the counted
  * cash from notes and coins by denomination, the cash the drawer should hold and the variance.
  * Amounts are decimal strings with two decimals; a positive variance is cash over, negative short.
  */

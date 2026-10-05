@@ -189,6 +189,7 @@ flowchart TD
 4. Sensitive actions need specific permissions: override rates, waive deposit, void payment, reopen closed period, approve payroll, void a KOT item, give a restaurant discount, issue a complimentary bill.
 5. Restaurant staff can be restricted to specific **outlets** (`outlet_user` pivot), in the same way as properties.
 6. On shared POS terminals, a manager can approve a single action (void, discount) by entering a **manager PIN** without logging the waiter out. The approval is recorded against the manager.
+   *Step 3.3 as built: staff POS PINs are 4–6 digits, unique per tenant, stored as an HMAC with the app key (IAM's `PosPins`), set on the profile with the password. A PIN signs a person in (the fast user switch) **only on a registered POS terminal** and only if they work in its outlet (`outlet_user` or `restaurant.outlet.access-all`), its property, and hold `restaurant.pos.use`; five wrong PINs lock that person on that terminal for 15 minutes; the terminal locks itself after `restaurant.pos_auto_lock_minutes` idle. A manager approval (`manager_approvals`) needs the action's permission, outlet access and the manager's PIN (not the requester's own), is valid 5 minutes and used once by the same action, subject and requester (`ManagerApprovals`). First use: closing a POS session with a cash difference above `restaurant.session_variance_limit`.*
 7. Platform super admins live in a separate table and auth guard (`platform`). They can impersonate a tenant user only with a reason, and every impersonation is audited.
 
 ---
@@ -692,6 +693,7 @@ Resort guests often book a rate that includes meals (CP = breakfast, MAP = half 
 - **Closing:** the cashier counts cash by denomination; the system compares it with expected cash and records any over/short with a reason. A **Z report** is produced and the session is locked.
 - A session cannot close while it has open bills; open bills must be settled or transferred to another session.
 - The restaurant uses the property's **business date**. Night audit is blocked until all outlet sessions for the day are closed (or force-closed by a manager).
+- *Implemented in Step 3.3: a tablet becomes a terminal by entering its device token once (`/pos/register`; an encrypted cookie "terminal id | token hash", `EnsurePosTerminal`); the lock screen shows the staff who may work there and a PIN pad; `pos_sessions` (one open per terminal via `open_terminal_id`) open with a float on the business date, X report at any time, close with a count by denomination (`App\Support\Cash\CashCount`, shared with Billing's cashier shifts; `billing.cash_denominations`), a reason for a difference and a manager PIN above the limit, Z report on 80 mm paper (`<x-layouts::print paper="receipt">`). Restaurant → POS sessions lists them. Not yet: cash payments and open bills (Step 3.6, `SessionCash`), the night-audit check (Step 3.7).*
 
 #### 5.10.12 Restaurant Table Reservations
 
@@ -1392,6 +1394,7 @@ Unique: `(outlet_id, bill_no)`
 - **Sidebar:** built dynamically from the menu registry. Items are filtered by the user's permissions **and** by the modules enabled for the tenant.
 - Responsive; must be usable on a tablet at the front desk.
 - **Separate POS layout** (`layouts/pos.blade.php`) for the restaurant service floor: full screen, no sidebar, large touch targets (minimum 48 px), a dark theme option for bars, and a fast user switch by PIN. It uses the same Bootstrap 5 and design tokens as AdminLTE, so it looks like part of the same product.
+  *Step 3.3 as built: `<x-layouts::pos :terminal>` with a top bar (outlet, terminal, business date, session, user, Switch user, light/dark kept per device in `localStorage` `pos-theme`); Alpine components `pinPad`, `managerApproval` and `posIdle` in `resources/js/ui/pos.js`.*
 - **Kitchen display layout** (`layouts/kds.blade.php`): full-screen ticket board for wall-mounted screens, readable from a distance, with no login timeout (it signs in as a station device).
 
 ### 10.2 Sidebar Menu

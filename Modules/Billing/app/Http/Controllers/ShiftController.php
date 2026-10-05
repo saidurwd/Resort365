@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Http\Controllers;
 
+use App\Support\Cash\CashCount;
 use App\Support\Tenancy\PropertyContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +18,6 @@ use Modules\Billing\Http\Requests\CloseShiftRequest;
 use Modules\Billing\Http\Requests\OpenShiftRequest;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\Payment;
-use Modules\Billing\Services\CashCount;
 use Modules\Billing\Services\ShiftRegister;
 use Modules\Billing\Services\ShiftsTable;
 use Modules\Core\Contracts\Settings;

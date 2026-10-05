@@ -8,6 +8,9 @@ use Modules\Restaurant\Http\Controllers\ModifierGroupController;
 use Modules\Restaurant\Http\Controllers\OutletAccessController;
 use Modules\Restaurant\Http\Controllers\OutletController;
 use Modules\Restaurant\Http\Controllers\OutletSetupController;
+use Modules\Restaurant\Http\Controllers\Pos\PosController;
+use Modules\Restaurant\Http\Controllers\Pos\PosSessionController;
+use Modules\Restaurant\Http\Controllers\PosSessionsController;
 use Modules\Restaurant\Http\Controllers\PriceListController;
 use Modules\Restaurant\Http\Controllers\PrinterController;
 
@@ -92,6 +95,36 @@ Route::prefix('restaurant')->name('restaurant.')->middleware(['auth', 'verified'
         });
     });
 
+    Route::middleware('can:restaurant.session.view')->group(function (): void {
+        Route::get('/sessions', [PosSessionsController::class, 'index'])->name('sessions.index');
+        Route::get('/sessions/data', [PosSessionsController::class, 'data'])->name('sessions.data');
+        Route::get('/sessions/{session}/report', [PosSessionsController::class, 'report'])->name('sessions.report');
+    });
+
     Route::get('/access', [OutletAccessController::class, 'index'])->middleware('can:restaurant.access.manage')->name('access.index');
     Route::put('/access', [OutletAccessController::class, 'update'])->middleware('can:restaurant.access.manage')->name('access.update');
+});
+
+/*
+| The POS (ARCHITECTURE §10.1, full-screen layout): only on registered terminals (pos.terminal), and
+| for actions only with a person signed in by PIN who may work there (pos.staff). Not behind the
+| normal auth middleware: the lock screen is the POS's own sign-in.
+*/
+Route::prefix('pos')->name('pos.')->group(function (): void {
+    Route::get('/register', [PosController::class, 'register'])->name('register');
+    Route::post('/register', [PosController::class, 'storeDevice'])->middleware('throttle:10,1')->name('register.store');
+
+    Route::middleware('pos.terminal')->group(function (): void {
+        Route::get('/', [PosController::class, 'home'])->name('home');
+        Route::post('/sign-in', [PosController::class, 'signIn'])->middleware('throttle:30,1')->name('sign-in');
+        Route::post('/lock', [PosController::class, 'lock'])->name('lock');
+
+        Route::middleware('pos.staff')->group(function (): void {
+            Route::get('/main', [PosSessionController::class, 'main'])->name('main');
+            Route::post('/session', [PosSessionController::class, 'open'])->name('session.open');
+            Route::post('/session/close', [PosSessionController::class, 'close'])->name('session.close');
+            Route::get('/sessions/{session}/report', [PosSessionController::class, 'report'])->name('sessions.report');
+            Route::post('/api/approvals', [PosSessionController::class, 'approve'])->middleware('throttle:30,1')->name('approvals.store');
+        });
+    });
 });

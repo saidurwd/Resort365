@@ -27,6 +27,7 @@ Route::prefix('iam')->name('iam.')->group(function (): void {
     Route::middleware(['auth', 'verified'])->group(function (): void {
         Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
         Route::patch('/profile/preferences', [ProfileController::class, 'updatePreferences'])->name('profile.preferences.update');
+        Route::put('/profile/pos-pin', [ProfileController::class, 'updatePosPin'])->middleware('throttle:10,1')->name('profile.pos-pin.update');
 
         Route::middleware('can:iam.user.view')->group(function (): void {
             Route::get('/users', [UserController::class, 'index'])->name('users.index');

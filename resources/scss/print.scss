@@ -64,3 +64,29 @@ body.print-document {
         width: auto;
     }
 }
+
+// 80 mm thermal paper (POS X/Z reports; bills from Step 3.6): <x-layouts::print paper="receipt">.
+@page receipt {
+    margin: 4mm 3mm;
+    size: 80mm auto;
+}
+
+.print-document--receipt {
+    font-size: 0.8rem;
+
+    .print-sheet {
+        min-height: 0;
+        padding: 6mm 4mm;
+        page: receipt;
+        width: 80mm;
+    }
+
+    .print-toolbar {
+        width: 80mm;
+    }
+
+    .table {
+        --bs-table-cell-padding-y: 0.15rem;
+        --bs-table-cell-padding-x: 0;
+    }
+}

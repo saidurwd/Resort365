@@ -8,15 +8,19 @@ use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Gate;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
+use Modules\Restaurant\Http\Middleware\EnsurePosStaff;
+use Modules\Restaurant\Http\Middleware\EnsurePosTerminal;
 use Modules\Restaurant\Models\ComboComponent;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\KitchenStation;
+use Modules\Restaurant\Models\ManagerApproval;
 use Modules\Restaurant\Models\MenuCategory;
 use Modules\Restaurant\Models\MenuItem as MenuItemModel;
 use Modules\Restaurant\Models\MenuItemVariant;
@@ -25,11 +29,13 @@ use Modules\Restaurant\Models\Modifier;
 use Modules\Restaurant\Models\ModifierGroup;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\OutletMenuItem;
+use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
 use Modules\Restaurant\Policies\MenuItemPolicy;
 use Modules\Restaurant\Policies\OutletPolicy;
 use Modules\Restaurant\Policies\PrinterPolicy;
+use Modules\Restaurant\Services\PosContext;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class RestaurantServiceProvider extends ModuleServiceProvider
@@ -54,6 +60,13 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->scoped(PosContext::class);
+    }
+
     public function boot(): void
     {
         parent::boot();
@@ -73,8 +86,12 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             'combo_component' => ComboComponent::class,
             'menu_schedule' => MenuSchedule::class,
             'outlet_menu_item' => OutletMenuItem::class,
+            'pos_session' => PosSession::class,
+            'manager_approval' => ManagerApproval::class,
         ]);
         Gate::policy(MenuItemModel::class, MenuItemPolicy::class);
+        $this->app->make(Router::class)->aliasMiddleware('pos.terminal', EnsurePosTerminal::class);
+        $this->app->make(Router::class)->aliasMiddleware('pos.staff', EnsurePosStaff::class);
         Gate::policy(Outlet::class, OutletPolicy::class);
         Gate::policy(Printer::class, PrinterPolicy::class);
 
@@ -90,6 +107,10 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('restaurant.menu.manage', 'Change the menu (items, categories, modifiers, import)', $managers),
             new PermissionDefinition('restaurant.price.manage', 'Set outlet prices, schedules and sold-out items', $managers),
             new PermissionDefinition('restaurant.menu.mark-sold-out', 'Mark items sold out (86)', [DefaultRole::Chef, DefaultRole::Bartender, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.pos.use', 'Work on the POS', [...$managers, DefaultRole::Waiter, DefaultRole::Bartender, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.session.manage', 'Open and close POS sessions', [...$managers, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.session.view', 'View every POS session and its reports', [...$managers, DefaultRole::Accountant]),
+            new PermissionDefinition('restaurant.session.approve-variance', 'Approve closing a session with a large cash difference', $managers),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
@@ -102,6 +123,8 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             permission: 'restaurant.menu.view', module: 'restaurant', active: 'restaurant.menu.categories.*'));
         $menu->add(new MenuItem('restaurant.modifiers', 'Modifiers', route: 'restaurant.menu.modifiers.index', parent: 'restaurant', order: 17,
             permission: 'restaurant.menu.view', module: 'restaurant', active: 'restaurant.menu.modifiers.*'));
+        $menu->add(new MenuItem('restaurant.sessions', 'POS sessions', route: 'restaurant.sessions.index', parent: 'restaurant', order: 18,
+            permission: 'restaurant.session.view', module: 'restaurant', active: 'restaurant.sessions.*'));
         $menu->add(new MenuItem('restaurant.printers', 'Printers', route: 'restaurant.printers.index', parent: 'restaurant', order: 20,
             permission: 'restaurant.outlet.view', module: 'restaurant', active: 'restaurant.printers.*'));
         $menu->add(new MenuItem('restaurant.access', 'Outlet access', route: 'restaurant.access.index', parent: 'restaurant', order: 30,
@@ -110,5 +133,9 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.menu_languages', 'Menu languages', SettingType::Text, 'en,bn', SettingScope::Tenant,
             'Restaurant', help: 'Language codes menus are written in, separated by commas (en = English, bn = Bangla). English is always included.',
             rules: ['regex:/^\\s*[a-z]{2}(\\s*,\\s*[a-z]{2})*\\s*$/']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.pos_auto_lock_minutes', 'Lock the POS after (minutes idle)', SettingType::Integer, 3,
+            SettingScope::Property, 'Restaurant', help: 'The person on a POS terminal is signed out after this many minutes without using it. 0 = never.', rules: ['min:0', 'max:120']));
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.session_variance_limit', 'Cash difference needing a manager', SettingType::Decimal, '500',
+            SettingScope::Property, 'Restaurant', help: 'Closing a POS session with a larger cash over or short needs a manager\'s PIN.', rules: ['min:0']));
     }
 }

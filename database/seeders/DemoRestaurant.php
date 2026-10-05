@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Modules\Core\Models\TaxCategory;
+use Modules\IAM\Contracts\PosPins;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\DTOs\UserSummary;
 use Modules\Restaurant\Actions\RegisterTerminal;
@@ -18,6 +19,7 @@ use Modules\Restaurant\Actions\SyncOutletAccess;
 use Modules\Restaurant\Enums\TableShape;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\Outlet;
+use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
 
 /**
@@ -81,6 +83,37 @@ final class DemoRestaurant
             }
 
             SyncOutletAccess::make()->handle($propertyId, $users->only(array_keys($assign))->map(fn (UserSummary $user): int => $user->id)->values()->all(), $assignments);
+        });
+    }
+
+    /**
+     * Step 3.3: POS PINs for the F&B staff and a known device token for the Main Restaurant's cashier
+     * desk, so a tablet can be registered at once (local demo only).
+     */
+    public const string DEMO_DEVICE_TOKEN = 'DEMO-CASH-DESK-0001';
+
+    /**
+     * mailbox => PIN
+     *
+     * @var array<string, string>
+     */
+    public const array DEMO_PINS = ['waiter' => '1111', 'cashier' => '2222', 'bartender' => '3333', 'chef' => '4444', 'gm' => '8888', 'fnb' => '9999'];
+
+    public static function pos(Tenant $tenant, int $propertyId, string $domain): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId, $domain): void {
+            $users = collect(app(UserDirectory::class)->all())->keyBy('email');
+
+            foreach (self::DEMO_PINS as $mailbox => $pin) {
+                $user = $users->get($mailbox.'@'.$domain);
+
+                if ($user !== null && ! app(PosPins::class)->has($user->id)) {
+                    app(PosPins::class)->set($user->id, $pin);
+                }
+            }
+
+            PosTerminal::query()->where('property_id', $propertyId)->where('name', 'Cashier desk')
+                ->update(['device_token' => hash('sha256', self::DEMO_DEVICE_TOKEN)]);
         });
     }
 

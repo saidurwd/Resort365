@@ -30,6 +30,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string|null $password
+ * @property string|null $pos_pin keyed hash of the POS PIN (PosPins)
+ * @property Carbon|null $pos_pin_set_at
  * @property UserStatus $status
  * @property string $locale
  * @property string|null $theme
@@ -52,6 +54,7 @@ use Spatie\Permission\Traits\HasRoles;
 ])]
 #[Hidden([
     'password',
+    'pos_pin',
     'remember_token',
     'two_factor_secret',
     'two_factor_recovery_codes',
@@ -78,6 +81,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'status' => UserStatus::class,
             'two_factor_confirmed_at' => 'datetime',
+            'pos_pin_set_at' => 'datetime',
             'last_login_at' => 'datetime',
             'invited_at' => 'datetime',
             'deactivated_at' => 'datetime',

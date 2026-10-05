@@ -4,6 +4,7 @@
             @include('iam::profile.partials.details')
             @include('iam::profile.partials.preferences')
             @include('iam::profile.partials.password')
+            @include('iam::profile.partials.pos-pin')
         </div>
         <div class="col-xl-6">
             @include('iam::profile.partials.two-factor')

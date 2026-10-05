@@ -4,7 +4,7 @@
 | CashCount: closing a cashier shift.
 */
 
-use Modules\Billing\Services\CashCount;
+use App\Support\Cash\CashCount;
 
 it('adds up the notes and coins counted', function (): void {
     expect((new CashCount)->counted(['1000' => 12, '500' => '3', '100' => null, '20' => 4, '1' => 7]))->toBe('13587.00');

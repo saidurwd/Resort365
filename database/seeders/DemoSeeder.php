@@ -126,6 +126,9 @@ class DemoSeeder extends Seeder
         // Step 3.2: a 63-item menu priced at the three outlets (the pool bar and room service dearer).
         DemoMenu::seed($rodela, $resort);
 
+        // Step 3.3: POS PINs for F&B staff and a demo device token for the cashier desk.
+        DemoRestaurant::pos($rodela, $resort, self::DOMAINS['rodela']);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],
