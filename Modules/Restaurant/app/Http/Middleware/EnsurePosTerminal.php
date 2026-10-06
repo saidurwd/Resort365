@@ -2,6 +2,7 @@
 
 namespace Modules\Restaurant\Http\Middleware;
 
+use App\Support\Tenancy\DisplayTimezone;
 use Closure;
 use Illuminate\Http\Request;
 use Modules\Restaurant\Models\PosTerminal;
@@ -34,6 +35,7 @@ class EnsurePosTerminal
         }
 
         $this->context->set($terminal);
+        app(DisplayTimezone::class)->use($terminal->property_id);
 
         if ($terminal->last_seen_at === null || $terminal->last_seen_at->lt(now()->subMinute())) {
             $terminal->forceFill(['last_seen_at' => now()])->saveQuietly();

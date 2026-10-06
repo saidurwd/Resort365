@@ -90,7 +90,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 6. **Module boundaries:** a module may use another module's **Contracts**, **Enums**, **DTOs**, **Events** and **Exceptions** (those its contracts throw) only, never its Models directly for writes. This is enforced with Pest architecture tests.
 7. **Enums:** every status or type is a PHP backed enum with `label()` and `color()` for badges.
 8. **Money:** never use floats. Use the `Money` cast and `brick/money` for calculation; round only at defined points.
-9. **Dates:** stay dates are `Carbon` date-only; timestamps are stored in UTC and displayed in the property timezone.
+9. **Dates:** stay dates are `Carbon` date-only; timestamps are stored in UTC and displayed in the property timezone: show a stored timestamp with `->inPropertyTime()` (`{{ $order->opened_at->inPropertyTime()->format('H:i') }}`), a Carbon macro backed by `App\Support\Tenancy\DisplayTimezone` (the current property, or the POS terminal's / kitchen display's property, else UTC). Never change the application's timezone (that would shift stored values) and never format a stored timestamp without it.
 10. **Authorization:** every controller action is authorized through a Policy or permission middleware.
 11. **Naming:** tables are plural snake_case; models singular; routes are kebab-case and named `module.resource.action`; permissions are `module.resource.action`.
 12. **UI:** use the shared Blade components; no inline styles; every string goes through `__()`.

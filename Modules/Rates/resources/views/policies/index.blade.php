@@ -101,7 +101,7 @@
                         <tr><td>{{ __('Deposit (:percent%)', ['percent' => rtrim(rtrim($deposit->percent, '0'), '.')]) }}</td><td class="text-end font-monospace" data-deposit>{{ $money($deposit->amount) }}</td></tr>
                         <tr><td>{{ __('Balance (due :date)', ['date' => \Carbon\Carbon::parse($deposit->balanceDueOn)->format('d M Y')]) }}</td><td class="text-end font-monospace">{{ $money($deposit->balance) }}</td></tr>
                         @if ($deposit->dueAt)
-                            <tr><td colspan="2" class="small text-body-secondary">{{ __('Deposit due by :time if booked now', ['time' => \Carbon\Carbon::parse($deposit->dueAt)->format('d M Y H:i')]) }}@if ($deposit->fullPaymentRequired) · {{ __('full payment: arrival is soon') }}@endif</td></tr>
+                            <tr><td colspan="2" class="small text-body-secondary">{{ __('Deposit due by :time if booked now', ['time' => \Carbon\Carbon::parse($deposit->dueAt)->inPropertyTime()->format('d M Y H:i')]) }}@if ($deposit->fullPaymentRequired) · {{ __('full payment: arrival is soon') }}@endif</td></tr>
                         @endif
                         @if ($cancellation)
                             <tr class="table-group-divider"><td>{{ $cancellation->noShow ? __('No-show fee') : __('Cancellation fee') }}</td><td class="text-end font-monospace text-danger" data-fee>{{ $money($cancellation->fee) }}</td></tr>

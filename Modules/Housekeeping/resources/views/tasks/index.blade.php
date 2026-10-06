@@ -28,8 +28,8 @@
                                 <td><x-status-badge :status="$task->status" /></td>
                                 <td>{{ $task->assigned_to ? ($names[$task->assigned_to] ?? '') : '—' }}</td>
                                 <td class="small text-body-secondary">
-                                    {{ $task->started_at?->format('H:i') }}@if ($task->finished_at)–{{ $task->finished_at->format('H:i') }}@endif
-                                    @if ($task->inspected_at) · {{ __('inspected :time', ['time' => $task->inspected_at->format('H:i')]) }}@endif
+                                    {{ $task->started_at?->inPropertyTime()?->format('H:i') }}@if ($task->finished_at)–{{ $task->finished_at->inPropertyTime()->format('H:i') }}@endif
+                                    @if ($task->inspected_at) · {{ __('inspected :time', ['time' => $task->inspected_at->inPropertyTime()->format('H:i')]) }}@endif
                                     @if ($task->notes)<div>{{ $task->notes }}</div>@endif
                                 </td>
                                 <td class="pe-3">@include('housekeeping::tasks.partials.steps')</td>

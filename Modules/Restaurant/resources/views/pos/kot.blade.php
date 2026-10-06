@@ -10,7 +10,7 @@
     </div>
     <table class="table table-sm mb-2">
         <tr><td>{{ $order->table ? __('Table :number', ['number' => $order->table->number]) : $order->order_type->label() }}</td><td class="text-end">{{ $order->order_no }}</td></tr>
-        <tr><td>{{ $waiter }}</td><td class="text-end">{{ $kot->fired_at->format('d M H:i') }}</td></tr>
+        <tr><td>{{ $waiter }}</td><td class="text-end">{{ $kot->fired_at->inPropertyTime()->format('d M H:i') }}</td></tr>
         @if ($order->table)<tr><td colspan="2">{{ trans_choice(':count cover|:count covers', $order->covers) }}</td></tr>@endif
     </table>
     <table class="table table-sm mb-2">

@@ -16,8 +16,8 @@
 
     <x-card>
         <p class="mb-3" data-audit-status="{{ $audit->status->value }}">
-            <x-status-badge :status="$audit->status" /> {{ $audit->trigger->label() }} · {{ __('started :time', ['time' => $audit->started_at->format('d M H:i')]) }}
-            @if ($audit->completed_at) · {{ __('done :time', ['time' => $audit->completed_at->format('H:i')]) }}@endif
+            <x-status-badge :status="$audit->status" /> {{ $audit->trigger->label() }} · {{ __('started :time', ['time' => $audit->started_at->inPropertyTime()->format('d M H:i')]) }}
+            @if ($audit->completed_at) · {{ __('done :time', ['time' => $audit->completed_at->inPropertyTime()->format('H:i')]) }}@endif
         </p>
         @if ($audit->error)
             <div class="alert alert-danger">{{ $audit->error }}</div>

@@ -19,7 +19,7 @@
                 <x-card :title="__('My recent shifts')" icon="bi-clock-history" body-class="p-0">
                     @forelse ($recent as $past)
                         <a href="{{ route('billing.shifts.show', $past) }}" class="d-flex justify-content-between px-3 py-2 border-bottom text-decoration-none text-body">
-                            <span>{{ $past->business_date->format('D d M Y') }} · {{ $past->opened_at->format('H:i') }}–{{ $past->closed_at?->format('H:i') }}</span>
+                            <span>{{ $past->business_date->format('D d M Y') }} · {{ $past->opened_at->inPropertyTime()->format('H:i') }}–{{ $past->closed_at?->inPropertyTime()?->format('H:i') }}</span>
                             <span @class(['font-monospace', 'text-danger' => (float) $past->cash_variance < 0, 'text-warning-emphasis' => (float) $past->cash_variance > 0])>
                                 {{ __('Variance') }} {{ $money($past->cash_variance) }}
                             </span>
@@ -35,7 +35,7 @@
             <div class="col-lg-5">
                 <x-card :title="__('Shift in progress')" icon="bi-cash-coin" data-shift-open="{{ $shift->id }}">
                     <dl class="row mb-0">
-                        <dt class="col-7">{{ __('Opened') }}</dt><dd class="col-5 text-end">{{ $shift->opened_at->format('d M H:i') }}</dd>
+                        <dt class="col-7">{{ __('Opened') }}</dt><dd class="col-5 text-end">{{ $shift->opened_at->inPropertyTime()->format('d M H:i') }}</dd>
                         <dt class="col-7">{{ __('Business date') }}</dt><dd class="col-5 text-end">{{ $shift->business_date->format('d M Y') }}</dd>
                         <dt class="col-7">{{ __('Opening float') }}</dt><dd class="col-5 text-end font-monospace">{{ $money($shift->opening_float) }}</dd>
                         <dt class="col-7">{{ __('Cash received') }}</dt><dd class="col-5 text-end font-monospace">{{ $money($received) }}</dd>

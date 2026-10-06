@@ -15,7 +15,7 @@
 
     <table class="table table-bordered table-sm">
         <tr><th class="w-25">{{ __('Cashier') }}</th><td>{{ $cashier }}</td><th class="w-25">{{ __('Status') }}</th><td>{{ $shift->status->label() }}</td></tr>
-        <tr><th>{{ __('Opened') }}</th><td>{{ $shift->opened_at->format('d M Y H:i') }}</td><th>{{ __('Closed') }}</th><td>{{ $shift->closed_at?->format('d M Y H:i') }}@if ($closedBy) · {{ $closedBy }}@endif</td></tr>
+        <tr><th>{{ __('Opened') }}</th><td>{{ $shift->opened_at->inPropertyTime()->format('d M Y H:i') }}</td><th>{{ __('Closed') }}</th><td>{{ $shift->closed_at?->inPropertyTime()?->format('d M Y H:i') }}@if ($closedBy) · {{ $closedBy }}@endif</td></tr>
     </table>
 
     <h2 class="h6 mt-4">{{ __('Cash') }}</h2>
@@ -49,7 +49,7 @@
             @forelse ($payments as $payment)
                 <tr>
                     <td>{{ $payment->receipt_no }}</td>
-                    <td>{{ $payment->received_at->format('H:i') }}</td>
+                    <td>{{ $payment->received_at->inPropertyTime()->format('H:i') }}</td>
                     <td>{{ $payment->payment_type->label() }}</td>
                     <td>{{ $payment->method->label() }}</td>
                     <td class="text-end">{{ $payment->payment_type === \Modules\Billing\Enums\PaymentType::Refund ? '−' : '' }}{{ $money($payment->amount) }}</td>

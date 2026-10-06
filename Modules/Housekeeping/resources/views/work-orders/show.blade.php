@@ -12,10 +12,10 @@
                     <dt class="col-5">{{ __('Priority') }}</dt><dd class="col-7"><x-status-badge :status="$order->priority" /></dd>
                     <dt class="col-5">{{ __('Where') }}</dt><dd class="col-7">{{ $order->room_id ? ($rooms[$order->room_id] ?? '') : $order->location }}@if ($order->room_id && $order->location) · {{ $order->location }}@endif</dd>
                     <dt class="col-5">{{ __('Category') }}</dt><dd class="col-7">{{ $order->category->label() }}</dd>
-                    <dt class="col-5">{{ __('Reported') }}</dt><dd class="col-7">{{ $order->created_at?->format('d M Y H:i') }} · {{ $order->reported_by ? ($names[$order->reported_by] ?? '') : __('Preventive schedule') }}</dd>
+                    <dt class="col-5">{{ __('Reported') }}</dt><dd class="col-7">{{ $order->created_at?->inPropertyTime()?->format('d M Y H:i') }} · {{ $order->reported_by ? ($names[$order->reported_by] ?? '') : __('Preventive schedule') }}</dd>
                     @if ($order->due_on)<dt class="col-5">{{ __('Due') }}</dt><dd class="col-7">{{ $order->due_on->format('d M Y') }}</dd>@endif
                     <dt class="col-5">{{ __('Technician') }}</dt><dd class="col-7">{{ $order->assigned_to ? ($names[$order->assigned_to] ?? '') : '—' }}</dd>
-                    @if ($order->completed_at)<dt class="col-5">{{ __('Closed') }}</dt><dd class="col-7">{{ $order->completed_at->format('d M Y H:i') }}</dd>@endif
+                    @if ($order->completed_at)<dt class="col-5">{{ __('Closed') }}</dt><dd class="col-7">{{ $order->completed_at->inPropertyTime()->format('d M Y H:i') }}</dd>@endif
                     <dt class="col-5">{{ __('Cost') }}</dt><dd class="col-7">{{ __('Labour') }} {{ $money($order->labour_cost) }} · {{ __('Parts') }} {{ $money($order->parts_cost) }}</dd>
                 </dl>
                 @if ($order->description)<p class="mt-3 mb-0">{{ $order->description }}</p>@endif

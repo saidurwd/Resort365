@@ -56,7 +56,7 @@ class WorkOrdersTable
             ->editColumn('priority', fn (MaintenanceRequest $order): string => $badge($order->priority))
             ->editColumn('status', fn (MaintenanceRequest $order): string => $badge($order->status))
             ->addColumn('technician', fn (MaintenanceRequest $order): string => e($order->assigned_to !== null ? ($names[$order->assigned_to] ?? '') : '—'))
-            ->editColumn('created_at', fn (MaintenanceRequest $order): string => $order->created_at?->format('d M Y H:i') ?? '')
+            ->editColumn('created_at', fn (MaintenanceRequest $order): string => $order->created_at?->inPropertyTime()?->format('d M Y H:i') ?? '')
             ->rawColumns(['id', 'priority', 'status'])
             ->toJson();
     }

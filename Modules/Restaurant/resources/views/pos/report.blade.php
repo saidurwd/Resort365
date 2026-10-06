@@ -9,10 +9,10 @@
         <div>{{ __('Business date') }} {{ $session->business_date->format('d M Y') }}</div>
     </div>
     <table class="table table-sm mb-2">
-        <tr><td>{{ __('Opened') }}</td><td class="text-end">{{ $session->opened_at->format('d M H:i') }}</td></tr>
+        <tr><td>{{ __('Opened') }}</td><td class="text-end">{{ $session->opened_at->inPropertyTime()->format('d M H:i') }}</td></tr>
         <tr><td>{{ __('By') }}</td><td class="text-end">{{ $openedBy }}</td></tr>
         @if ($session->closed_at)
-            <tr><td>{{ __('Closed') }}</td><td class="text-end">{{ $session->closed_at->format('d M H:i') }}</td></tr>
+            <tr><td>{{ __('Closed') }}</td><td class="text-end">{{ $session->closed_at->inPropertyTime()->format('d M H:i') }}</td></tr>
             <tr><td>{{ __('By') }}</td><td class="text-end">{{ $closedBy }}</td></tr>
         @endif
         <tr><td>{{ __('Opening float') }}</td><td class="text-end">{{ $money($session->opening_float) }}</td></tr>

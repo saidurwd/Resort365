@@ -43,7 +43,7 @@
             <div class="flex-grow-1 min-w-0">
                 <a href="{{ $item['url'] }}" class="d-block text-truncate" target="_blank" rel="noopener">{{ $item['name'] }}</a>
                 <div class="small text-body-secondary">
-                    {{ $formatSize((int) $item['size']) }}@if ($item['uploaded_by']) · {{ $item['uploaded_by'] }}@endif · {{ $item['uploaded_at']?->format('d M Y H:i') }}
+                    {{ $formatSize((int) $item['size']) }}@if ($item['uploaded_by']) · {{ $item['uploaded_by'] }}@endif · {{ $item['uploaded_at']?->inPropertyTime()->format('d M Y H:i') }}
                 </div>
             </div>
             @if (! empty($item['delete_url']))

@@ -10,7 +10,7 @@
         <div class="alert alert-danger d-flex gap-2" role="alert" data-blacklist-banner>
             <i class="bi bi-slash-circle fs-5"></i>
             <div>
-                <div class="fw-semibold">{{ __('Blacklisted') }}@if ($guest->blacklisted_at) · {{ $guest->blacklisted_at->format('d M Y') }}@endif</div>
+                <div class="fw-semibold">{{ __('Blacklisted') }}@if ($guest->blacklisted_at) · {{ $guest->blacklisted_at->inPropertyTime()->format('d M Y') }}@endif</div>
                 <div>{{ $guest->blacklist_reason }}</div>
             </div>
         </div>

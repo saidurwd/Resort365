@@ -2,6 +2,7 @@
 
 namespace Modules\Restaurant\Http\Middleware;
 
+use App\Support\Tenancy\DisplayTimezone;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +36,7 @@ class EnsureKdsStation
 
         if ($station instanceof KitchenStation) {
             $this->context->set($station, null);
+            app(DisplayTimezone::class)->use($station->property_id);
 
             return $next($request);
         }
@@ -60,6 +62,7 @@ class EnsureKdsStation
 
         $request->session()->put(self::SESSION, $station->id);
         $this->context->set($station, (int) $user->getAuthIdentifier());
+        app(DisplayTimezone::class)->use($station->property_id);
 
         return $next($request);
     }

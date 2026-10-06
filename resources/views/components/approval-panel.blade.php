@@ -22,7 +22,7 @@
                     </div>
                     <div class="small text-body-secondary">
                         @if ($step['acted_at'])
-                            {{ $step['approver'] }} · {{ $step['acted_at']->format('d M Y H:i') }}
+                            {{ $step['approver'] }} · {{ $step['acted_at']->inPropertyTime()->format('d M Y H:i') }}
                         @else
                             {{ __('Awaiting decision') }}
                         @endif

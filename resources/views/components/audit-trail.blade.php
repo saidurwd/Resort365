@@ -16,7 +16,7 @@
                 <li>
                     <div class="fw-semibold">{{ $entry['description'] }}</div>
                     <div class="small text-body-secondary">
-                        {{ $entry['causer'] ?? __('System') }} · <time datetime="{{ $entry['at']->toIso8601String() }}">{{ $entry['at']->format('d M Y H:i') }}</time>
+                        {{ $entry['causer'] ?? __('System') }} · <time datetime="{{ $entry['at']->toIso8601String() }}">{{ $entry['at']->inPropertyTime()->format('d M Y H:i') }}</time>
                     </div>
                     @if (! empty($entry['changes']))
                         <dl class="small mb-0 mt-1">

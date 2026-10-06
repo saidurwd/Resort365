@@ -5,9 +5,13 @@ namespace App\Providers;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
+use App\Support\Tenancy\DisplayTimezone;
 use App\Support\Tenancy\ModuleAccess;
 use App\Support\Tenancy\PropertyContext;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(ModuleAccess::class);
         $this->app->scoped(PropertyContext::class);
+        $this->app->scoped(DisplayTimezone::class);
 
         // Filled by modules' service providers at boot.
         $this->app->singleton(PermissionRegistry::class);
@@ -37,6 +42,12 @@ class AppServiceProvider extends ServiceProvider
     {
         // Page layouts live in resources/views/layouts (ARCHITECTURE §11): <x-layouts::app>, <x-layouts::guest>, <x-layouts::print>.
         Blade::anonymousComponentPath(resource_path('views/layouts'), 'layouts');
+
+        // Stored timestamps are UTC; show them in the property's timezone (ARCHITECTURE §12 rule 9):
+        // {{ $order->opened_at->inPropertyTime()->format('H:i') }}. See DisplayTimezone.
+        foreach ([Carbon::class, CarbonImmutable::class] as $carbon) {
+            $carbon::macro('inPropertyTime', fn (): CarbonInterface => app(DisplayTimezone::class)->convert($this));
+        }
 
         // Password policy (ARCHITECTURE §9.1). Breach checks call an external API, so production only.
         Password::defaults(fn (): Password => app()->isProduction()

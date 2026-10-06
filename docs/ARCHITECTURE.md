@@ -1579,7 +1579,7 @@ Modules/Reservation/
 6. **Module boundaries:** a module may use another module's **Contracts**, **Enums**, **DTOs**, **Events** and **Exceptions** (those its contracts throw) only, never its Models directly for writes. This is enforced with Pest architecture tests.
 7. **Enums:** every status or type is a PHP backed enum with `label()` and `color()` for badges.
 8. **Money:** never use floats. Use the `Money` cast and `brick/money` for calculation; round only at defined points.
-9. **Dates:** stay dates are `Carbon` date-only; timestamps are stored in UTC and displayed in the property timezone.
+9. **Dates:** stay dates are `Carbon` date-only; timestamps are stored in UTC and displayed in the property timezone. *(As built: a Carbon macro `inPropertyTime()` converts a stored timestamp to the property's timezone for display, using `DisplayTimezone` — the signed-in person's current property, or the property of the POS terminal or kitchen display; screens, tables, receipts and tickets use it, and the application's own timezone stays UTC.)*
 10. **Authorization:** every controller action is authorized through a Policy or permission middleware.
 11. **Naming:** tables are plural snake_case; models singular; routes are kebab-case and named `module.resource.action`; permissions are `module.resource.action`.
 12. **UI:** use the shared Blade components; no inline styles; every string goes through `__()`.

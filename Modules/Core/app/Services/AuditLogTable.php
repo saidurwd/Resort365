@@ -2,6 +2,7 @@
 
 namespace Modules\Core\Services;
 
+use App\Support\Tenancy\DisplayTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -37,7 +38,7 @@ class AuditLogTable
             ->when($event, fn (Builder $query, string $event): Builder => $query->where('event', $event));
 
         return $this->dataTables->eloquent($query)
-            ->editColumn('created_at', fn (Activity $activity): string => $activity->created_at?->format('d M Y H:i') ?? '')
+            ->editColumn('created_at', fn (Activity $activity): string => app(DisplayTimezone::class)->format($activity->created_at, 'd M Y H:i'))
             ->addColumn('causer', fn (Activity $activity): string => e($activity->causer instanceof Model ? (string) $activity->causer->getAttribute('name') : __('System')))
             ->addColumn('subject', fn (Activity $activity): string => e(Str::headline(class_basename((string) $activity->subject_type))).($activity->subject_id ? ' #'.$activity->subject_id : ''))
             ->addColumn('changes', fn (Activity $activity): string => view('core::audit.partials.changes', ['changes' => AuditTrailService::changes($activity)])->render())

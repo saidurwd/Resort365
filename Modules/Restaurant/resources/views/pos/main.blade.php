@@ -29,7 +29,7 @@
                 @endif
             @else
                 <dl class="row mb-3" data-session-summary>
-                    <dt class="col-7">{{ __('Opened') }}</dt><dd class="col-5 text-end">{{ $session->opened_at->format('H:i') }}</dd>
+                    <dt class="col-7">{{ __('Opened') }}</dt><dd class="col-5 text-end">{{ $session->opened_at->inPropertyTime()->format('H:i') }}</dd>
                     <dt class="col-7">{{ __('Float') }}</dt><dd class="col-5 text-end font-monospace">{{ $money($session->opening_float) }}</dd>
                     <dt class="col-7">{{ __('Expected in the drawer') }}</dt><dd class="col-5 text-end font-monospace fw-semibold">{{ $currency }} {{ $money($expected) }}</dd>
                 </dl>
@@ -76,7 +76,7 @@
                 <h2 class="h6">{{ __('Recent sessions here') }}</h2>
                 @foreach ($recent as $past)
                     <a href="{{ route('pos.sessions.report', $past) }}" class="d-flex justify-content-between py-2 border-bottom text-decoration-none text-body">
-                        <span>{{ $past->business_date->format('d M') }} · {{ $past->closed_at?->format('H:i') }}</span><span>{{ __('Z report') }}</span>
+                        <span>{{ $past->business_date->format('d M') }} · {{ $past->closed_at?->inPropertyTime()?->format('H:i') }}</span><span>{{ __('Z report') }}</span>
                     </a>
                 @endforeach
             @endif

@@ -2,6 +2,7 @@
 
 namespace Modules\IAM\Services;
 
+use App\Support\Tenancy\DisplayTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Blade;
 use Modules\IAM\Models\Role;
@@ -39,7 +40,7 @@ class UsersTable
             ->addColumn('two_factor', fn (User $user): string => $user->hasTwoFactorEnabled()
                 ? '<i class="bi bi-shield-check text-success" title="'.e(__('Enabled')).'"></i>'
                 : '<i class="bi bi-shield text-body-tertiary" title="'.e(__('Not enabled')).'"></i>')
-            ->editColumn('last_login_at', fn (User $user): string => $user->last_login_at?->format('d M Y H:i') ?? '—')
+            ->editColumn('last_login_at', fn (User $user): string => app(DisplayTimezone::class)->format($user->last_login_at, 'd M Y H:i') ?: '—')
             ->addColumn('actions', fn (User $user): string => view('iam::users.partials.actions', ['user' => $user, 'actor' => $actor])->render())
             ->rawColumns(['roles', 'status', 'two_factor', 'actions'])
             ->toJson();

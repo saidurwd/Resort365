@@ -7,7 +7,7 @@
         <div class="col-xl-7">
             <x-card :title="__('Audit of :date', ['date' => $day->format('D d M Y')])" icon="bi-moon-stars" data-audit-date="{{ $date }}">
                 @if ($audit && $audit->status !== \Modules\FrontOffice\Enums\NightAuditStatus::Completed)
-                    <p class="mb-3">{{ __('Last attempt') }}: <x-status-badge :status="$audit->status" /> {{ $audit->started_at->format('d M H:i') }} · {{ $audit->trigger->label() }}</p>
+                    <p class="mb-3">{{ __('Last attempt') }}: <x-status-badge :status="$audit->status" /> {{ $audit->started_at->inPropertyTime()->format('d M H:i') }} · {{ $audit->trigger->label() }}</p>
                 @endif
 
                 <ol class="list-group list-group-numbered mb-3" data-audit-checks>

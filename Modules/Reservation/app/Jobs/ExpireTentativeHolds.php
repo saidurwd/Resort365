@@ -4,6 +4,7 @@ namespace Modules\Reservation\Jobs;
 
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
+use App\Support\Tenancy\DisplayTimezone;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Modules\Reservation\Actions\CancelReservation;
@@ -60,7 +61,7 @@ class ExpireTentativeHolds
 
         foreach ($expired as $reservation) {
             try {
-                $cancel->handle($reservation, __('Deposit not paid by :time.', ['time' => $reservation->deposit_due_at?->toDateTimeString()]), expired: true);
+                $cancel->handle($reservation, __('Deposit not paid by :time.', ['time' => $reservation->deposit_due_at?->setTimezone(app(DisplayTimezone::class)->of($reservation->property_id))->format('d M Y H:i')]), expired: true);
                 $cancelled++;
             } catch (ReservationNotChangeable) {
                 // Paid or changed in the meantime.

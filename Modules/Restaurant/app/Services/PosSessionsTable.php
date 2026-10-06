@@ -2,6 +2,7 @@
 
 namespace Modules\Restaurant\Services;
 
+use App\Support\Tenancy\DisplayTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Blade;
 use Modules\IAM\Contracts\UserDirectory;
@@ -43,7 +44,7 @@ class PosSessionsTable
         $money = fn (?string $amount): string => $amount !== null ? number_format((float) $amount, 2) : '—';
 
         return $this->dataTables->eloquent(PosSession::query()->where('property_id', $propertyId)->with(['outlet', 'terminal']))
-            ->editColumn('opened_at', fn (PosSession $session): string => $session->opened_at->format('d M Y H:i'))
+            ->editColumn('opened_at', fn (PosSession $session): string => app(DisplayTimezone::class)->format($session->opened_at, 'd M Y H:i'))
             ->editColumn('business_date', fn (PosSession $session): string => $session->business_date->format('d M Y'))
             ->addColumn('outlet', fn (PosSession $session): string => e($session->outlet->name.' · '.$session->terminal->name))
             ->addColumn('cashier', fn (PosSession $session): string => e((string) ($names[$session->opened_by] ?? '')))

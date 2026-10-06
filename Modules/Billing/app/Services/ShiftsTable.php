@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Services;
 
+use App\Support\Tenancy\DisplayTimezone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Blade;
 use Modules\Billing\Models\CashierShift;
@@ -43,7 +44,7 @@ class ShiftsTable
         $money = fn (?string $amount): string => $amount !== null ? number_format((float) $amount, 2) : '—';
 
         return $this->dataTables->eloquent(CashierShift::query()->where('property_id', $propertyId))
-            ->editColumn('opened_at', fn (CashierShift $shift): string => $shift->opened_at->format('d M Y H:i'))
+            ->editColumn('opened_at', fn (CashierShift $shift): string => app(DisplayTimezone::class)->format($shift->opened_at, 'd M Y H:i'))
             ->editColumn('business_date', fn (CashierShift $shift): string => $shift->business_date->format('d M Y'))
             ->addColumn('cashier', fn (CashierShift $shift): string => (string) ($names[$shift->user_id] ?? '#'.$shift->user_id))
             ->editColumn('opening_float', fn (CashierShift $shift): string => $money($shift->opening_float))

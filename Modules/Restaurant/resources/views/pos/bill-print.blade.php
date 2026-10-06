@@ -15,7 +15,7 @@
     <table class="table table-sm mb-2">
         <tr><td>{{ __('Bill') }} {{ $bill->bill_no }}</td><td class="text-end">{{ $bill->split_label }}</td></tr>
         <tr><td>{{ $bill->order->table ? __('Table :number', ['number' => $bill->order->table->number]) : $bill->order->order_type->label() }}</td><td class="text-end">{{ $bill->order->order_no }}</td></tr>
-        <tr><td>{{ $bill->business_date->format('d M Y') }}</td><td class="text-end">{{ ($receipt ? $bill->settled_at : $bill->printed_at)?->format('H:i') }}</td></tr>
+        <tr><td>{{ $bill->business_date->format('d M Y') }}</td><td class="text-end">{{ ($receipt ? $bill->settled_at : $bill->printed_at)?->inPropertyTime()->format('H:i') }}</td></tr>
     </table>
     <table class="table table-sm mb-2">
         @foreach ($bill->lines as $line)
