@@ -41,7 +41,7 @@ class BillPresenter
         }
 
         return [
-            'id' => $order->id, 'order_no' => $order->order_no, 'status' => $order->status->value, 'status_label' => $order->status->label(),
+            'id' => $order->id, 'order_no' => $order->order_no, 'type' => $order->order_type->value, 'status' => $order->status->value, 'status_label' => $order->status->label(),
             'where' => $order->table ? __('Table :number', ['number' => $order->table->number]) : $order->order_type->label(), 'covers' => $order->covers,
             'discount' => $this->discount($order), 'pending' => $lines->where('status', OrderLineStatus::Pending)->count(),
             'seats' => $lines->pluck('seat_no')->filter()->unique()->sort()->values()->all(),

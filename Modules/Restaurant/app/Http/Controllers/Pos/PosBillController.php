@@ -26,6 +26,7 @@ use Modules\Restaurant\Enums\CompReason;
 use Modules\Restaurant\Enums\DiscountType;
 use Modules\Restaurant\Enums\MealPeriod;
 use Modules\Restaurant\Enums\OrderStatus;
+use Modules\Restaurant\Enums\OrderType;
 use Modules\Restaurant\Enums\PaymentMethod;
 use Modules\Restaurant\Enums\PosSessionStatus;
 use Modules\Restaurant\Enums\SplitMode;
@@ -178,7 +179,8 @@ class PosBillController extends Controller
         }
 
         return $this->respond($presenter, $order, fn (): PosBill => $comp->handle($bill, CompReason::from((string) $request->validated('comp_reason')), $request->validated('note'), $session,
-            (int) $request->user()?->getAuthIdentifier(), $request->user()?->can('restaurant.bill.comp') ?? false, $request->filled('approval_id') ? (int) $request->validated('approval_id') : null));
+            (int) $request->user()?->getAuthIdentifier(), ($request->user()?->can('restaurant.bill.comp') ?? false) || ($order->order_type === OrderType::StaffMeal && $request->validated('comp_reason') === CompReason::StaffMeal->value),
+            $request->filled('approval_id') ? (int) $request->validated('approval_id') : null));
     }
 
     public function void(BillExceptionRequest $request, PosBill $bill, PosContext $context, VoidBill $void, BillPresenter $presenter): JsonResponse

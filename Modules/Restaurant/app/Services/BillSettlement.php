@@ -5,6 +5,7 @@ namespace Modules\Restaurant\Services;
 use Brick\Math\BigDecimal;
 use Modules\Restaurant\Enums\BillStatus;
 use Modules\Restaurant\Enums\OrderStatus;
+use Modules\Restaurant\Enums\TableReservationStatus;
 use Modules\Restaurant\Enums\TableStatus;
 use Modules\Restaurant\Events\RestaurantBillSettled;
 use Modules\Restaurant\Events\TableStatusChanged;
@@ -12,6 +13,7 @@ use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosPayment;
+use Modules\Restaurant\Models\TableReservation;
 
 /**
  * Closing a bill once it is paid (inside the caller's transaction): the bill is settled and announced
@@ -54,6 +56,8 @@ class BillSettlement
             DiningTable::query()->whereKey($order->dining_table_id)->update(['status' => TableStatus::Available->value]);
         }
 
+        TableReservation::query()->where('pos_order_id', $order->id)->where('status', TableReservationStatus::Seated->value)
+            ->update(['status' => TableReservationStatus::Completed->value]);
         TableStatusChanged::dispatch($order->tenant_id, $order->outlet_id, $order->dining_table_id === null ? [] : [$order->dining_table_id]);
     }
 }

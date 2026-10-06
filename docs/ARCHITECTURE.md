@@ -380,6 +380,7 @@ Route ─► Middleware ─► Controller (thin: authorize, validate, delegate, 
 | `KotItemVoided` | Restaurant | Kitchen display → cancel ticket line; audit log; F&B Manager notification if above threshold |
 | `TableStatusChanged` | Restaurant | POS terminals of the outlet (via Reverb) → table tiles, running totals and open orders reload *(Step 3.5, broadcast only)* |
 | `MenuAvailabilityChanged` | Restaurant | POS terminals of the outlet (via Reverb) → menu reloads, an 86 is announced *(Step 3.5, broadcast only)* |
+| `DeliveryStatusChanged` | Restaurant | POS terminals of the outlet (via Reverb) → the list of deliveries reloads *(Step 3.8, broadcast only)* |
 | `RestaurantBillSettled` | Restaurant | Accounting → post F&B revenue, taxes, payments; Inventory → deduct recipe ingredients from the outlet's store; Reports → sales statistics |
 | `RestaurantBillVoided` | Restaurant | Accounting → reverse postings; Inventory → reverse consumption (if food was not prepared) |
 | `PosSessionClosed` | Restaurant | Accounting → post cash over/short; Notifications → Z-report to the F&B Manager |
@@ -593,6 +594,8 @@ Runs every food and beverage outlet in the resort. It serves in-house guests (wh
 | Staff meal | Meals for employees | Complimentary, costed to staff-meal expense |
 | Banquet / event | *Out of scope for v1.* Group events with a fixed menu and per-head price; planned with an Events module later. | — |
 
+*Implemented in Step 3.8: `OrderType` gains `room_service`, `location_delivery` and `staff_meal`. `OpenOrder` takes an `OrderDestination`: an in-house guest for room service (from Billing's `chargeableStays`; the order shows the room and guest), a free-text place for a location delivery, a name for a staff meal. Delivery orders carry a `DeliveryStatus` (ordered → preparing → out for delivery → delivered, with the times): the kitchen starting a ticket makes it *preparing* (`ProgressKot`), and the floor's list of open orders shows each delivery with a one-tap *Out for delivery* / *Delivered* (`AdvanceDelivery`, which needs something sent to the kitchen, and broadcasts `DeliveryStatusChanged`). Room service and deliveries settle like any order: charge to room (Step 3.7), or pay on delivery. A staff meal needs `restaurant.order.staff-meal`; the bill screen settles it as complimentary with the reason *staff meal* without a manager's PIN (valued at the sale price until recipes give a cost).*
+
 #### 5.10.5 Order Lifecycle
 
 ```mermaid
@@ -708,6 +711,7 @@ Resort guests often book a rate that includes meals (CP = breakfast, MAP = half 
 - Book a table for a date, time and party size, for an in-house guest (linked to their reservation) or an outside customer.
 - Special occasions and notes (birthday, anniversary, allergies).
 - Status: booked → seated → completed, or cancelled / no-show. Tables with an upcoming reservation are shown as *reserved* on the floor plan.
+- *Implemented in Step 3.8: Restaurant → Table reservations (`restaurant.reservation.{view,manage}`) shows an outlet's day and books, changes, cancels or marks no-shows (`SaveTableReservation`, `CloseTableReservation`): a date and time in the property's time (stored in UTC), a party size, an optional table (it must seat the party and be free for the slot: the pure `TableAvailability`, default 90 minutes), an in-house guest (linked to their booking) or an outside customer's name and phone, an occasion and notes. On the POS floor, a booked table shows as *reserved* from an hour before, the host's list of reservations to come seats a party (`SeatTableReservation` opens the dine-in order with the party's covers) or marks a no-show, and the reservation is completed when its order is settled (`BillSettlement`). One reservation takes one table; no joining of tables, no online booking and no guest messages.*
 
 #### 5.10.13 Business Rules (summary)
 
@@ -720,6 +724,8 @@ Resort guests often book a rate that includes meals (CP = breakfast, MAP = half 
 7. The POS must stay usable on a tablet: two taps to add an item, and no page reloads during an order.
 
 #### 5.10.14 Restaurant Reports
+
+*Implemented in Step 3.8 (Restaurant → Reports, `restaurant.report.view`; each report for a range of business dates and one outlet, with a CSV download): **Sales** by outlet, category, item, hour, waiter or payment method (settled bills, net of discounts and before tax, with covers, spend per cover and tips; the pure `SalesReport`), **Exceptions** (voided items with the reason and wastage, item and bill discounts, complimentary bills and staff meals, voided and reopened bills: each with who did it and which manager approved), **Room charges** (bills charged to rooms and company accounts), **Meal plans** (covers included against taken and not taken per date and meal period: past days from the night audit's `meal_entitlement_snapshots`, today from the stays in house; the pure `MealPlanReport`), **POS sessions** (the X/Z history with takings by method and cash over/short) and **Table turnover** (orders, covers and average minutes seated per table). Food cost, theoretical consumption and menu engineering wait for recipes (Phase 5).*
 
 Sales by outlet, category, item, hour, waiter and payment method · covers and average spend per cover · table turnover · void, discount and complimentary (exceptions) report · room-charge summary · package redemption vs entitlement · food cost % and beverage cost % · theoretical vs actual consumption · **menu engineering** (items classified as *stars*, *plowhorses*, *puzzles* and *dogs* by popularity and margin) · X/Z reports and cash over/short.
 
@@ -1318,6 +1324,8 @@ Unique: `(outlet_id, bill_no)`
 
 **`package_redemptions`**
 `id, tenant_id, property_id, outlet_id, reservation_id, business_date, meal_period(breakfast|lunch|dinner), covers_adults, covers_children, pos_bill_id, cost_amount`
+
+*Step 3.8 as built: `pos_orders` gains `reservation_id`, `guest_name`, `delivery_location`, `delivery_status`, `out_for_delivery_at` and `delivered_at` (the guest of a room-service order; `guest_id` and `delivery_status` values as above); `table_reservations` adds `property_id`, `duration_minutes`, `pos_order_id` and `created_by`, and uses `reserved_for` in UTC; `meal_entitlement_snapshots (tenant_id, property_id, business_date, reservation_id, meal_period, covers)` is new, written by the night audit.*
 
 **`table_reservations`**
 `id, tenant_id, outlet_id, dining_table_id, guest_id, reservation_id, customer_name, phone, reserved_for, party_size, occasion, notes, status(booked|seated|completed|cancelled|no_show)`

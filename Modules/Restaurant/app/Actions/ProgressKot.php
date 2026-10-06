@@ -3,6 +3,7 @@
 namespace Modules\Restaurant\Actions;
 
 use App\Support\Actions\Action;
+use Modules\Restaurant\Enums\DeliveryStatus;
 use Modules\Restaurant\Enums\KotStatus;
 use Modules\Restaurant\Enums\KotType;
 use Modules\Restaurant\Enums\OrderLineStatus;
@@ -60,6 +61,11 @@ class ProgressKot extends Action
             }
 
             $order = $locked->order()->with('table')->firstOrFail();
+
+            // The kitchen has started a delivery order: it is being prepared.
+            if ($locked->type === KotType::New && $order->delivery_status === DeliveryStatus::Ordered && in_array($next, [KotStatus::Preparing, KotStatus::Ready], true)) {
+                AdvanceDelivery::make()->handle($order, DeliveryStatus::Preparing);
+            }
             $lines = PosOrderLine::query()->whereIn('id', $lineIds)->where('status', '!=', OrderLineStatus::Voided->value)->orderBy('id')->get();
 
             KotItemStatusChanged::dispatch($locked->tenant_id, $locked->outlet_id, $locked->kitchen_station_id, $order->id, $locked->id, $next->value, $lineIds,

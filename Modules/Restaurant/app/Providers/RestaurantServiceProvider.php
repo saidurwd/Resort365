@@ -48,11 +48,13 @@ use Modules\Restaurant\Models\PosPayment;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
+use Modules\Restaurant\Models\TableReservation;
 use Modules\Restaurant\Policies\MenuItemPolicy;
 use Modules\Restaurant\Policies\OutletPolicy;
 use Modules\Restaurant\Policies\PosBillPolicy;
 use Modules\Restaurant\Policies\PosOrderPolicy;
 use Modules\Restaurant\Policies\PrinterPolicy;
+use Modules\Restaurant\Policies\TableReservationPolicy;
 use Modules\Restaurant\Services\KdsContext;
 use Modules\Restaurant\Services\KdsDevice;
 use Modules\Restaurant\Services\OpenSessionsBlocker;
@@ -122,9 +124,11 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             'pos_payment' => PosPayment::class,
             'discount_limit' => DiscountLimit::class,
             'package_redemption' => PackageRedemption::class,
+            'table_reservation' => TableReservation::class,
         ]);
         Gate::policy(PosOrder::class, PosOrderPolicy::class);
         Gate::policy(PosBill::class, PosBillPolicy::class);
+        Gate::policy(TableReservation::class, TableReservationPolicy::class);
         Gate::policy(MenuItemModel::class, MenuItemPolicy::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.terminal', EnsurePosTerminal::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.staff', EnsurePosStaff::class);
@@ -164,6 +168,10 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('restaurant.discount-limit.manage', 'Set the discount limit of each role', $managers),
             new PermissionDefinition('restaurant.package.redeem', 'Redeem guests\' meal plans at the outlets', [...$managers, DefaultRole::Waiter, DefaultRole::Bartender, DefaultRole::OutletCashier]),
             new PermissionDefinition('restaurant.package.override', 'Redeem more meals than a meal plan includes (others need a manager\'s PIN)', $managers),
+            new PermissionDefinition('restaurant.order.staff-meal', 'Open staff meal orders', [...$managers, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.reservation.view', 'View restaurant table reservations', [...$managers, DefaultRole::OutletCashier, DefaultRole::Waiter]),
+            new PermissionDefinition('restaurant.reservation.manage', 'Book, change and cancel restaurant table reservations', [...$managers, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.report.view', 'View restaurant sales and exception reports', [...$managers, DefaultRole::Accountant]),
             new PermissionDefinition('restaurant.kds.use', 'Open a station\'s kitchen display and move tickets on', [...$managers, DefaultRole::Chef, DefaultRole::Bartender]),
         ]);
 
@@ -183,6 +191,10 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             permission: 'restaurant.kds.use', module: 'restaurant', active: 'kds.*'));
         $menu->add(new MenuItem('restaurant.discount-limits', 'Discount limits', route: 'restaurant.discount-limits.index', parent: 'restaurant', order: 25,
             permission: 'restaurant.discount-limit.manage', module: 'restaurant', active: 'restaurant.discount-limits.*'));
+        $menu->add(new MenuItem('restaurant.reservations', 'Table reservations', route: 'restaurant.reservations.index', parent: 'restaurant', order: 12,
+            permission: 'restaurant.reservation.view', module: 'restaurant', active: 'restaurant.reservations.*'));
+        $menu->add(new MenuItem('restaurant.reports', 'Reports', route: 'restaurant.reports.sales', parent: 'restaurant', order: 22,
+            permission: 'restaurant.report.view', module: 'restaurant', active: 'restaurant.reports.*'));
         $menu->add(new MenuItem('restaurant.printers', 'Printers', route: 'restaurant.printers.index', parent: 'restaurant', order: 20,
             permission: 'restaurant.outlet.view', module: 'restaurant', active: 'restaurant.printers.*'));
         $menu->add(new MenuItem('restaurant.access', 'Outlet access', route: 'restaurant.access.index', parent: 'restaurant', order: 30,

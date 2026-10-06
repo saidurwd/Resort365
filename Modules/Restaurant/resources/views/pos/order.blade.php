@@ -41,6 +41,7 @@
                 <div>
                     <h1 class="h5 mb-0"><span x-text="order.table ? '{{ __('Table') }} ' + order.table : order.type_label"></span></h1>
                     <div class="small text-body-secondary"><span x-text="order.order_no" data-order-no></span> · <span x-text="order.covers"></span> {{ __('covers') }}</div>
+                    <div class="small" x-show="order.location || order.guest" data-delivery-info><i class="bi bi-geo-alt"></i> <span x-text="[order.location, order.guest].filter(Boolean).join(' · ')"></span> <span class="badge text-bg-info" x-show="order.delivery" x-text="order.delivery"></span></div>
                 </div>
                 <div class="dropdown">
                     <button type="button" class="btn pos-btn btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ __('More') }}" data-more><i class="bi bi-three-dots"></i></button>

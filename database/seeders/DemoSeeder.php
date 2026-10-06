@@ -138,6 +138,9 @@ class DemoSeeder extends Seeder
         // Step 3.7: room 402's breakfast redeemed on the meal plan, the coffees charged to the room.
         DemoRestaurant::packages($rodela, $resort, self::DOMAINS['rodela']);
 
+        // Step 3.8: room service and a pool delivery, a staff meal, table reservations, yesterday's sales for the reports.
+        DemoRestaurant::service($rodela, $resort, self::DOMAINS['rodela']);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

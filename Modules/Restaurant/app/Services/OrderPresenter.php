@@ -23,6 +23,7 @@ class OrderPresenter
         return [
             'id' => $order->id, 'order_no' => $order->order_no, 'type' => $order->order_type->value, 'type_label' => $order->order_type->label(),
             'table' => $order->table?->number, 'table_id' => $order->dining_table_id, 'covers' => $order->covers, 'status' => $order->status->value,
+            'guest' => $order->guest_name, 'location' => $order->delivery_location, 'delivery' => $order->delivery_status?->label(),
             'subtotal' => $order->subtotal, 'opened_at' => $order->opened_at->toIso8601String(), 'notes' => $order->notes,
             'pending' => $order->lines->where('status', OrderLineStatus::Pending)->where('is_held', false)->count(),
             'held' => $order->lines->where('status', OrderLineStatus::Pending)->where('is_held', true)->pluck('course')->map(fn ($course): string => $course->value)->unique()->values()->all(),

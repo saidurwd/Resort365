@@ -64,4 +64,12 @@ interface ReservationLookup
      * covers per meal period, for outlets redeeming meal plans.
      */
     public function mealEntitlement(int $reservationId, string $date): MealEntitlement;
+
+    /**
+     * What every booking that stayed on a date (checked in, or since checked out) included, for snapshots
+     * and reports of meals included versus taken.
+     *
+     * @return list<MealEntitlement>
+     */
+    public function mealEntitlements(int $propertyId, string $date): array;
 }

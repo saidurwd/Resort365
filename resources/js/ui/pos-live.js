@@ -1,4 +1,5 @@
 import { getJson, live } from './live';
+import { posFetch } from './pos';
 
 /**
  * The POS floor kept live (Step 3.5): table colours, running totals and open orders reload whenever
@@ -10,11 +11,16 @@ export function posFloor({ floor, channel, urls }) {
         area: null,
         table: null,
         online: false,
+        mode: null,
+        term: '',
+        stays: [],
+        stay: null,
+        error: '',
 
         init() {
             live({
                 channel,
-                on: { 'table.status': () => this.reload(), 'kot.status': () => this.reload() },
+                on: { 'table.status': () => this.reload(), 'kot.status': () => this.reload(), 'delivery.status': () => this.reload() },
                 poll: () => this.reload(),
                 onState: (state) => {
                     this.online = state;
@@ -32,6 +38,38 @@ export function posFloor({ floor, channel, urls }) {
 
         state(id) {
             return this.floor.tables[id] ?? { status: 'available', order_url: null, subtotal: null, minutes: null };
+        },
+
+        // Room service, deliveries and staff meals (Step 3.8)
+        start(mode) {
+            this.mode = this.mode === mode ? null : mode;
+            this.table = null;
+            this.stay = null;
+            this.error = '';
+
+            if (mode === 'room') {
+                this.searchStays('');
+            }
+        },
+
+        async searchStays(term) {
+            const data = await getJson(`${urls.stays}?term=${encodeURIComponent(term ?? '')}`);
+            this.stays = data?.stays ?? [];
+        },
+
+        async advance(order, status) {
+            this.error = '';
+            const [ok, data] = await posFetch('POST', order.delivery.url, { status }, 'No connection. Try again.');
+
+            if (ok && data.floor) {
+                this.floor = data.floor;
+            } else if (!ok) {
+                this.error = data.message;
+            }
+        },
+
+        nextDelivery(order) {
+            return { ordered: 'out_for_delivery', preparing: 'out_for_delivery', out_for_delivery: 'delivered' }[order.delivery.status] ?? null;
         },
 
         pick(id, number, seats) {

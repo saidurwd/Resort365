@@ -8,13 +8,10 @@
 
 use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
-use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Testing\TestResponse;
 use Modules\Billing\Actions\RecordPayment;
-use Modules\Billing\Contracts\FolioPostingContract;
 use Modules\Billing\DTOs\NewPayment;
 use Modules\Billing\Enums\CityLedgerStatus;
 use Modules\Billing\Enums\FolioType;
@@ -29,9 +26,7 @@ use Modules\FrontOffice\Actions\CheckOutGuest;
 use Modules\FrontOffice\Actions\PostStayCharges;
 use Modules\FrontOffice\Services\NightAuditChecks;
 use Modules\Guest\Models\Company;
-use Modules\Property\Models\Property;
 use Modules\Reservation\Actions\SetRoomCharges;
-use Modules\Reservation\Contracts\StayOperations;
 use Modules\Reservation\Models\Reservation;
 use Modules\Restaurant\Actions\ClosePosSession;
 use Modules\Restaurant\Enums\BillStatus;
@@ -39,7 +34,6 @@ use Modules\Restaurant\Models\OutletMenuItem;
 use Modules\Restaurant\Models\PackageRedemption;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosSession;
-use Symfony\Component\HttpFoundation\Response;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\json;
@@ -56,74 +50,6 @@ beforeEach(function (): void {
     booking(fn () => app(DefaultChargeCodes::class)->ensure(TaxCategory::query()->where('code', 'ROOM')->value('id')));
     Notification::fake();
 });
-
-function roomDay(): CarbonImmutable
-{
-    return CarbonImmutable::parse(booking(fn (): string => Property::query()->where('code', 'CXB')->sole()->business_date->toDateString()));
-}
-
-/**
- * A guest checked in to a room from $before nights ago for $before + $after nights.
- */
-function guestIn(string $room = '401', int $before = 2, int $after = 0): Reservation
-{
-    $reservation = bookStay([$room], roomDay()->subDays($before)->toDateString(), roomDay()->addDays($after)->toDateString(), ['depositPercent' => '0', 'allowDepositOverride' => true]);
-    booking(fn () => app(StayOperations::class)->checkIn($reservation->id));
-
-    return freshReservation($reservation->id);
-}
-
-/**
- * The cashier signed in on the terminal with the session open.
- *
- * @param  array<string, mixed>  $setup
- */
-function cashierOn(array $setup): PosSession
-{
-    $cashier = posStaff(DefaultRole::OutletCashier, '2222', $setup['terminal']);
-    onDevice($setup['terminal']);
-    pinSignIn($cashier, '2222')->assertRedirect();
-
-    return openSession($setup['terminal'], $cashier->id);
-}
-
-/**
- * A printed bill for 2 naan and a mojito: 550.00 + SC 55.00 + VAT 90.75 = 695.75.
- *
- * @param  array<string, mixed>  $setup
- * @return array<string, mixed>
- */
-function naanAndMojito(array $setup, string $table = 'T1'): array
-{
-    $order = openTable($setup['tables'][$table]);
-    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['naan'], 'quantity' => 2])->assertOk();
-    orderApi('POST', $order, '/lines', ['item_id' => $setup['items']['mojito']])->assertOk();
-    orderApi('POST', $order, '/send')->assertOk();
-
-    return billApi("orders/{$order->id}/bill/print", ['mode' => 'none'])->assertOk()->json('billing.bills.0');
-}
-
-/**
- * @param  array<string, mixed>  $data
- * @return TestResponse<Response>
- */
-function chargeRoom(int $billId, string $amount, int $reservationId, array $data = []): TestResponse
-{
-    return billApi("bills/{$billId}/payments", ['method' => 'room_charge', 'amount' => $amount, 'reservation_id' => $reservationId, ...$data]);
-}
-
-/**
- * The guest's name as the POS shows it (with the salutation the factory gave).
- */
-function stayGuest(Reservation $stay): string
-{
-    return booking(fn (): string => app(FolioPostingContract::class)->chargeableStays(bookingIds()['property'], $stay->code)[0]->guestName);
-}
-
-function restaurantLine(int $billId): FolioLine
-{
-    return booking(fn (): FolioLine => FolioLine::query()->where('reference_type', 'pos_bill')->where('reference_id', $billId)->sole());
-}
 
 it('charges a bill to an in-house guest\'s folio, onto their check-out invoice, and never after check-out (done when)', function (): void {
     $setup = billSetup();

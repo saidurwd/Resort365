@@ -39,6 +39,7 @@ use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Quote;
 use Modules\Reservation\Models\Reservation;
 use Modules\Restaurant\Enums\BillStatus;
+use Modules\Restaurant\Enums\DeliveryStatus;
 use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\TableStatus;
 use Modules\Restaurant\Models\DiningTable;
@@ -53,6 +54,8 @@ use Modules\Restaurant\Models\OutletMenuItem;
 use Modules\Restaurant\Models\PackageRedemption;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
+use Modules\Restaurant\Models\PosOrderLine;
+use Modules\Restaurant\Models\TableReservation;
 
 use function Pest\Laravel\seed;
 
@@ -179,7 +182,7 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
             ->and(ExtraService::query()->count())->toBe(6)
             ->and(CityLedgerEntry::query()->sole()->due_on->isPast())->toBeTrue()
             ->and(Folio::query()->count())->toBe(9)
-            ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)', 'Main Restaurant bill MR-B000002'])
+            ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)', 'Main Restaurant bill MR-B000002', 'Room Service bill RS-B000001'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
@@ -245,7 +248,15 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
             ->and(PosBill::query()->orderBy('id')->first()?->only(['bill_no', 'status', 'grand_total', 'tip_total']))->toBe(['bill_no' => 'MR-B000001', 'status' => BillStatus::Settled, 'grand_total' => '974.05', 'tip_total' => '50.00'])
             ->and(DiscountLimit::query()->count())->toBe(3)
             // Step 3.7: room 402's breakfast for two on the meal plan, the coffees on their folio.
-            ->and(PackageRedemption::query()->sole()->only(['covers_adults', 'entitled']))->toBe(['covers_adults' => 2, 'entitled' => 2])
-            ->and(FolioLine::query()->where('reference_type', 'pos_bill')->sole()->total)->toBe('556.60');
+            ->and(PackageRedemption::query()->orderBy('id')->first()?->only(['covers_adults', 'entitled']))->toBe(['covers_adults' => 2, 'entitled' => 2])
+            ->and(FolioLine::query()->where('reference_type', 'pos_bill')->orderBy('id')->first()?->total)->toBe('556.60')
+            // Step 3.8: room service delivered to 402 and charged to the room; a pool delivery on its way; a staff meal;
+            // three table reservations; yesterday's Pool Bar sales, with a voided item.
+            ->and(PosOrder::query()->where('order_type', 'room_service')->sole()->only(['delivery_status', 'delivery_location']))->toBe(['delivery_status' => DeliveryStatus::Delivered, 'delivery_location' => 'Room 402'])
+            ->and(PosOrder::query()->where('order_type', 'location_delivery')->sole()->delivery_location)->toBe('Pool deck, bed 4')
+            ->and(PosOrder::query()->where('order_type', 'staff_meal')->sole()->guest_name)->toBe('Kitchen team')
+            ->and(TableReservation::query()->count())->toBe(3)
+            ->and(PosBill::query()->whereHas('outlet', fn ($query) => $query->where('code', 'PB'))->where('status', 'settled')->count())->toBe(3)
+            ->and(PosOrderLine::query()->where('status', 'voided')->count())->toBe(1);
     });
 });

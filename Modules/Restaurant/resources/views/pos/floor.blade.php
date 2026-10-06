@@ -13,7 +13,7 @@
 
     <div x-data="posIdle({{ $autoLockMinutes }})"></div>
 
-    <div class="pos-floor" x-data="posFloor(@js(['floor' => $floor, 'channel' => $channel, 'urls' => ['floor' => route('pos.floor.data')]]))" x-init="area = {{ $areas->first()->id ?? 0 }}">
+    <div class="pos-floor" x-data="posFloor(@js(['floor' => $floor, 'channel' => $channel, 'urls' => ['floor' => route('pos.floor.data'), 'stays' => route('pos.stays')]]))" x-init="area = {{ $areas->first()->id ?? 0 }}">
         <section class="pos-card pos-floor__plan">
             @if ($areas->isEmpty())
                 <x-empty-state icon="bi-grid-3x3" :title="__('No tables in this outlet')" :message="__('Use takeaway, or add dining areas and tables in the outlet setup.')" />
@@ -54,6 +54,7 @@
                     <span><span class="pos-legend pos-legend--available"></span> {{ __('Free') }}</span>
                     <span><span class="pos-legend pos-legend--occupied"></span> {{ __('Occupied') }}</span>
                     <span><span class="pos-legend pos-legend--bill_printed"></span> {{ __('Bill printed') }}</span>
+                    <span><span class="pos-legend pos-legend--reserved"></span> {{ __('Reserved') }}</span>
                 </div>
             @endif
         </section>
@@ -80,11 +81,66 @@
                 <hr>
             </div>
 
-            <form method="POST" action="{{ route('pos.orders.open') }}" class="mb-3">
+            <div class="d-grid gap-2 mb-3">
+                <form method="POST" action="{{ route('pos.orders.open') }}">
+                    @csrf
+                    <input type="hidden" name="type" value="takeaway">
+                    <button type="submit" class="btn btn-outline-primary btn-lg pos-btn w-100" data-takeaway><i class="bi bi-bag"></i> {{ __('New takeaway') }}</button>
+                </form>
+                <button type="button" class="btn btn-outline-success btn-lg pos-btn" :class="{ active: mode === 'room' }" @click="start('room')" data-room-service><i class="bi bi-door-open"></i> {{ __('Room service') }}</button>
+                <button type="button" class="btn btn-outline-success btn-lg pos-btn" :class="{ active: mode === 'delivery' }" @click="start('delivery')" data-delivery><i class="bi bi-truck"></i> {{ __('Delivery') }}</button>
+                @can('restaurant.order.staff-meal')
+                    <button type="button" class="btn btn-outline-warning btn-lg pos-btn" :class="{ active: mode === 'staff' }" @click="start('staff')" data-staff-meal-start><i class="bi bi-person-badge"></i> {{ __('Staff meal') }}</button>
+                @endcan
+            </div>
+
+            <form method="POST" action="{{ route('pos.orders.open') }}" x-show="mode === 'room'" x-cloak class="mb-3" data-room-service-form>
                 @csrf
-                <input type="hidden" name="type" value="takeaway">
-                <button type="submit" class="btn btn-outline-primary btn-lg pos-btn w-100" data-takeaway><i class="bi bi-bag"></i> {{ __('New takeaway') }}</button>
+                <input type="hidden" name="type" value="room_service">
+                <input type="hidden" name="reservation_id" :value="stay?.reservationId">
+                <input type="search" class="form-control mb-2" x-model="term" @input.debounce.300ms="searchStays(term)" placeholder="{{ __('Room, guest or booking') }}" aria-label="{{ __('Room, guest or booking') }}" autocomplete="off">
+                <div class="pos-stays mb-2">
+                    <template x-for="s in stays" :key="s.reservationId">
+                        <button type="button" class="pos-stay" :class="{ 'pos-stay--chosen': stay && stay.reservationId === s.reservationId }" @click="stay = s" :disabled="s.noRoomCharges && false" :data-stay="s.code">
+                            <span class="fw-semibold" x-text="s.rooms.join(', ') + ' · ' + s.guestName"></span><span class="small" x-text="s.code"></span>
+                        </button>
+                    </template>
+                </div>
+                <button type="submit" class="btn btn-success btn-lg pos-btn w-100" :disabled="! stay" data-start-room-service>{{ __('Start order') }}</button>
             </form>
+            <form method="POST" action="{{ route('pos.orders.open') }}" x-show="mode === 'delivery'" x-cloak class="mb-3" data-delivery-form>
+                @csrf
+                <input type="hidden" name="type" value="location_delivery">
+                <label class="form-label" for="delivery-location">{{ __('Deliver to') }}</label>
+                <input type="text" id="delivery-location" name="location" maxlength="190" class="form-control mb-2" placeholder="{{ __('The pool, the beach, a cottage terrace…') }}" required>
+                <button type="submit" class="btn btn-success btn-lg pos-btn w-100" data-start-delivery>{{ __('Start order') }}</button>
+            </form>
+            <form method="POST" action="{{ route('pos.orders.open') }}" x-show="mode === 'staff'" x-cloak class="mb-3" data-staff-meal-form>
+                @csrf
+                <input type="hidden" name="type" value="staff_meal">
+                <label class="form-label" for="staff-name">{{ __('For') }}</label>
+                <input type="text" id="staff-name" name="name" maxlength="190" class="form-control mb-2" placeholder="{{ __('Person or team') }}" required>
+                <button type="submit" class="btn btn-warning btn-lg pos-btn w-100" data-start-staff-meal>{{ __('Start order') }}</button>
+            </form>
+            <p class="alert alert-danger py-2" x-show="error" x-text="error" x-cloak></p>
+
+            <div class="mb-3" x-show="floor.reservations.length" x-cloak data-reservations>
+                <h2 class="h6">{{ __('Reservations to come') }}</h2>
+                <template x-for="r in floor.reservations" :key="r.id">
+                    <div class="pos-reservation" :data-reservation="r.name">
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-semibold" x-text="r.time + ' · ' + r.name"></span>
+                            <span class="small" x-text="r.party + ' {{ __('guests') }}' + (r.table ? ' · ' + r.table : '')"></span>
+                        </div>
+                        <div class="small text-body-secondary" x-show="r.occasion || r.notes" x-text="[r.occasion, r.notes].filter(Boolean).join(' · ')"></div>
+                        <div class="d-flex gap-2 mt-1" x-show="r.table_id">
+                            <form method="POST" :action="r.seat_url">@csrf<button type="submit" class="btn btn-sm btn-primary" data-seat>{{ __('Seat') }}</button></form>
+                            <form method="POST" :action="r.close_url" data-confirm="{{ __('Mark as no-show?') }}">@csrf<input type="hidden" name="status" value="no_show"><button type="submit" class="btn btn-sm btn-outline-danger">{{ __('No-show') }}</button></form>
+                        </div>
+                        <p class="small text-warning mb-0" x-show="! r.table_id">{{ __('No table yet: assign one in the back office.') }}</p>
+                    </div>
+                </template>
+            </div>
 
             <h2 class="h6">{{ __('Open orders') }}</h2>
             @foreach ($floor['orders'] as $open)
@@ -96,9 +152,12 @@
             @endforeach
             <template x-for="open in floor.orders" :key="open.id">
                 <a :href="open.url" class="pos-order-link" :data-live-order="open.order_no">
-                    <span><span class="fw-semibold" x-text="open.where"></span><span class="d-block small text-body-secondary" x-text="open.meta"></span></span>
+                    <span><span class="fw-semibold" x-text="open.where"></span><span class="d-block small text-body-secondary" x-text="open.meta"></span>
+                        <span class="badge" :class="open.delivery ? 'text-bg-' + open.delivery.color : ''" x-show="open.delivery" x-text="open.delivery ? open.delivery.label + (open.delivery.guest ? ' · ' + open.delivery.guest : '') : ''" :data-delivery-status="open.delivery?.status"></span></span>
                     <span class="font-monospace" x-text="open.subtotal"></span>
                 </a>
+                <button type="button" class="btn btn-sm btn-info mb-2 w-100" x-show="open.delivery && nextDelivery(open)" @click="advance(open, nextDelivery(open))"
+                    x-text="open.delivery && nextDelivery(open) === 'delivered' ? '{{ __('Delivered') }}' : '{{ __('Out for delivery') }}'" :data-advance="open.order_no"></button>
             </template>
             <p class="text-body-secondary" x-show="floor.orders.length === 0" @if ($floor['orders'] !== []) x-cloak @endif>{{ __('No open orders.') }}</p>
         </aside>

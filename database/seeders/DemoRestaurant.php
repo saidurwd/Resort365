@@ -6,6 +6,8 @@ use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
 use Brick\Math\BigDecimal;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Modules\Billing\Contracts\FolioPostingContract;
 use Modules\Billing\DTOs\ChargeableStay;
 use Modules\Core\Models\TaxCategory;
@@ -13,7 +15,11 @@ use Modules\IAM\Contracts\PosPins;
 use Modules\IAM\Contracts\RoleDirectory;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\DTOs\UserSummary;
+use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Restaurant\Actions\AddOrderLine;
+use Modules\Restaurant\Actions\AdvanceDelivery;
+use Modules\Restaurant\Actions\CompBill;
+use Modules\Restaurant\Actions\DiscountOrder;
 use Modules\Restaurant\Actions\OpenOrder;
 use Modules\Restaurant\Actions\OpenPosSession;
 use Modules\Restaurant\Actions\PrintBill;
@@ -26,10 +32,16 @@ use Modules\Restaurant\Actions\SaveFloorPlan;
 use Modules\Restaurant\Actions\SaveOutlet;
 use Modules\Restaurant\Actions\SavePrinter;
 use Modules\Restaurant\Actions\SaveStation;
+use Modules\Restaurant\Actions\SaveTableReservation;
 use Modules\Restaurant\Actions\SendOrder;
 use Modules\Restaurant\Actions\SyncOutletAccess;
 use Modules\Restaurant\Actions\TakePayment;
+use Modules\Restaurant\Actions\VoidOrderLine;
 use Modules\Restaurant\DTOs\ChargeTarget;
+use Modules\Restaurant\DTOs\OrderDestination;
+use Modules\Restaurant\Enums\CompReason;
+use Modules\Restaurant\Enums\DeliveryStatus;
+use Modules\Restaurant\Enums\DiscountType;
 use Modules\Restaurant\Enums\MealPeriod;
 use Modules\Restaurant\Enums\OrderLineStatus;
 use Modules\Restaurant\Enums\OrderType;
@@ -38,9 +50,11 @@ use Modules\Restaurant\Enums\PosSessionStatus;
 use Modules\Restaurant\Enums\SplitMode;
 use Modules\Restaurant\Enums\TableShape;
 use Modules\Restaurant\Enums\TableStatus;
+use Modules\Restaurant\Enums\VoidReason;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\KitchenStation;
+use Modules\Restaurant\Models\MealEntitlementSnapshot;
 use Modules\Restaurant\Models\MenuItem;
 use Modules\Restaurant\Models\MenuItemVariant;
 use Modules\Restaurant\Models\Modifier;
@@ -54,6 +68,8 @@ use Modules\Restaurant\Models\PosOrderLine;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
+use Modules\Restaurant\Models\TableReservation;
+use Modules\Restaurant\Services\SessionCash;
 
 /**
  * Restaurant setup demo (Step 3.1). Rodela: the Main Restaurant (Indoor with 8 tables, Terrace with
@@ -239,6 +255,126 @@ final class DemoRestaurant
             SendOrder::make()->handle($order, $waiter->id);
             [$bill] = PrintBill::make()->handle($order, SplitMode::None, [], $waiter->id);
             TakePayment::make()->handle($bill, PaymentMethod::RoomCharge, (string) $bill->grand_total, '0', null, null, $session, $cashier->id, new ChargeTarget($stay->reservationId));
+        });
+    }
+
+    /**
+     * Step 3.8: a room-service order to room 402 delivered and charged to the room (Room Service desk), a
+     * pool delivery on its way (Pool Bar), a staff meal (Main Restaurant, complimentary), table reservations
+     * (today for the in-house guest, tomorrow for two parties), and yesterday's trading for the reports: Pool
+     * Bar sales (card and cash, one voided item, one discount) and the 402 guest's breakfast on the meal plan.
+     */
+    public static function service(Tenant $tenant, int $propertyId, string $domain): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId, $domain): void {
+            $users = collect(app(UserDirectory::class)->all())->keyBy('email');
+            $cashier = $users->get('cashier@'.$domain);
+            $waiter = $users->get('waiter@'.$domain);
+            $manager = $users->get('fnb@'.$domain);
+            $stay = collect(app(FolioPostingContract::class)->chargeableStays($propertyId, '402'))->first();
+            $outlets = Outlet::query()->whereIn('code', ['MR', 'PB', 'RS'])->get()->keyBy('code');
+            $mainSession = PosSession::query()->where('outlet_id', $outlets['MR']->id ?? 0)->where('status', PosSessionStatus::Open->value)->first();
+
+            if (! $cashier instanceof UserSummary || ! $waiter instanceof UserSummary || ! $manager instanceof UserSummary || ! $stay instanceof ChargeableStay || ! $mainSession instanceof PosSession
+                || $outlets->count() < 3 || TableReservation::query()->exists()) {
+                return; // seeded already, or nothing to seed it on
+            }
+
+            $today = (string) app(PropertyDirectory::class)->find($propertyId)?->businessDate;
+            $yesterday = CarbonImmutable::parse($today)->subDay()->toDateString();
+            $item = fn (string $code): int => (int) MenuItem::query()->where('code', $code)->value('id');
+            $add = fn (PosOrder $order, string $code, int $quantity = 1, array $more = []): PosOrderLine => AddOrderLine::make()->handle($order, ['item_id' => $item($code), 'quantity' => $quantity, ...$more], $waiter->id, false);
+            $session = fn (Outlet $outlet): PosSession => OpenPosSession::make()->handle(PosTerminal::query()->where('outlet_id', $outlet->id)->orderBy('id')->firstOrFail(), $cashier->id, '1000');
+
+            // Room service to 402, charged to the room, delivered.
+            $roomService = $session($outlets['RS']);
+            $order = OpenOrder::make()->handle($outlets['RS'], OrderType::RoomService, $waiter->id, null, 1, new OrderDestination($stay->reservationId));
+            $add($order, 'BD05');
+            $add($order, 'PR05', 2);
+            SendOrder::make()->handle($order, $waiter->id);
+            [$bill] = PrintBill::make()->handle($order, SplitMode::None, [], $waiter->id);
+            TakePayment::make()->handle($bill, PaymentMethod::RoomCharge, (string) $bill->grand_total, '0', null, null, $roomService, $cashier->id, new ChargeTarget($stay->reservationId));
+            AdvanceDelivery::make()->handle($order, DeliveryStatus::OutForDelivery);
+            AdvanceDelivery::make()->handle($order, DeliveryStatus::Delivered);
+
+            // A pool delivery still being prepared.
+            $pool = OpenOrder::make()->handle($outlets['PB'], OrderType::LocationDelivery, $waiter->id, null, 2, new OrderDestination(null, 'Pool deck, bed 4'));
+            $add($pool, 'SD02', 2);
+            SendOrder::make()->handle($pool, $waiter->id);
+
+            // A staff meal, settled as complimentary.
+            $meal = OpenOrder::make()->handle($outlets['MR'], OrderType::StaffMeal, $waiter->id, null, 4, new OrderDestination(null, null, 'Kitchen team'));
+            $add($meal, 'PR04', 4);
+            SendOrder::make()->handle($meal, $waiter->id);
+            [$mealBill] = PrintBill::make()->handle($meal, SplitMode::None, [], $waiter->id);
+            CompBill::make()->handle($mealBill, CompReason::StaffMeal, null, $mainSession, $cashier->id, true);
+
+            // Table reservations: tonight for the in-house guest, tomorrow for two parties.
+            $table = fn (string $number): int => (int) DiningTable::query()->where('outlet_id', $outlets['MR']->id)->where('number', $number)->value('id');
+            $tomorrow = CarbonImmutable::parse($today)->addDay()->toDateString();
+            $book = fn (string $date, string $time, int $party, string $number, array $who, array $more = []): TableReservation => SaveTableReservation::make()->handle($outlets['MR'], null,
+                ['date' => $date, 'time' => $time, 'party_size' => $party, 'dining_table_id' => $table($number), ...$who, ...$more], $manager->id);
+            $book($today, '20:00', 2, 'T2', ['reservation_id' => $stay->reservationId], ['occasion' => 'Anniversary', 'notes' => 'Quiet corner, please']);
+            $book($tomorrow, '19:00', 4, 'T5', ['customer_name' => 'Mr & Mrs Karim', 'phone' => '01711-555010'], ['occasion' => 'Birthday']);
+            $book($tomorrow, '20:00', 6, 'T8', ['customer_name' => 'Dhaka Bank dinner', 'phone' => '01819-555022'], ['notes' => 'Vegetarian options for two']);
+
+            // Yesterday at the Pool Bar: sales by card and cash, a discount and a voided item.
+            $poolSession = $session($outlets['PB']);
+            $sell = function (array $lines, PaymentMethod $method, ?array $discount = null, bool $void = false) use ($outlets, $waiter, $cashier, $manager, $poolSession, $add): PosOrder {
+                $order = OpenOrder::make()->handle($outlets['PB'], OrderType::Takeaway, $waiter->id);
+
+                foreach ($lines as [$code, $quantity]) {
+                    $add($order, $code, $quantity);
+                }
+
+                SendOrder::make()->handle($order, $waiter->id);
+
+                if ($void) {
+                    VoidOrderLine::make()->handle($order->lines()->firstOrFail(), VoidReason::QualityIssue, 'Warm drink', false, $manager->id, true);
+                }
+
+                if ($discount !== null) {
+                    DiscountOrder::make()->handle($order, null, DiscountType::Percent, $discount[0], $discount[1], $manager->id);
+                }
+
+                [$bill] = PrintBill::make()->handle($order, SplitMode::None, [], $waiter->id);
+                TakePayment::make()->handle($bill, $method, (string) $bill->grand_total, '0', $method === PaymentMethod::Cash ? '2000' : null, $method === PaymentMethod::Card ? '7731' : null, $poolSession, $cashier->id);
+
+                return $order;
+            };
+            $sold = [
+                $sell([['SD02', 2], ['ST03', 1]], PaymentMethod::Card),
+                $sell([['ST08', 3]], PaymentMethod::Cash, ['10', 'Regular guest']),
+                $sell([['SD02', 1], ['PR03', 1]], PaymentMethod::Card, null, true),
+            ];
+
+            // The 402 guest's breakfast yesterday: one of the two included covers taken at the Main Restaurant.
+            $breakfast = OpenOrder::make()->handle($outlets['MR'], OrderType::DineIn, $waiter->id, $table('T7'), 1);
+            // Breakfast is on the menu only until 10:30: the plate is put on the order as the POS would.
+            $paratha = MenuItem::query()->where('code', 'BF01')->firstOrFail();
+            $price = (string) OutletMenuItem::query()->where('outlet_id', $outlets['MR']->id)->where('menu_item_id', $paratha->id)->value('price');
+            PosOrderLine::query()->create([
+                'property_id' => $breakfast->property_id, 'pos_order_id' => $breakfast->id, 'menu_item_id' => $paratha->id, 'name_snapshot' => $paratha->translated('name'),
+                'quantity' => 1, 'unit_price' => $price, 'line_total' => $price, 'course' => $paratha->course, 'status' => OrderLineStatus::Pending, 'added_by' => $waiter->id,
+                'kitchen_station_id' => KitchenStation::query()->where('outlet_id', $outlets['MR']->id)->where('name', 'Hot kitchen')->value('id'),
+            ]);
+            SendOrder::make()->handle($breakfast, $waiter->id);
+            RedeemMealPlan::make()->handle($breakfast, $stay->reservationId, MealPeriod::Breakfast, 1, 0, $waiter->id, true);
+            PrintBill::make()->handle($breakfast, SplitMode::None, [], $waiter->id);
+            MealEntitlementSnapshot::query()->create(['property_id' => $propertyId, 'business_date' => $yesterday, 'reservation_id' => $stay->reservationId, 'meal_period' => MealPeriod::Breakfast, 'covers' => 2]);
+
+            // Those sales happened yesterday: move their dates (and the pool session) back a day.
+            $orderIds = [...array_map(fn (PosOrder $order): int => $order->id, $sold), $breakfast->id];
+            DB::table('pos_orders')->whereIn('id', $orderIds)->update(['business_date' => $yesterday]);
+            DB::table('pos_bills')->whereIn('pos_order_id', $orderIds)->update(['business_date' => $yesterday]);
+            DB::table('pos_payments')->whereIn('pos_bill_id', DB::table('pos_bills')->whereIn('pos_order_id', $orderIds)->select('id'))->update(['business_date' => $yesterday]);
+            DB::table('package_redemptions')->where('pos_order_id', $breakfast->id)->update(['business_date' => $yesterday]);
+            [$received] = app(SessionCash::class)->cash($poolSession);
+            DB::table('pos_sessions')->where('id', $poolSession->id)->update([
+                'business_date' => $yesterday, 'status' => PosSessionStatus::Closed->value, 'open_terminal_id' => null, 'closed_by' => $cashier->id, 'closed_at' => now(),
+                'cash_received' => $received, 'cash_refunded' => '0.00', 'expected_cash' => (string) BigDecimal::of($poolSession->opening_float)->plus($received)->toScale(2),
+                'counted_cash' => (string) BigDecimal::of($poolSession->opening_float)->plus($received)->toScale(2), 'cash_variance' => '0.00',
+            ]);
         });
     }
 

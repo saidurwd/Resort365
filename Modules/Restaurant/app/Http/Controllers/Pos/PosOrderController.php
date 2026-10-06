@@ -14,13 +14,16 @@ use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\DTOs\UserSummary;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Restaurant\Actions\AddOrderLine;
+use Modules\Restaurant\Actions\AdvanceDelivery;
 use Modules\Restaurant\Actions\ChangePendingLine;
 use Modules\Restaurant\Actions\MoveOrder;
 use Modules\Restaurant\Actions\OpenOrder;
 use Modules\Restaurant\Actions\SendOrder;
 use Modules\Restaurant\Actions\VoidOrderLine;
 use Modules\Restaurant\Broadcasting\RestaurantChannels;
+use Modules\Restaurant\DTOs\OrderDestination;
 use Modules\Restaurant\Enums\Course;
+use Modules\Restaurant\Enums\DeliveryStatus;
 use Modules\Restaurant\Enums\KotStatus;
 use Modules\Restaurant\Enums\KotType;
 use Modules\Restaurant\Enums\OrderLineStatus;
@@ -37,12 +40,15 @@ use Modules\Restaurant\Http\Requests\VoidOrderLineRequest;
 use Modules\Restaurant\Models\DiningArea;
 use Modules\Restaurant\Models\DiningTable;
 use Modules\Restaurant\Models\Kot;
+use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
+use Modules\Restaurant\Models\TableReservation;
 use Modules\Restaurant\Services\ManagerApprovals;
 use Modules\Restaurant\Services\MenuCatalog;
 use Modules\Restaurant\Services\OrderPresenter;
 use Modules\Restaurant\Services\PosContext;
+use Modules\Restaurant\Services\TableReservations;
 
 /**
  * Taking orders on the POS (ARCHITECTURE §5.10.3–5.10.6, §12 rule 15): the floor (tables with their
@@ -102,7 +108,8 @@ class PosOrderController extends Controller
     {
         try {
             $order = $open->handle($context->outlet(), OrderType::from((string) $request->validated('type')), (int) $request->user()?->getAuthIdentifier(),
-                $request->filled('table_id') ? (int) $request->validated('table_id') : null, (int) ($request->validated('covers') ?? 1));
+                $request->filled('table_id') ? (int) $request->validated('table_id') : null, (int) ($request->validated('covers') ?? 1),
+                new OrderDestination($request->filled('reservation_id') ? (int) $request->validated('reservation_id') : null, $request->validated('location'), $request->validated('name')));
         } catch (PosNotAllowed $exception) {
             return to_route('pos.floor')->with('error', $exception->getMessage());
         }
@@ -160,6 +167,24 @@ class PosOrderController extends Controller
             'currency' => $properties->find($terminal->property_id)->currencyCode ?? '',
             'autoLockMinutes' => (int) $settings->get('restaurant.pos_auto_lock_minutes', $terminal->property_id),
         ]);
+    }
+
+    public function delivery(Request $request, PosOrder $order, PosContext $context, AdvanceDelivery $advance): JsonResponse
+    {
+        $this->authorizeOrder($order, $context);
+        $to = DeliveryStatus::tryFrom((string) $request->input('status'));
+
+        if (! $to instanceof DeliveryStatus) {
+            return response()->json(['ok' => false, 'message' => __('Choose a delivery status.')], 422);
+        }
+
+        try {
+            $advance->handle($order, $to);
+        } catch (PosNotAllowed $exception) {
+            return response()->json(['ok' => false, 'message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json(['ok' => true, 'floor' => $this->floorState($context->terminal()->outlet_id, app(UserDirectory::class))]);
     }
 
     public function data(PosOrder $order, PosContext $context, OrderPresenter $presenter): JsonResponse
@@ -293,12 +318,17 @@ class PosOrderController extends Controller
         $orders = PosOrder::query()->where('outlet_id', $outletId)->where('status', OrderStatus::Open->value)->with('table')->orderBy('opened_at')->get();
         $byTable = $orders->whereNotNull('dining_table_id')->keyBy('dining_table_id');
         $minutes = fn (PosOrder $order): int => (int) $order->opened_at->diffInMinutes(now());
+        $outlet = Outlet::query()->findOrFail($outletId);
+        $reserved = app(TableReservations::class)->reservedTableIds($outletId);
+        $timezone = app(TableReservations::class)->timezone($outlet->property_id);
         $tables = DiningTable::query()->where('outlet_id', $outletId)->where('is_active', true)->get(['id', 'status'])
-            ->mapWithKeys(function (DiningTable $table) use ($byTable, $minutes): array {
+            ->mapWithKeys(function (DiningTable $table) use ($byTable, $minutes, $reserved): array {
                 $order = $byTable->get($table->id);
+                $status = $order instanceof PosOrder ? ($table->status === TableStatus::BillPrinted ? TableStatus::BillPrinted->value : TableStatus::Occupied->value)
+                    : (in_array($table->id, $reserved, true) && $table->status === TableStatus::Available ? TableStatus::Reserved->value : $table->status->value);
 
                 return [$table->id => [
-                    'status' => $order instanceof PosOrder ? ($table->status === TableStatus::BillPrinted ? TableStatus::BillPrinted->value : TableStatus::Occupied->value) : $table->status->value,
+                    'status' => $status,
                     'order_url' => $order instanceof PosOrder ? route('pos.orders.show', $order) : null,
                     'subtotal' => $order instanceof PosOrder ? number_format((float) $order->subtotal, 2) : null,
                     'minutes' => $order instanceof PosOrder ? $minutes($order) : null,
@@ -309,10 +339,24 @@ class PosOrderController extends Controller
             'tables' => $tables,
             'orders' => $orders->map(fn (PosOrder $order): array => [
                 'id' => $order->id, 'order_no' => $order->order_no, 'url' => route('pos.orders.show', $order),
-                'where' => $order->table ? __('Table :number', ['number' => $order->table->number]) : __('Takeaway'),
+                'where' => match (true) {
+                    $order->table instanceof DiningTable => __('Table :number', ['number' => $order->table->number]),
+                    $order->order_type->isDelivery() => $order->order_type->label().' · '.$order->delivery_location,
+                    $order->order_type === OrderType::StaffMeal => $order->order_type->label().' · '.$order->guest_name,
+                    default => __('Takeaway'),
+                },
                 'meta' => $order->order_no.' · '.($names[$order->waiter_id] ?? '').' · '.__(':minutes min', ['minutes' => $minutes($order)]),
                 'subtotal' => number_format((float) $order->subtotal, 2),
+                'delivery' => $order->delivery_status instanceof DeliveryStatus ? [
+                    'status' => $order->delivery_status->value, 'label' => $order->delivery_status->label(), 'color' => $order->delivery_status->color(),
+                    'url' => route('pos.orders.delivery', $order), 'guest' => $order->guest_name,
+                ] : null,
             ])->values()->all(),
+            'reservations' => array_map(fn (TableReservation $reservation): array => [
+                'id' => $reservation->id, 'name' => $reservation->customer_name, 'time' => $reservation->reserved_for->copy()->setTimezone($timezone)->format('H:i'),
+                'party' => $reservation->party_size, 'table' => $reservation->table?->number, 'table_id' => $reservation->dining_table_id, 'occasion' => $reservation->occasion,
+                'notes' => $reservation->notes, 'phone' => $reservation->phone, 'seat_url' => route('pos.reservations.seat', $reservation), 'close_url' => route('pos.reservations.close', $reservation),
+            ], app(TableReservations::class)->coming($outlet)),
         ];
     }
 

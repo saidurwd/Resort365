@@ -14,10 +14,13 @@ use Modules\Restaurant\Http\Controllers\OutletSetupController;
 use Modules\Restaurant\Http\Controllers\Pos\PosBillController;
 use Modules\Restaurant\Http\Controllers\Pos\PosController;
 use Modules\Restaurant\Http\Controllers\Pos\PosOrderController;
+use Modules\Restaurant\Http\Controllers\Pos\PosReservationController;
 use Modules\Restaurant\Http\Controllers\Pos\PosSessionController;
 use Modules\Restaurant\Http\Controllers\PosSessionsController;
 use Modules\Restaurant\Http\Controllers\PriceListController;
 use Modules\Restaurant\Http\Controllers\PrinterController;
+use Modules\Restaurant\Http\Controllers\RestaurantReportController;
+use Modules\Restaurant\Http\Controllers\TableReservationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -109,6 +112,17 @@ Route::prefix('restaurant')->name('restaurant.')->middleware(['auth', 'verified'
 
     Route::get('/bills/{bill}/receipt', [BillReceiptController::class, 'show'])->whereNumber('bill')->name('bills.receipt');
 
+    foreach (RestaurantReportController::REPORTS as $report) {
+        Route::get('/reports/'.$report, [RestaurantReportController::class, 'show'])->defaults('report', $report)->middleware('can:restaurant.report.view')->name('reports.'.$report);
+    }
+
+    Route::get('/reservations', [TableReservationController::class, 'index'])->middleware('can:restaurant.reservation.view')->name('reservations.index');
+    Route::middleware('can:restaurant.reservation.manage')->prefix('reservations')->name('reservations.')->group(function (): void {
+        Route::post('/', [TableReservationController::class, 'store'])->name('store');
+        Route::put('/{reservation}', [TableReservationController::class, 'update'])->whereNumber('reservation')->name('update');
+        Route::post('/{reservation}/close', [TableReservationController::class, 'close'])->whereNumber('reservation')->name('close');
+    });
+
     Route::middleware('can:restaurant.discount-limit.manage')->group(function (): void {
         Route::get('/discount-limits', [DiscountLimitController::class, 'index'])->name('discount-limits.index');
         Route::put('/discount-limits', [DiscountLimitController::class, 'update'])->name('discount-limits.update');
@@ -149,6 +163,7 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
                 // Live updates (Step 3.5): what the screens reload when told of a change, or poll without WebSockets.
                 Route::get('/api/floor', 'floorData')->name('floor.data');
                 Route::get('/api/menu', 'menu')->name('menu');
+                Route::post('/api/orders/{order}/delivery', 'delivery')->name('orders.delivery');
                 Route::get('/api/ready', 'ready')->name('ready');
 
                 Route::prefix('api/orders/{order}')->name('orders.')->scopeBindings()->group(function (): void {
@@ -162,6 +177,12 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
                     Route::post('/merge', 'merge')->name('merge');
                     Route::post('/cancel', 'cancel')->name('cancel');
                 });
+            });
+
+            // Table reservations on the floor (Step 3.8).
+            Route::middleware('can:restaurant.order.take')->controller(PosReservationController::class)->group(function (): void {
+                Route::post('/reservations/{reservation}/seat', 'seat')->name('reservations.seat');
+                Route::post('/reservations/{reservation}/close', 'close')->name('reservations.close');
             });
 
             // Bills, discounts and payments (Step 3.6).

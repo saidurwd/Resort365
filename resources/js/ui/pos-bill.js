@@ -336,8 +336,8 @@ export function posBill(state) {
         },
 
         // Complimentary and void
-        startException(kind, bill) {
-            this.exception = { kind, bill, comp_reason: this.compReasons[0].value, note: '', reason: '', food_prepared: true };
+        startException(kind, bill, reason = null) {
+            this.exception = { kind, bill, comp_reason: reason ?? this.compReasons[0].value, note: '', reason: '', food_prepared: true };
         },
 
         async saveException(approvalId = null) {

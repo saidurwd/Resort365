@@ -153,6 +153,9 @@
                         <template x-if="bill.status === 'printed' && can.settle">
                             <button type="button" class="btn btn-success btn-lg pos-btn flex-grow-1" @click="startPayment(bill)" data-pay><i class="bi bi-cash-coin"></i> {{ __('Pay') }}</button>
                         </template>
+                        <template x-if="bill.status === 'printed' && billing.type === 'staff_meal' && Number(bill.paid_total) === 0">
+                            <button type="button" class="btn btn-warning btn-lg pos-btn" @click="startException('comp', bill, 'staff_meal')" data-staff-meal><i class="bi bi-person-badge"></i> {{ __('Settle as staff meal') }}</button>
+                        </template>
                         <template x-if="bill.status === 'printed' && can.settle && Number(bill.paid_total) === 0">
                             <button type="button" class="btn btn-outline-warning pos-btn" @click="startException('comp', bill)" data-comp>{{ __('Complimentary') }}</button>
                         </template>

@@ -31,7 +31,7 @@ use Modules\Restaurant\Enums\MealPeriod;
  * @property MealPeriod $meal_period
  * @property int $covers_adults
  * @property int $covers_children
- * @property int $entitled
+ * @property int $entitled covers the plan included for that meal that day (in total)
  * @property int $pos_order_id
  * @property int|null $pos_bill_id
  * @property string|null $cost_amount

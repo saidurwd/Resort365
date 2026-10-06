@@ -135,21 +135,50 @@ class ReservationLookupService implements ReservationLookup
 
     public function mealEntitlement(int $reservationId, string $date): MealEntitlement
     {
-        $items = ReservationItem::query()->where('reservation_id', $reservationId)->where('status', ReservationStatus::CheckedIn->value)->get();
+        return $this->entitlements(ReservationItem::query()->where('reservation_id', $reservationId)->whereIn('status', $this->stayed())->get(), $date)[$reservationId]
+            ?? new MealEntitlement($reservationId, $date, [], []);
+    }
+
+    public function mealEntitlements(int $propertyId, string $date): array
+    {
+        return array_values($this->entitlements(ReservationItem::query()->where('property_id', $propertyId)->whereIn('status', $this->stayed())
+            ->where('check_in', '<=', $date)->where('check_out', '>=', $date)->get(), $date));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function stayed(): array
+    {
+        return [ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value];
+    }
+
+    /**
+     * @param  Collection<int, ReservationItem>  $items
+     * @return array<int, MealEntitlement> by reservation id
+     */
+    private function entitlements(Collection $items, string $date): array
+    {
         $periods = [];
         $plans = [];
 
         foreach ($items as $item) {
             $plan = $this->rates->ratePlan($item->rate_plan_id)?->mealPlan->value ?? 'EP';
-            $plans[] = $plan;
+            $plans[$item->reservation_id][] = $plan;
 
             foreach ($this->meals->periods($plan, $item->check_in->toDateString(), $item->check_out->toDateString(), $date) as $period) {
-                $periods[$period]['adults'] = ($periods[$period]['adults'] ?? 0) + $item->adults;
-                $periods[$period]['children'] = ($periods[$period]['children'] ?? 0) + $item->children;
+                $periods[$item->reservation_id][$period]['adults'] = ($periods[$item->reservation_id][$period]['adults'] ?? 0) + $item->adults;
+                $periods[$item->reservation_id][$period]['children'] = ($periods[$item->reservation_id][$period]['children'] ?? 0) + $item->children;
             }
         }
 
-        return new MealEntitlement($reservationId, $date, $periods, array_values(array_unique($plans)));
+        $result = [];
+
+        foreach ($plans as $id => $reservationPlans) {
+            $result[$id] = new MealEntitlement($id, $date, $periods[$id] ?? [], array_values(array_unique($reservationPlans)));
+        }
+
+        return $result;
     }
 
     /**

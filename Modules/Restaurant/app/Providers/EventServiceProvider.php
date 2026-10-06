@@ -3,6 +3,8 @@
 namespace Modules\Restaurant\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Modules\FrontOffice\Events\NightAuditCompleted;
+use Modules\Restaurant\Listeners\SnapshotMealsAfterNightAudit;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -11,7 +13,9 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<string, array<int, string>>
      */
-    protected $listen = [];
+    protected $listen = [
+        NightAuditCompleted::class => [SnapshotMealsAfterNightAudit::class],
+    ];
 
     /**
      * Indicates if events should be discovered.

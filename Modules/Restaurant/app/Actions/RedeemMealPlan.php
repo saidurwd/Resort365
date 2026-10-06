@@ -81,7 +81,7 @@ class RedeemMealPlan extends Action
             $redemption = PackageRedemption::query()->create([
                 'property_id' => $locked->property_id, 'outlet_id' => $locked->outlet_id, 'reservation_id' => $reservationId, 'reservation_code' => $stay->code,
                 'guest_name' => mb_substr($stay->guestName, 0, 190), 'business_date' => $this->plans->businessDate($locked->property_id), 'meal_period' => $period,
-                'covers_adults' => $adults, 'covers_children' => $children, 'entitled' => $left['left'], 'pos_order_id' => $locked->id,
+                'covers_adults' => $adults, 'covers_children' => $children, 'entitled' => $left['entitled'], 'pos_order_id' => $locked->id,
                 'manager_approval_id' => $approval?->id, 'created_by' => $userId,
             ]);
             PosOrderLine::query()->whereIn('id', $lines->pluck('id'))->update(['package_redemption_id' => $redemption->id]);

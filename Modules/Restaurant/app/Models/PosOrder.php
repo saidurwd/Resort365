@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Modules\Restaurant\Database\Factories\PosOrderFactory;
+use Modules\Restaurant\Enums\DeliveryStatus;
 use Modules\Restaurant\Enums\DiscountType;
 use Modules\Restaurant\Enums\OrderStatus;
 use Modules\Restaurant\Enums\OrderType;
@@ -33,6 +34,12 @@ use Modules\Restaurant\Enums\OrderType;
  * @property int|null $dining_table_id
  * @property int $covers
  * @property int $waiter_id
+ * @property int|null $reservation_id the in-house guest (room service)
+ * @property string|null $guest_name
+ * @property string|null $delivery_location
+ * @property DeliveryStatus|null $delivery_status
+ * @property Carbon|null $out_for_delivery_at
+ * @property Carbon|null $delivered_at
  * @property OrderStatus $status
  * @property string $subtotal
  * @property Carbon $opened_at
@@ -47,7 +54,7 @@ use Modules\Restaurant\Enums\OrderType;
  */
 #[UseFactory(PosOrderFactory::class)]
 #[Fillable([
-    'property_id', 'outlet_id', 'pos_session_id', 'order_no', 'business_date', 'order_type', 'dining_table_id', 'covers', 'waiter_id', 'status',
+    'property_id', 'outlet_id', 'pos_session_id', 'order_no', 'business_date', 'order_type', 'dining_table_id', 'covers', 'waiter_id', 'reservation_id', 'guest_name', 'delivery_location', 'delivery_status', 'out_for_delivery_at', 'delivered_at', 'status',
     'subtotal', 'opened_at', 'closed_at', 'merged_into_id', 'notes',
 ])]
 class PosOrder extends Model
@@ -66,6 +73,9 @@ class PosOrder extends Model
     protected function casts(): array
     {
         return [
+            'delivery_status' => DeliveryStatus::class,
+            'out_for_delivery_at' => 'datetime',
+            'delivered_at' => 'datetime',
             'discount_type' => DiscountType::class,
             'discount_value' => 'decimal:2',
             'business_date' => 'date',
