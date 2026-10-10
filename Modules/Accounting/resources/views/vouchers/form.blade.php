@@ -28,6 +28,13 @@
             </div>
         </x-card>
 
+        <x-card :title="__('Cheque (optional)')" icon="bi-journal-check">
+            <div class="row">
+                <div class="col-md-4"><x-form.input name="cheque_no" :label="$income ? __('Cheque received, number') : __('Cheque issued, number')" :value="old('cheque_no')" /></div>
+                <div class="col-md-4"><x-form.date name="cheque_date" :label="__('Cheque date')" :value="old('cheque_date')" /></div>
+            </div>
+        </x-card>
+
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary" data-post-voucher><i class="bi bi-check2-circle"></i> {{ __('Save and post') }}</button>
             <a href="{{ route('accounting.vouchers.index') }}" class="btn btn-outline-secondary">{{ __('Cancel') }}</a>

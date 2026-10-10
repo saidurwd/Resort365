@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Modules\Accounting\Database\Factories\VoucherFactory;
+use Modules\Accounting\Enums\ChequeStatus;
 use Modules\Accounting\Enums\VoucherStatus;
 use Modules\Accounting\Enums\VoucherType;
 use Spatie\MediaLibrary\HasMedia;
@@ -33,6 +34,9 @@ use Spatie\MediaLibrary\HasMedia;
  * @property string|null $payee
  * @property string $description
  * @property string|null $reference
+ * @property string|null $cheque_no
+ * @property Carbon|null $cheque_date
+ * @property ChequeStatus|null $cheque_status
  * @property string $amount
  * @property string $tax_amount
  * @property VoucherStatus $status
@@ -47,7 +51,7 @@ use Spatie\MediaLibrary\HasMedia;
  */
 #[UseFactory(VoucherFactory::class)]
 #[Fillable([
-    'property_id', 'voucher_no', 'type', 'voucher_date', 'account_id', 'cash_account_id', 'department_id', 'payee', 'description', 'reference',
+    'property_id', 'voucher_no', 'type', 'voucher_date', 'account_id', 'cash_account_id', 'department_id', 'payee', 'description', 'reference', 'cheque_no', 'cheque_date', 'cheque_status',
     'amount', 'tax_amount', 'status', 'journal_entry_id', 'created_by', 'voided_by', 'voided_at', 'void_reason',
 ])]
 class Voucher extends Model implements HasMedia
@@ -67,7 +71,7 @@ class Voucher extends Model implements HasMedia
     protected function casts(): array
     {
         return [
-            'type' => VoucherType::class, 'status' => VoucherStatus::class, 'voucher_date' => 'date', 'amount' => 'decimal:2', 'tax_amount' => 'decimal:2', 'voided_at' => 'datetime',
+            'type' => VoucherType::class, 'status' => VoucherStatus::class, 'voucher_date' => 'date', 'cheque_date' => 'date', 'cheque_status' => ChequeStatus::class, 'amount' => 'decimal:2', 'tax_amount' => 'decimal:2', 'voided_at' => 'datetime',
         ];
     }
 

@@ -76,6 +76,7 @@ class VoucherController extends Controller
                 (int) $request->validated('cash_account_id'), (string) $request->validated('amount'), (string) $request->validated('description'),
                 (string) ($request->validated('tax_amount') ?: '0'), $request->filled('department_id') ? (int) $request->validated('department_id') : null,
                 $request->filled('payee') ? (string) $request->validated('payee') : null, $request->filled('reference') ? (string) $request->validated('reference') : null,
+                $request->filled('cheque_no') ? (string) $request->validated('cheque_no') : null, $request->filled('cheque_date') ? (string) $request->validated('cheque_date') : null,
             ), $request->user()?->id);
         } catch (AccountingRuleViolated $exception) {
             return back()->withInput()->with('error', $exception->getMessage());

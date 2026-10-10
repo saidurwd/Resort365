@@ -7,6 +7,7 @@ use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Modules\Accounting\DTOs\VoucherData;
 use Modules\Accounting\Enums\AccountType;
+use Modules\Accounting\Enums\ChequeStatus;
 use Modules\Accounting\Enums\PostingKey;
 use Modules\Accounting\Enums\VoucherStatus;
 use Modules\Accounting\Enums\VoucherType;
@@ -63,7 +64,7 @@ class CreateVoucher extends Action
             $voucher = Voucher::query()->create([
                 'property_id' => $data->propertyId, 'voucher_no' => $this->numbers->next($data->type->documentType(), $data->propertyId, CarbonImmutable::parse($data->date)),
                 'type' => $data->type, 'voucher_date' => $data->date, 'account_id' => $data->accountId, 'cash_account_id' => $data->cashAccountId, 'department_id' => $data->departmentId,
-                'payee' => $data->payee, 'description' => $data->description, 'reference' => $data->reference, 'amount' => (string) $amount, 'tax_amount' => (string) $tax,
+                'payee' => $data->payee, 'description' => $data->description, 'reference' => $data->reference, 'cheque_no' => $data->chequeNo, 'cheque_date' => $data->chequeNo !== null ? ($data->chequeDate ?? $data->date) : null, 'cheque_status' => $data->chequeNo !== null ? ChequeStatus::Pending : null, 'amount' => (string) $amount, 'tax_amount' => (string) $tax,
                 'status' => VoucherStatus::Posted, 'created_by' => $userId,
             ]);
 
@@ -77,7 +78,7 @@ class CreateVoucher extends Action
                 ]));
 
             $entry = $this->writer->saveDraft(null, [
-                'entry_date' => $data->date, 'description' => mb_substr($voucher->voucher_no.' · '.$data->description, 0, 300), 'reference' => $data->reference ?? $voucher->voucher_no,
+                'entry_date' => $data->date, 'description' => mb_substr($voucher->voucher_no.' · '.$data->description, 0, 300), 'reference' => $data->reference ?? $data->chequeNo ?? $voucher->voucher_no,
                 'source_type' => 'voucher', 'source_id' => $voucher->id, 'source_event' => 'posted',
             ], array_map(fn (array $line): array => [
                 'account_id' => $line['account_id'], 'property_id' => $line['property_id'], 'department_id' => $line['department_id'],

@@ -29,6 +29,8 @@ class VoucherRequest extends FormRequest
             'payee' => ['nullable', 'string', 'max:150'],
             'description' => ['required', 'string', 'max:300'],
             'reference' => ['nullable', 'string', 'max:100'],
+            'cheque_no' => ['nullable', 'string', 'max:30'],
+            'cheque_date' => ['nullable', 'date_format:Y-m-d'],
         ];
     }
 }

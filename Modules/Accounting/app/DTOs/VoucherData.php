@@ -22,5 +22,7 @@ final readonly class VoucherData extends Data
         public ?int $departmentId = null,
         public ?string $payee = null,
         public ?string $reference = null,
+        public ?string $chequeNo = null,
+        public ?string $chequeDate = null,
     ) {}
 }
