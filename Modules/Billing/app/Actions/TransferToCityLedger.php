@@ -7,6 +7,7 @@ use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Modules\Billing\Enums\CityLedgerStatus;
 use Modules\Billing\Enums\FolioLineType;
+use Modules\Billing\Events\CityLedgerTransferred;
 use Modules\Billing\Exceptions\ChargeRejected;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\Folio;
@@ -72,6 +73,8 @@ class TransferToCityLedger extends Action
                 'reference_type' => 'city_ledger_entry', 'reference_id' => $entry->id, 'posted_by' => $userId,
             ]);
             $this->ledger->recalculate($locked);
+
+            CityLedgerTransferred::dispatch($entry->tenant_id, $entry->id, $entry->property_id);
 
             return $entry;
         });

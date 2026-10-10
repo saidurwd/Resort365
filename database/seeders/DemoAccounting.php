@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Modules\Accounting\Actions\BackpostHistory;
 use Modules\Accounting\Actions\ChangePeriodStatus;
 use Modules\Accounting\Actions\CreateFiscalYear;
 use Modules\Accounting\Actions\PostJournalEntry;
@@ -19,7 +20,8 @@ use Modules\Accounting\Models\JournalEntry;
 
 /**
  * Accounting demo (Step 4.1): the chart of accounts, the current fiscal year with the earlier months closed,
- * an opening-balance entry, an accrual with its reversal and one draft.
+ * an opening-balance entry, an accrual with its reversal and one draft; then the earlier operations are
+ * posted to the ledger (Step 4.2).
  */
 final class DemoAccounting
 {
@@ -60,6 +62,9 @@ final class DemoAccounting
                 ['account_id' => $account('bank_charges'), 'debit' => '1250.00', 'property_id' => $propertyId],
                 ['account_id' => $account('bank'), 'credit' => '1250.00', 'property_id' => $propertyId],
             ]);
+
+            // Step 4.2: the demo guest journey so far (deposits, payments, settlements, closed days of charges) reaches the ledger.
+            app(BackpostHistory::class)->handle();
 
             // Months before last month are closed.
             FiscalPeriod::query()->where('fiscal_year_id', $year->id)->where('ends_on', '<', $today->startOfMonth()->subMonth()->startOfMonth()->toDateString())

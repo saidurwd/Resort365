@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Rates\Contracts\RateLookup;
 use Modules\Reservation\Contracts\ReservationLookup;
+use Modules\Reservation\DTOs\CancellationFact;
 use Modules\Reservation\DTOs\MealEntitlement;
 use Modules\Reservation\DTOs\NightOccupancy;
 use Modules\Reservation\DTOs\ReservationSummary;
@@ -210,5 +211,26 @@ class ReservationLookupService implements ReservationLookup
             $reservation->items->filter(fn (ReservationItem $item): bool => $item->status === ReservationStatus::CheckedIn)->count(),
             $reservation->no_room_charges,
         ))->values()->all();
+    }
+
+    public function cancellation(int $reservationId): ?CancellationFact
+    {
+        $reservation = Reservation::query()->where('status', ReservationStatus::Cancelled->value)->find($reservationId);
+
+        return $reservation instanceof Reservation ? $this->cancellationFact($reservation) : null;
+    }
+
+    public function cancellations(): array
+    {
+        return Reservation::query()->where('status', ReservationStatus::Cancelled->value)->orderBy('id')->get()
+            ->map(fn (Reservation $reservation): CancellationFact => $this->cancellationFact($reservation))->all();
+    }
+
+    private function cancellationFact(Reservation $reservation): CancellationFact
+    {
+        return new CancellationFact(
+            $reservation->id, $reservation->property_id, $reservation->code, (string) BigDecimal::of($reservation->cancellation_fee ?? '0')->toScale(2),
+            ($reservation->cancelled_at ?? $reservation->created_at)->toDateString(),
+        );
     }
 }

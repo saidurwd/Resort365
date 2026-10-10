@@ -42,6 +42,7 @@ class JournalEntryController extends Controller
 
         return view('accounting::journals.index', [
             'columns' => JournalEntriesTable::columns(), 'statuses' => collect(JournalStatus::cases())->mapWithKeys(fn (JournalStatus $status): array => [$status->value => $status->label()])->all(),
+            'sources' => ['manual' => __('Manual'), 'automatic' => __('Automatic (from operations)')],
             'canCreate' => $request->user()?->can('accounting.journal.create') ?? false,
         ]);
     }
@@ -50,7 +51,7 @@ class JournalEntryController extends Controller
     {
         Gate::authorize('viewAny', JournalEntry::class);
 
-        return $table->toJson($request->query('status'), $request->query('from'), $request->query('to'));
+        return $table->toJson($request->query('status'), $request->query('from'), $request->query('to'), $request->query('source'));
     }
 
     public function create(Settings $settings): View

@@ -2,6 +2,7 @@
 
 namespace Modules\Reservation\Contracts;
 
+use Modules\Reservation\DTOs\CancellationFact;
 use Modules\Reservation\DTOs\MealEntitlement;
 use Modules\Reservation\DTOs\NightOccupancy;
 use Modules\Reservation\DTOs\ReservationSummary;
@@ -72,4 +73,16 @@ interface ReservationLookup
      * @return list<MealEntitlement>
      */
     public function mealEntitlements(int $propertyId, string $date): array;
+
+    /**
+     * A cancelled booking's retained fee and the date it was cancelled (for the ledger); null while the booking stands.
+     */
+    public function cancellation(int $reservationId): ?CancellationFact;
+
+    /**
+     * Every cancelled booking, for back-posting the ledger.
+     *
+     * @return list<CancellationFact>
+     */
+    public function cancellations(): array;
 }

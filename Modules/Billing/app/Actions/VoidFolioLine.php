@@ -4,6 +4,7 @@ namespace Modules\Billing\Actions;
 
 use App\Support\Actions\Action;
 use Modules\Billing\Enums\FolioLineType;
+use Modules\Billing\Events\FolioChargeVoided;
 use Modules\Billing\Exceptions\ChargeRejected;
 use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
@@ -40,6 +41,8 @@ class VoidFolioLine extends Action
 
             $locked->forceFill(['is_voided' => true, 'voided_by' => $userId, 'voided_at' => now(), 'void_reason' => $reason])->save();
             $this->ledger->recalculate($folio);
+
+            FolioChargeVoided::dispatch($locked->tenant_id, $locked->id, $locked->property_id);
 
             return $locked;
         });

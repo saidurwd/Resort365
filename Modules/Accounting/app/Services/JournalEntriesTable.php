@@ -10,7 +10,7 @@ use Yajra\DataTables\DataTables;
 
 /**
  * The journal entries list (server-side DataTable): number, date, description, total, status; filtered by
- * status and by date range.
+ * status, date range and source (manual or automatic).
  */
 class JournalEntriesTable
 {
@@ -34,10 +34,12 @@ class JournalEntriesTable
         ];
     }
 
-    public function toJson(?string $status, ?string $from, ?string $to): JsonResponse
+    public function toJson(?string $status, ?string $from, ?string $to, ?string $source = null): JsonResponse
     {
         $query = JournalEntry::query()
             ->when(JournalStatus::tryFrom((string) $status) instanceof JournalStatus, fn ($query) => $query->where('status', $status))
+            ->when($source === 'automatic', fn ($query) => $query->whereNotNull('source_type'))
+            ->when($source === 'manual', fn ($query) => $query->whereNull('source_type'))
             ->when($from, fn ($query) => $query->where('entry_date', '>=', $from))
             ->when($to, fn ($query) => $query->where('entry_date', '<=', $to));
 

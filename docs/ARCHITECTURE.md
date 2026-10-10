@@ -325,7 +325,7 @@ Property also depends on IAM's `UserDirectory` contract (to assign users to prop
 
 Restaurant depends on Billing's contract (for charge to room). It depends on Inventory only **optionally**: if a tenant has not enabled Inventory, recipe-based stock deduction is simply switched off and the POS still works.
 
-Accounting has **no compile-time dependency** on Billing, Restaurant, Procurement, Inventory or Payroll. It only *listens* to their events and maps them to journal entries. So a tenant can run Accounting without Procurement, and the reverse.
+Accounting has **no compile-time dependency** on Restaurant, Procurement, Inventory or Payroll. It only *listens* to their events and maps them to journal entries. So a tenant can run Accounting without Procurement, and the reverse. *(Step 4.2: for the guest journey it also uses Billing's `LedgerFacts` contract and Reservation's `ReservationLookup::cancellation(s)`, besides their events, because the events carry ids only. It reads facts and never writes to those modules.)*
 
 **Rule:** no circular dependencies. A downstream module reacts to an upstream module's events. An upstream module never calls a downstream one.
 
@@ -371,6 +371,7 @@ Route ─► Middleware ─► Controller (thin: authorize, validate, delegate, 
 | `ReservationCancelled` | Reservation | Billing → cancellation fee / refund; Notifications |
 | `PaymentReceived` | Billing | Reservation → update payment status, auto-confirm if deposit met; Accounting → post receipt *(Step 1.7: the event carries the reservation's total paid, so Reservation sets it rather than adding to it)* |
 | `RefundIssued` | Billing | Reservation → paid total and payment status; Accounting → post refund |
+| `InvoiceIssued`, `CityLedgerTransferred`, `FolioChargeVoided` | Billing | Accounting → deposits applied at check-out; folio balance moved to the city ledger; reverse a charge voided after its day was posted *(Step 4.2)* |
 | `GuestCheckedIn` | FrontOffice | Housekeeping → room status *Occupied* *(Step 2.7: occupancy is read from Reservation's in-house stays, `ReservationLookup::roomOccupancy`, so Housekeeping does not listen to it)* |
 | `GuestCheckedOut` | FrontOffice | Housekeeping → room *Dirty*, create cleaning task *(Step 2.3: invoices are issued during check-out through Billing's `FolioSettlement` contract, so Billing does not listen to FrontOffice)* |
 | `RoomMoved` | Reservation | Housekeeping → the room left becomes *Dirty* with a departure clean *(Step 2.7)* |
@@ -1091,6 +1092,8 @@ Operational modules **never write journal entries directly**. They emit events. 
 | Payroll paid | Salaries Payable | Bank |
 | Service charge distributed | Service Charge Payable | Salaries Payable |
 | Tips distributed | Tips Payable | Salaries Payable |
+
+*Implementation notes (Step 4.2):* `PostingService` (Accounting) builds every entry; each carries `(source_type, source_id, source_event)` and is posted once. Charges are posted **per property and business date** at `NightAuditCompleted` (`property_day`, `revenue:<date>`), so extras and adjustments posted on a folio are swept in with the room nights; the meal part of a room night (`meal_amount`) goes to food revenue. Payments post at `PaymentReceived` (deposits to Customer Advances, other payments to the guest ledger, a payment with no booking to the city ledger), refunds at `RefundIssued` (cancellation and security-deposit refunds debit Customer Advances, others the guest ledger). A date in a closed period posts on the first day of the next open period with the real date in the reference; a posting the ledger refuses is reported and left for `php artisan accounting:backpost`. Service charge is recognised by name (a tax whose name contains "service"), every other tax goes to VAT payable. Accounts are chosen in Accounting → Account mapping (`account_mappings`: fixed accounts, one per payment method, one per charge code), falling back to the chart's system keys. Not yet posted: credit notes and city ledger settlements (`TODO(step-4.x)`), restaurant bills (Step 4.3).
 
 **Revenue recognition:** room revenue is recognised **per night at night audit** (the accrual basis and international standard). This is why deposits are held as a liability until the stay happens. *Q8 decided before Phase 2: nightly by default, with a per-tenant setting `billing.revenue_recognition` (`nightly` | `at_checkout`) used by the night audit (Step 2.6) and Accounting.*
 

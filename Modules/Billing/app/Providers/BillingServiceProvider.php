@@ -14,6 +14,7 @@ use Modules\Billing\Contracts\DailyTakings;
 use Modules\Billing\Contracts\FolioPostingContract;
 use Modules\Billing\Contracts\FolioReferenceLinks;
 use Modules\Billing\Contracts\FolioSettlement;
+use Modules\Billing\Contracts\LedgerFacts;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\ChargeCode;
 use Modules\Billing\Models\CityLedgerEntry;
@@ -36,6 +37,7 @@ use Modules\Billing\Services\DailyTakingsService;
 use Modules\Billing\Services\FolioPostingService;
 use Modules\Billing\Services\FolioSettlementService;
 use Modules\Billing\Services\FoliosTab;
+use Modules\Billing\Services\LedgerFactsService;
 use Modules\Billing\Services\PaymentsTab;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
@@ -76,6 +78,7 @@ class BillingServiceProvider extends ModuleServiceProvider
         $this->app->singleton(FolioReferenceLinks::class);
         $this->app->bind(FolioSettlement::class, FolioSettlementService::class);
         $this->app->bind(DailyTakings::class, DailyTakingsService::class);
+        $this->app->bind(LedgerFacts::class, LedgerFactsService::class);
     }
 
     public function boot(): void

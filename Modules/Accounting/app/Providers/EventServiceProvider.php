@@ -4,7 +4,15 @@ namespace Modules\Accounting\Providers;
 
 use App\Support\Tenancy\Events\TenantCreated;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Modules\Accounting\Listeners\PostLedgerEntries;
 use Modules\Accounting\Listeners\SeedChartForNewTenant;
+use Modules\Billing\Events\CityLedgerTransferred;
+use Modules\Billing\Events\FolioChargeVoided;
+use Modules\Billing\Events\InvoiceIssued;
+use Modules\Billing\Events\PaymentReceived;
+use Modules\Billing\Events\RefundIssued;
+use Modules\FrontOffice\Events\NightAuditCompleted;
+use Modules\Reservation\Events\ReservationCancelled;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -15,6 +23,13 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         TenantCreated::class => [SeedChartForNewTenant::class],
+        PaymentReceived::class => [PostLedgerEntries::class.'@onPaymentReceived'],
+        RefundIssued::class => [PostLedgerEntries::class.'@onRefundIssued'],
+        NightAuditCompleted::class => [PostLedgerEntries::class.'@onNightAuditCompleted'],
+        InvoiceIssued::class => [PostLedgerEntries::class.'@onInvoiceIssued'],
+        CityLedgerTransferred::class => [PostLedgerEntries::class.'@onCityLedgerTransferred'],
+        FolioChargeVoided::class => [PostLedgerEntries::class.'@onFolioChargeVoided'],
+        ReservationCancelled::class => [PostLedgerEntries::class.'@onReservationCancelled'],
     ];
 
     /**
@@ -22,7 +37,7 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var bool
      */
-    protected static $shouldDiscoverEvents = true;
+    protected static $shouldDiscoverEvents = false;
 
     /**
      * Discover listeners in this module only (Laravel's default is the application's app/Listeners).

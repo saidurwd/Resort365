@@ -9,6 +9,7 @@ use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
+use Modules\Accounting\Console\BackpostCommand;
 use Modules\Accounting\Console\SeedChartCommand;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\FiscalPeriod;
@@ -52,6 +53,7 @@ class AccountingServiceProvider extends ModuleServiceProvider
      */
     protected array $commands = [
         SeedChartCommand::class,
+        BackpostCommand::class,
     ];
 
     public function boot(): void
@@ -91,6 +93,8 @@ class AccountingServiceProvider extends ModuleServiceProvider
             permission: 'accounting.journal.view', module: 'accounting', active: 'accounting.journals.*'));
         $menu->add(new MenuItem('accounting.accounts', 'Chart of accounts', route: 'accounting.accounts.index', parent: 'accounting', order: 20,
             permission: 'accounting.account.view', module: 'accounting', active: 'accounting.accounts.*'));
+        $menu->add(new MenuItem('accounting.mappings', 'Account mapping', route: 'accounting.mappings.index', parent: 'accounting', order: 25,
+            permission: 'accounting.account.view', module: 'accounting', active: 'accounting.mappings.*'));
         $menu->add(new MenuItem('accounting.periods', 'Fiscal periods', route: 'accounting.periods.index', parent: 'accounting', order: 30,
             permission: 'accounting.period.view', module: 'accounting', active: 'accounting.periods.*'));
 

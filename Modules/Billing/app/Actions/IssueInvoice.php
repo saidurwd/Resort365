@@ -7,6 +7,7 @@ use Brick\Math\BigDecimal;
 use Modules\Billing\Enums\BillTo;
 use Modules\Billing\Enums\FolioLineType;
 use Modules\Billing\Enums\InvoiceStatus;
+use Modules\Billing\Events\InvoiceIssued;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
@@ -67,6 +68,8 @@ class IssueInvoice extends Action
         }
 
         CityLedgerEntry::query()->where('folio_id', $folio->id)->whereNull('invoice_id')->update(['invoice_id' => $invoice->id]);
+
+        InvoiceIssued::dispatch($invoice->tenant_id, $invoice->id, $invoice->property_id);
 
         return $invoice;
     }

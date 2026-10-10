@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use LogicException;
@@ -95,6 +96,14 @@ class Invoice extends Model
             'tax_breakdown' => 'array',
             'status' => InvoiceStatus::class,
         ];
+    }
+
+    /**
+     * @return BelongsTo<Folio, $this>
+     */
+    public function folio(): BelongsTo
+    {
+        return $this->belongsTo(Folio::class);
     }
 
     /**

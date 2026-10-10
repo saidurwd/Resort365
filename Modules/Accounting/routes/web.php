@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Accounting\Http\Controllers\AccountController;
+use Modules\Accounting\Http\Controllers\AccountMappingController;
 use Modules\Accounting\Http\Controllers\FiscalPeriodController;
 use Modules\Accounting\Http\Controllers\JournalEntryController;
 
@@ -23,6 +24,9 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
         Route::put('/accounts/{account}', [AccountController::class, 'update'])->whereNumber('account')->name('accounts.update');
         Route::delete('/accounts/{account}', [AccountController::class, 'destroy'])->whereNumber('account')->name('accounts.destroy');
     });
+
+    Route::get('/mappings', [AccountMappingController::class, 'index'])->middleware('can:accounting.account.view')->name('mappings.index');
+    Route::put('/mappings', [AccountMappingController::class, 'update'])->middleware('can:accounting.account.manage')->name('mappings.update');
 
     Route::get('/periods', [FiscalPeriodController::class, 'index'])->middleware('can:accounting.period.view')->name('periods.index');
     Route::middleware('can:accounting.period.manage')->group(function (): void {
