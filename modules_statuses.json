@@ -9,5 +9,6 @@
     "Billing": true,
     "FrontOffice": true,
     "Housekeeping": true,
-    "Restaurant": true
+    "Restaurant": true,
+    "Accounting": true
 }

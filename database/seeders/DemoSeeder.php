@@ -141,6 +141,10 @@ class DemoSeeder extends Seeder
         // Step 3.8: room service and a pool delivery, a staff meal, table reservations, yesterday's sales for the reports.
         DemoRestaurant::service($rodela, $resort, self::DOMAINS['rodela']);
 
+        // Step 4.1: chart of accounts, fiscal year and journals.
+        DemoAccounting::seed($rodela, $resort);
+        DemoAccounting::seed($greenValley, $valley);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

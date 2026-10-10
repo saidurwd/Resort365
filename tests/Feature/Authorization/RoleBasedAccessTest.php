@@ -2,16 +2,12 @@
 
 /*
 | Step 0.6 "Done when": a Front Desk user sees a different sidebar from the Accountant, and a
-| direct URL to a forbidden page returns 403. Accounting doesn't exist yet, so this test registers
-| a stand-in menu item and permission the way it will; Front Office is real (Step 2.2), and the
-| /_front-desk stand-in page only checks its permission (the real desk needs a property).
+| direct URL to a forbidden page returns 403. Accounting and Front Office are real (Steps 4.1, 2.2); the
+| /_front-desk and /_journals stand-in pages only check their permissions (the real screens need a property).
 */
 
 use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
-use App\Support\Authorization\PermissionDefinition;
-use App\Support\Authorization\PermissionRegistry;
-use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -23,10 +19,6 @@ use function Pest\Laravel\post;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    app(PermissionRegistry::class)->register('Accounting', [
-        new PermissionDefinition('accounting.journal.view', 'View journals', [DefaultRole::Accountant]),
-    ]);
-
     Route::domain('{tenant}.'.config('tenancy.central_domain'))->middleware(['web', 'tenant', 'auth'])->group(function (): void {
         Route::get('/_front-desk', fn (): string => 'desk')->middleware('can:frontoffice.desk.view')->name('test.front-desk');
         Route::get('/_journals', fn (): string => 'journals')->middleware('can:accounting.journal.view')->name('test.journals');
@@ -34,8 +26,6 @@ beforeEach(function (): void {
     Route::getRoutes()->refreshNameLookups();
 
     $menu = app(MenuRegistry::class);
-    $menu->group('accounting', 'Accounting', 'bi-journal', order: 400);
-    $menu->add(new MenuItem('accounting.journals', 'Journal Entries', route: 'test.journals', parent: 'accounting', permission: 'accounting.journal.view'));
 
     withDefaultRoles(Tenant::factory()->create(['slug' => 'sunrise']));
 });
@@ -58,12 +48,12 @@ function sidebarOf(DefaultRole $role): array
 
 it('shows Front Desk and Accountant different sidebars', function (): void {
     expect(sidebarOf(DefaultRole::FrontDeskAgent))->toBe(['Dashboard', 'Front Office', 'Front Desk', 'Housekeeping', 'Room status', 'Report a fault', 'Lost & found', 'Reservations', 'New booking', 'Reservations', 'Quotes', 'Tape chart', 'Availability', 'Billing', 'My cashier shift', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Policies', 'Promotions', 'Setup', 'Cottages', 'Rooms', 'Cottage types', 'Room types'])
-        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Front Office', 'Night audit', 'Flash report', 'Housekeeping', 'Report a fault', 'Restaurant', 'POS sessions', 'Reports', 'Billing', 'Cashier shifts', 'City ledger', 'Guests', 'Companies', 'Travel agents', 'Accounting', 'Journal Entries', 'Setup', 'Departments', 'Taxes', 'Charge codes', 'Extras']);
+        ->and(sidebarOf(DefaultRole::Accountant))->toBe(['Dashboard', 'Front Office', 'Night audit', 'Flash report', 'Housekeeping', 'Report a fault', 'Restaurant', 'POS sessions', 'Reports', 'Accounting', 'Journal entries', 'Chart of accounts', 'Fiscal periods', 'Billing', 'Cashier shifts', 'City ledger', 'Guests', 'Companies', 'Travel agents', 'Setup', 'Departments', 'Taxes', 'Charge codes', 'Extras']);
 });
 
 it('shows the Tenant Owner everything, including setup', function (): void {
     expect(sidebarOf(DefaultRole::TenantOwner))->toBe([
-        'Dashboard', 'Front Office', 'Front Desk', 'Night audit', 'Flash report', 'Housekeeping', 'Room status', 'Tasks', 'My tasks', 'Out of order', 'Work orders', 'Report a fault', 'Preventive maintenance', 'Lost & found', 'Restaurant', 'Outlets', 'Table reservations', 'Menu', 'Menu categories', 'Modifiers', 'POS sessions', 'Kitchen display', 'Printers', 'Reports', 'Discount limits', 'Outlet access', 'Reservations', 'New booking', 'Reservations', 'Quotes', 'Tape chart', 'Availability', 'Booking sources', 'Billing', 'My cashier shift', 'Cashier shifts', 'City ledger', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Policies', 'Promotions', 'Accounting', 'Journal Entries',
+        'Dashboard', 'Front Office', 'Front Desk', 'Night audit', 'Flash report', 'Housekeeping', 'Room status', 'Tasks', 'My tasks', 'Out of order', 'Work orders', 'Report a fault', 'Preventive maintenance', 'Lost & found', 'Restaurant', 'Outlets', 'Table reservations', 'Menu', 'Menu categories', 'Modifiers', 'POS sessions', 'Kitchen display', 'Printers', 'Reports', 'Discount limits', 'Outlet access', 'Accounting', 'Journal entries', 'Chart of accounts', 'Fiscal periods', 'Reservations', 'New booking', 'Reservations', 'Quotes', 'Tape chart', 'Availability', 'Booking sources', 'Billing', 'My cashier shift', 'Cashier shifts', 'City ledger', 'Guests', 'Guests', 'Companies', 'Travel agents', 'Rates', 'Rate grid', 'Rate plans', 'Seasons', 'Policies', 'Promotions',
         'Setup', 'Properties', 'Cottages', 'Rooms', 'Cottage types', 'Room types', 'Amenities', 'Departments', 'Taxes', 'Users', 'Property access', 'Roles & permissions', 'Settings', 'Email templates', 'Charge codes', 'Extras', 'Document numbering', 'Audit log',
     ]);
 });

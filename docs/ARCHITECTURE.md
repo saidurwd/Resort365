@@ -796,6 +796,7 @@ flowchart LR
 - **Fiscal years and periods:** open, closed or locked. Posting into a closed period is blocked; reopening requires a special permission.
 - **Journal entries:** manual and automatic. They must balance (Σ debit = Σ credit). Posted entries are immutable; corrections are made by reversal.
 - **Dimensions** on each journal line: property, department (cost centre), party (guest, vendor, employee, company).
+- *Implementation note (Step 4.1):* periods are monthly and are closed in order and only without draft entries; a period is `open`, `closed` or `locked` (locking comes with year-end). A draft may be saved unbalanced; posting checks the balance, the period and that every account is postable. A reversal is a new posted entry with swapped lines (`reverses_id`), and the original becomes `reversed`. Departments are read through Property's `DepartmentDirectory`. Vendor and employee parties arrive with Procurement and HR.
 - **Cash and bank accounts:** transfers, cheque register, **bank reconciliation** (with statement import).
 - **Income entry:** quick income vouchers for non-room income (e.g. event hall rental).
 - **Expense entry:** quick expense vouchers with attachments and approval.
