@@ -222,6 +222,17 @@ it('imports a CSV all or nothing, matching items by code', function (): void {
     get(tenantUrl('sunrise', '/restaurant/menu/import/template'))->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8')->assertSee('price:MR');
 });
 
+it('saves whether a category\'s sales count as food or beverage', function (): void {
+    staffUser(DefaultRole::FnbManager);
+
+    post(tenantUrl('sunrise', '/restaurant/menu/categories'), ['name' => ['en' => 'Cocktails'], 'colour' => 'info', 'revenue_class' => 'beverage'])->assertSessionHasNoErrors();
+    post(tenantUrl('sunrise', '/restaurant/menu/categories'), ['name' => ['en' => 'Starters'], 'colour' => 'primary', 'revenue_class' => ''])->assertSessionHasNoErrors();
+    post(tenantUrl('sunrise', '/restaurant/menu/categories'), ['name' => ['en' => 'Odd'], 'colour' => 'primary', 'revenue_class' => 'dessert'])->assertSessionHasErrors('revenue_class');
+
+    expect(booking(fn (): array => MenuCategory::query()->orderBy('id')->get()->map(fn (MenuCategory $category): ?string => $category->revenue_class?->value)->all()))->toBe(['beverage', null]);
+    get(tenantUrl('sunrise', '/restaurant/menu/categories'))->assertOk()->assertSee('Sales count as');
+});
+
 it('lets the menu be seen but not changed without restaurant.menu.manage', function (): void {
     staffUser(DefaultRole::FnbManager);
     ['mains' => $mains] = menuSetup();

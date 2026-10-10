@@ -16,9 +16,13 @@ use Modules\Accounting\Models\FiscalPeriod;
 use Modules\Accounting\Models\FiscalYear;
 use Modules\Accounting\Models\JournalEntry;
 use Modules\Accounting\Models\JournalLine;
+use Modules\Accounting\Models\Voucher;
 use Modules\Accounting\Policies\AccountPolicy;
 use Modules\Accounting\Policies\JournalEntryPolicy;
+use Modules\Accounting\Policies\VoucherPolicy;
+use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
@@ -66,9 +70,12 @@ class AccountingServiceProvider extends ModuleServiceProvider
             'fiscal_period' => FiscalPeriod::class,
             'journal_entry' => JournalEntry::class,
             'journal_line' => JournalLine::class,
+            'voucher' => Voucher::class,
         ]);
         Gate::policy(Account::class, AccountPolicy::class);
         Gate::policy(JournalEntry::class, JournalEntryPolicy::class);
+        Gate::policy(Voucher::class, VoucherPolicy::class);
+        $this->registerDocumentTypes();
 
         // Entry numbers come from Core's standard `journal` document type (JV-2026-00001).
 
@@ -85,12 +92,17 @@ class AccountingServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('accounting.journal.create', 'Write manual journal entries (drafts)', [$accountant]),
             new PermissionDefinition('accounting.journal.post', 'Post journal entries', [$accountant]),
             new PermissionDefinition('accounting.journal.reverse', 'Reverse posted journal entries', [$accountant]),
+            new PermissionDefinition('accounting.voucher.view', 'View income and expense vouchers', [$gm, $accountant]),
+            new PermissionDefinition('accounting.voucher.create', 'Record income and expense vouchers', [$accountant]),
+            new PermissionDefinition('accounting.voucher.void', 'Void posted vouchers', [$accountant]),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
         $menu->group('accounting', 'Accounting', 'bi-journal-bookmark', order: 190);
         $menu->add(new MenuItem('accounting.journals', 'Journal entries', route: 'accounting.journals.index', parent: 'accounting', order: 10,
             permission: 'accounting.journal.view', module: 'accounting', active: 'accounting.journals.*'));
+        $menu->add(new MenuItem('accounting.vouchers', 'Vouchers', route: 'accounting.vouchers.index', parent: 'accounting', order: 15,
+            permission: 'accounting.voucher.view', module: 'accounting', active: 'accounting.vouchers.*'));
         $menu->add(new MenuItem('accounting.accounts', 'Chart of accounts', route: 'accounting.accounts.index', parent: 'accounting', order: 20,
             permission: 'accounting.account.view', module: 'accounting', active: 'accounting.accounts.*'));
         $menu->add(new MenuItem('accounting.mappings', 'Account mapping', route: 'accounting.mappings.index', parent: 'accounting', order: 25,
@@ -103,5 +115,15 @@ class AccountingServiceProvider extends ModuleServiceProvider
             help: 'Journal entries are kept in this currency (ISO code). Multi-currency comes later.', rules: ['size:3']));
         $settings->define(new SettingDefinition('accounting.fiscal_year_start_month', 'Fiscal year starts in', SettingType::Select, '01', SettingScope::Tenant, 'Accounting',
             help: 'The month a new fiscal year starts with (calendar year: January).', options: collect(range(1, 12))->mapWithKeys(fn (int $month): array => [sprintf('%02d', $month) => date('F', mktime(0, 0, 0, $month, 1))])->all()));
+    }
+
+    /**
+     * Income and expense vouchers have their own numbers (IV-2026-00001, EV-2026-00001).
+     */
+    private function registerDocumentTypes(): void
+    {
+        $numbers = $this->app->make(DocumentNumbers::class);
+        $numbers->register(new DocumentType('income_voucher', 'Income voucher', 'IV'));
+        $numbers->register(new DocumentType('expense_voucher', 'Expense voucher', 'EV'));
     }
 }

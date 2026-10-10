@@ -13,6 +13,9 @@ use Modules\Billing\Events\PaymentReceived;
 use Modules\Billing\Events\RefundIssued;
 use Modules\FrontOffice\Events\NightAuditCompleted;
 use Modules\Reservation\Events\ReservationCancelled;
+use Modules\Restaurant\Events\PosSessionClosed;
+use Modules\Restaurant\Events\RestaurantBillSettled;
+use Modules\Restaurant\Events\RestaurantBillVoided;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -30,6 +33,9 @@ class EventServiceProvider extends ServiceProvider
         CityLedgerTransferred::class => [PostLedgerEntries::class.'@onCityLedgerTransferred'],
         FolioChargeVoided::class => [PostLedgerEntries::class.'@onFolioChargeVoided'],
         ReservationCancelled::class => [PostLedgerEntries::class.'@onReservationCancelled'],
+        RestaurantBillSettled::class => [PostLedgerEntries::class.'@onRestaurantBillSettled'],
+        RestaurantBillVoided::class => [PostLedgerEntries::class.'@onRestaurantBillVoided'],
+        PosSessionClosed::class => [PostLedgerEntries::class.'@onPosSessionClosed'],
     ];
 
     /**

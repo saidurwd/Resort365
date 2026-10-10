@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Restaurant\Database\Factories\MenuCategoryFactory;
+use Modules\Restaurant\Enums\RevenueClass;
 use Modules\Restaurant\Models\Concerns\HasTranslations;
 
 /**
@@ -24,12 +25,13 @@ use Modules\Restaurant\Models\Concerns\HasTranslations;
  * @property int|null $parent_id
  * @property array<string, string> $name
  * @property string $colour
+ * @property RevenueClass|null $revenue_class
  * @property int $sort_order
  * @property bool $is_active
  */
 #[UseFactory(MenuCategoryFactory::class)]
 #[Fillable([
-    'property_id', 'parent_id', 'name', 'colour', 'sort_order', 'is_active',
+    'property_id', 'parent_id', 'name', 'colour', 'revenue_class', 'sort_order', 'is_active',
 ])]
 class MenuCategory extends Model
 {
@@ -49,6 +51,7 @@ class MenuCategory extends Model
     {
         return [
             'name' => 'array',
+            'revenue_class' => RevenueClass::class,
             'is_active' => 'boolean',
         ];
     }

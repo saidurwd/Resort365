@@ -20,6 +20,7 @@ use Modules\Core\Enums\SettingType;
 use Modules\FrontOffice\Contracts\NightAuditBlockers;
 use Modules\Restaurant\Auth\StationDisplay;
 use Modules\Restaurant\Broadcasting\RestaurantChannels;
+use Modules\Restaurant\Contracts\RestaurantFacts;
 use Modules\Restaurant\Http\Middleware\EnsureKdsStation;
 use Modules\Restaurant\Http\Middleware\EnsurePosStaff;
 use Modules\Restaurant\Http\Middleware\EnsurePosTerminal;
@@ -59,6 +60,7 @@ use Modules\Restaurant\Services\KdsContext;
 use Modules\Restaurant\Services\KdsDevice;
 use Modules\Restaurant\Services\OpenSessionsBlocker;
 use Modules\Restaurant\Services\PosContext;
+use Modules\Restaurant\Services\RestaurantFactsService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class RestaurantServiceProvider extends ModuleServiceProvider
@@ -87,6 +89,7 @@ class RestaurantServiceProvider extends ModuleServiceProvider
     {
         parent::register();
 
+        $this->app->bind(RestaurantFacts::class, RestaurantFactsService::class);
         $this->app->scoped(PosContext::class);
         $this->app->scoped(KdsContext::class);
 

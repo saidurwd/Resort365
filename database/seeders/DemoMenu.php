@@ -139,8 +139,8 @@ final class DemoMenu
                 return;
             }
 
-            $food = SaveMenuCategory::make()->handle($propertyId, null, ['name' => ['en' => 'Food', 'bn' => 'খাবার'], 'colour' => 'primary', 'sort_order' => 0]);
-            $drinks = SaveMenuCategory::make()->handle($propertyId, null, ['name' => ['en' => 'Drinks', 'bn' => 'পানীয়'], 'colour' => 'info', 'sort_order' => 1]);
+            $food = SaveMenuCategory::make()->handle($propertyId, null, ['name' => ['en' => 'Food', 'bn' => 'খাবার'], 'colour' => 'primary', 'revenue_class' => 'food', 'sort_order' => 0]);
+            $drinks = SaveMenuCategory::make()->handle($propertyId, null, ['name' => ['en' => 'Drinks', 'bn' => 'পানীয়'], 'colour' => 'info', 'revenue_class' => 'beverage', 'sort_order' => 1]);
             $groups = [];
 
             foreach (self::MODIFIERS as $name => [$min, $max, $options]) {

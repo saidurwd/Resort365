@@ -7,6 +7,7 @@ use App\Support\Cash\CashCount;
 use Brick\Math\BigDecimal;
 use Modules\Core\Contracts\Settings;
 use Modules\Restaurant\Enums\PosSessionStatus;
+use Modules\Restaurant\Events\PosSessionClosed;
 use Modules\Restaurant\Exceptions\PosNotAllowed;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Services\ManagerApprovals;
@@ -77,6 +78,8 @@ class ClosePosSession extends Action
                 'denominations' => array_filter(array_map(fn (int|string|null $count): int => (int) $count, $denominations)), 'manager_approval_id' => $approval?->id,
                 'status' => PosSessionStatus::Closed, 'open_terminal_id' => null,
             ])->save();
+
+            PosSessionClosed::dispatch($locked->tenant_id, $locked->property_id, $locked->outlet_id, $locked->id, $locked->business_date->toDateString(), $variance);
 
             return $locked;
         });

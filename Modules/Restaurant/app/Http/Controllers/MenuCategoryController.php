@@ -7,6 +7,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Modules\Restaurant\Actions\SaveMenuCategory;
+use Modules\Restaurant\Enums\RevenueClass;
 use Modules\Restaurant\Exceptions\RestaurantSetupInvalid;
 use Modules\Restaurant\Http\Controllers\Concerns\CurrentProperty;
 use Modules\Restaurant\Http\Requests\MenuCategoryRequest;
@@ -30,6 +31,7 @@ class MenuCategoryController extends Controller
             'options' => $this->categoryOptions($propertyId),
             'languages' => $languages->all(),
             'colours' => ['primary' => __('Teal'), 'success' => __('Green'), 'info' => __('Blue'), 'warning' => __('Amber'), 'danger' => __('Red'), 'secondary' => __('Grey')],
+            'revenueClasses' => collect(RevenueClass::cases())->mapWithKeys(fn (RevenueClass $class): array => [$class->value => $class->label()])->all(),
             'canManage' => auth()->user()?->can('restaurant.menu.manage') ?? false,
         ]);
     }
@@ -49,7 +51,7 @@ class MenuCategoryController extends Controller
         try {
             $save->handle($this->propertyId(), $category, [
                 'name' => (array) $request->validated('name'), 'parent_id' => $request->filled('parent_id') ? (int) $request->validated('parent_id') : null,
-                'colour' => (string) $request->validated('colour'), 'sort_order' => (int) ($request->validated('sort_order') ?? 0), 'is_active' => $request->boolean('is_active', true),
+                'colour' => (string) $request->validated('colour'), 'revenue_class' => $request->filled('revenue_class') ? (string) $request->validated('revenue_class') : null, 'sort_order' => (int) ($request->validated('sort_order') ?? 0), 'is_active' => $request->boolean('is_active', true),
             ]);
         } catch (RestaurantSetupInvalid $exception) {
             return to_route('restaurant.menu.categories.index')->with('error', $exception->getMessage());

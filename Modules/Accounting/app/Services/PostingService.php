@@ -6,6 +6,7 @@ use Brick\Math\BigDecimal;
 use Illuminate\Database\QueryException;
 use Modules\Accounting\Actions\DiscardJournalDraft;
 use Modules\Accounting\Actions\PostJournalEntry;
+use Modules\Accounting\Actions\ReverseJournalEntry;
 use Modules\Accounting\Enums\JournalStatus;
 use Modules\Accounting\Enums\PeriodStatus;
 use Modules\Accounting\Enums\PostingKey;
@@ -17,10 +18,14 @@ use Modules\Billing\DTOs\ChargeFact;
 use Modules\Billing\DTOs\CityLedgerTransferFact;
 use Modules\Billing\DTOs\InvoiceFact;
 use Modules\Billing\DTOs\PaymentFact;
+use Modules\Billing\Enums\PaymentMethod;
 use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Enums\RefundKind;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\CancellationFact;
+use Modules\Restaurant\Contracts\RestaurantFacts;
+use Modules\Restaurant\DTOs\BillFact;
+use Modules\Restaurant\DTOs\SessionFact;
 
 /**
  * Turns operational events into balanced journal entries (ARCHITECTURE §7). Operational modules never
@@ -41,6 +46,9 @@ class PostingService
         private readonly JournalWriter $writer,
         private readonly PostJournalEntry $post,
         private readonly DiscardJournalDraft $discard,
+        private readonly RestaurantFacts $restaurant,
+        private readonly BillEntryBuilder $bills,
+        private readonly ReverseJournalEntry $reverse,
     ) {}
 
     /**
@@ -160,6 +168,87 @@ class PostingService
             $this->line($this->accounts->fixed(PostingKey::CustomerAdvances), (string) $fee, $cancellation->propertyId),
             $this->line($this->accounts->fixed(PostingKey::CancellationRevenue), '-'.$fee, $cancellation->propertyId),
         ]);
+    }
+
+    /**
+     * A settled restaurant bill: the tenders against food and beverage revenue per outlet, service charge, taxes and
+     * tips. A room-charge bill debits the guest ledger here, and its folio line is flagged so the night audit leaves
+     * the revenue alone.
+     */
+    public function restaurantBill(int $billId): ?JournalEntry
+    {
+        $bill = $this->restaurant->bill($billId);
+        $built = $bill instanceof BillFact ? $this->bills->build($bill) : null;
+
+        if (! $bill instanceof BillFact || $built === null) {
+            return null;
+        }
+
+        $byAccount = [];
+        $add = function (?int $account, string $debit) use (&$byAccount): void {
+            if ($account !== null) {
+                $byAccount[$account] = (string) BigDecimal::of($byAccount[$account] ?? '0')->plus($debit)->toScale(2);
+            }
+        };
+
+        foreach ($built['tenders'] as $method => $amount) {
+            $add($this->accounts->restaurantTender($method), $amount);
+        }
+
+        foreach ($built['revenue'] as $class => $amount) {
+            $add($this->accounts->outletRevenue($bill->outletId, $class), (string) BigDecimal::of($amount)->negated());
+        }
+
+        $add($this->accounts->fixed(PostingKey::ServiceChargePayable), (string) BigDecimal::of($built['service'])->negated());
+
+        foreach ($built['taxes'] as $name => $amount) {
+            $add($this->accounts->tax($name), (string) BigDecimal::of($amount)->negated());
+        }
+
+        $add($this->accounts->fixed(PostingKey::TipsPayable), (string) BigDecimal::of($built['tips'])->negated());
+
+        return $this->record('pos_bill', $billId, 'settled', $bill->propertyId, $bill->businessDate, __('Restaurant bill :no (:outlet)', ['no' => $bill->billNo, 'outlet' => $bill->outletName]), $bill->billNo,
+            array_map(fn (int $account): array => ['account_id' => $account, 'debit' => $byAccount[$account]], array_keys($byAccount)));
+    }
+
+    /**
+     * A settled bill voided: its entry is reversed whole.
+     */
+    public function restaurantBillVoided(int $billId): ?JournalEntry
+    {
+        $entry = JournalEntry::query()->where('source_type', 'pos_bill')->where('source_id', $billId)->where('source_event', 'settled')
+            ->where('status', JournalStatus::Posted->value)->first();
+        $bill = $this->restaurant->bill($billId);
+
+        if (! $entry instanceof JournalEntry || ! $bill instanceof BillFact) {
+            return null;
+        }
+
+        [$date] = $this->postingDate($bill->businessDate);
+
+        return $this->reverse->handle($entry, $date, null, __('Bill :no voided', ['no' => $bill->billNo]));
+    }
+
+    /**
+     * A closed POS session's cash difference: short is an expense, over is income.
+     */
+    public function sessionVariance(int $sessionId): ?JournalEntry
+    {
+        $session = $this->restaurant->session($sessionId);
+        $variance = $session instanceof SessionFact ? BigDecimal::of($session->variance) : BigDecimal::zero();
+
+        if (! $session instanceof SessionFact || $variance->isZero()) {
+            return null;
+        }
+
+        $cash = $this->accounts->method(PaymentMethod::Cash);
+        $other = $this->accounts->fixed($variance->isNegative() ? PostingKey::CashShort : PostingKey::CashOver);
+
+        return $this->record('pos_session', $sessionId, 'variance', $session->propertyId, $session->businessDate,
+            $variance->isNegative() ? __('Cash short of :outlet session', ['outlet' => $session->outletName]) : __('Cash over of :outlet session', ['outlet' => $session->outletName]), null, [
+                $this->line($variance->isNegative() ? $other : $cash, (string) $variance->abs()->toScale(2), $session->propertyId),
+                $this->line($variance->isNegative() ? $cash : $other, '-'.$variance->abs()->toScale(2), $session->propertyId),
+            ]);
     }
 
     /**

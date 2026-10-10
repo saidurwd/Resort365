@@ -13,7 +13,7 @@ use Modules\Restaurant\Models\MenuCategory;
 class SaveMenuCategory extends Action
 {
     /**
-     * @param  array{name: array<string, string|null>, parent_id?: int|null, colour?: string, sort_order?: int, is_active?: bool}  $data
+     * @param  array{name: array<string, string|null>, parent_id?: int|null, colour?: string, revenue_class?: string|null, sort_order?: int, is_active?: bool}  $data
      *
      * @throws RestaurantSetupInvalid
      */
@@ -32,7 +32,7 @@ class SaveMenuCategory extends Action
         $category ??= new MenuCategory(['property_id' => $propertyId]);
         $category->fill([
             'name' => array_filter($data['name'], fn (?string $value): bool => trim((string) $value) !== ''), 'parent_id' => $parentId,
-            'colour' => $data['colour'] ?? $category->colour ?? 'primary', 'sort_order' => $data['sort_order'] ?? $category->sort_order ?? 0,
+            'colour' => $data['colour'] ?? $category->colour ?? 'primary', 'revenue_class' => $data['revenue_class'] ?? null, 'sort_order' => $data['sort_order'] ?? $category->sort_order ?? 0,
             'is_active' => $data['is_active'] ?? true,
         ])->save();
 

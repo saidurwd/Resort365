@@ -20,6 +20,10 @@ enum PostingKey: string implements HasLabelAndColor
     case CancellationRevenue = 'cancellation_revenue';
     case ServiceChargePayable = 'service_charge_payable';
     case VatPayable = 'vat_payable';
+    case InputVat = 'input_vat';
+    case TipsPayable = 'tips_payable';
+    case CashShort = 'cash_short_expense';
+    case CashOver = 'cash_over_income';
 
     public function label(): string
     {
@@ -30,6 +34,10 @@ enum PostingKey: string implements HasLabelAndColor
             self::CancellationRevenue => __('Cancellation and no-show revenue'),
             self::ServiceChargePayable => __('Service charge payable'),
             self::VatPayable => __('VAT and other taxes payable'),
+            self::InputVat => __('Input VAT (recoverable, on expenses)'),
+            self::TipsPayable => __('Tips payable (to staff)'),
+            self::CashShort => __('Cash short (expense)'),
+            self::CashOver => __('Cash over (income)'),
         };
     }
 

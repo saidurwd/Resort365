@@ -5,6 +5,7 @@ use Modules\Accounting\Http\Controllers\AccountController;
 use Modules\Accounting\Http\Controllers\AccountMappingController;
 use Modules\Accounting\Http\Controllers\FiscalPeriodController;
 use Modules\Accounting\Http\Controllers\JournalEntryController;
+use Modules\Accounting\Http\Controllers\VoucherController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +28,19 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
 
     Route::get('/mappings', [AccountMappingController::class, 'index'])->middleware('can:accounting.account.view')->name('mappings.index');
     Route::put('/mappings', [AccountMappingController::class, 'update'])->middleware('can:accounting.account.manage')->name('mappings.update');
+
+    Route::prefix('vouchers')->name('vouchers.')->controller(VoucherController::class)->group(function (): void {
+        Route::middleware('can:accounting.voucher.view')->group(function (): void {
+            Route::get('/', 'index')->name('index');
+            Route::get('/data', 'data')->name('data');
+        });
+        Route::middleware('can:accounting.voucher.create')->group(function (): void {
+            Route::get('/new/{type}', 'create')->whereIn('type', ['income', 'expense'])->name('create');
+            Route::post('/', 'store')->name('store');
+        });
+        Route::get('/{voucher}', 'show')->middleware('can:accounting.voucher.view')->whereNumber('voucher')->name('show');
+        Route::post('/{voucher}/void', 'void')->middleware('can:accounting.voucher.void')->whereNumber('voucher')->name('void');
+    });
 
     Route::get('/periods', [FiscalPeriodController::class, 'index'])->middleware('can:accounting.period.view')->name('periods.index');
     Route::middleware('can:accounting.period.manage')->group(function (): void {

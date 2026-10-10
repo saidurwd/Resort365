@@ -12,6 +12,9 @@ use Modules\Billing\Events\PaymentReceived;
 use Modules\Billing\Events\RefundIssued;
 use Modules\FrontOffice\Events\NightAuditCompleted;
 use Modules\Reservation\Events\ReservationCancelled;
+use Modules\Restaurant\Events\PosSessionClosed;
+use Modules\Restaurant\Events\RestaurantBillSettled;
+use Modules\Restaurant\Events\RestaurantBillVoided;
 
 /**
  * Turns the operational events into journal entries (ARCHITECTURE §7.1, Step 4.2). A posting the ledger
@@ -55,6 +58,21 @@ class PostLedgerEntries
     public function onReservationCancelled(ReservationCancelled $event): void
     {
         $this->safely(fn (): ?JournalEntry => $this->posting->cancellationFee($event->reservationId));
+    }
+
+    public function onRestaurantBillSettled(RestaurantBillSettled $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->restaurantBill($event->billId));
+    }
+
+    public function onRestaurantBillVoided(RestaurantBillVoided $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->restaurantBillVoided($event->billId));
+    }
+
+    public function onPosSessionClosed(PosSessionClosed $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->sessionVariance($event->sessionId));
     }
 
     private function safely(callable $post): void

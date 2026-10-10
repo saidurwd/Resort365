@@ -55,6 +55,34 @@ class AccountResolver
         return $this->fixed(self::isServiceCharge($name) ? PostingKey::ServiceChargePayable : PostingKey::VatPayable);
     }
 
+    /**
+     * A restaurant bill's tender: cash, card, wallet and bank transfer where the money lands, a room charge on the
+     * guest ledger, a city ledger bill on the city ledger. Meal plans and complimentary bills have none (null).
+     */
+    public function restaurantTender(string $method): ?int
+    {
+        return match ($method) {
+            'cash' => $this->method(PaymentMethod::Cash),
+            'card' => $this->method(PaymentMethod::Card),
+            'wallet' => $this->method(PaymentMethod::MobileWallet),
+            'bank_transfer' => $this->method(PaymentMethod::BankTransfer),
+            'room_charge' => $this->fixed(PostingKey::GuestLedger),
+            'city_ledger' => $this->fixed(PostingKey::CityLedger),
+            default => null,
+        };
+    }
+
+    /** Food or beverage revenue of an outlet: its mapped account, else the chart's food or beverage revenue. */
+    public function outletRevenue(int $outletId, string $class): int
+    {
+        return $this->resolve(self::outletKey($outletId, $class), $class === 'beverage' ? 'beverage_revenue' : 'food_revenue', __('Outlet :id :class revenue', ['id' => $outletId, 'class' => $class]));
+    }
+
+    public static function outletKey(int $outletId, string $class): string
+    {
+        return 'outlet:'.$outletId.':'.$class;
+    }
+
     public static function isServiceCharge(string $name): bool
     {
         return stripos($name, 'service') !== false;
@@ -81,6 +109,10 @@ class AccountResolver
 
         if (str_starts_with($key, 'method:')) {
             return self::METHOD_DEFAULTS[substr($key, 7)] ?? null;
+        }
+
+        if (str_starts_with($key, 'outlet:')) {
+            return str_ends_with($key, ':beverage') ? 'beverage_revenue' : 'food_revenue';
         }
 
         if (str_starts_with($key, 'charge:')) {

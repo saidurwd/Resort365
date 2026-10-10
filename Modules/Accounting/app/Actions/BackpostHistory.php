@@ -9,6 +9,7 @@ use Modules\Accounting\Services\PostingService;
 use Modules\Billing\Contracts\LedgerFacts;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Reservation\Contracts\ReservationLookup;
+use Modules\Restaurant\Contracts\RestaurantFacts;
 
 /**
  * Posts the events that happened before Accounting was running, or that it could not post (no open period,
@@ -22,6 +23,7 @@ class BackpostHistory extends Action
         private readonly ReservationLookup $reservations,
         private readonly PropertyDirectory $properties,
         private readonly PostingService $posting,
+        private readonly RestaurantFacts $restaurant,
     ) {}
 
     /**
@@ -56,6 +58,20 @@ class BackpostHistory extends Action
 
         foreach ($history['invoices'] as $id) {
             $run(__('Invoice #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->invoice($id));
+        }
+
+        $restaurant = $this->restaurant->history();
+
+        foreach ($restaurant['bills'] as $id) {
+            $run(__('Restaurant bill #:id', ['id' => $id]), function () use ($id): ?JournalEntry {
+                $entry = $this->posting->restaurantBill($id);
+
+                return $this->restaurant->bill($id)?->voided === true ? $this->posting->restaurantBillVoided($id) : $entry;
+            });
+        }
+
+        foreach ($restaurant['sessions'] as $id) {
+            $run(__('POS session #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->sessionVariance($id));
         }
 
         // A date is posted once its night audit has closed it: the property's business date is still open.
