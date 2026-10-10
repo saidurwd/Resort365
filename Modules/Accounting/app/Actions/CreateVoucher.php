@@ -62,7 +62,7 @@ class CreateVoucher extends Action
 
         return $this->transaction(function () use ($data, $amount, $tax, $userId): Voucher {
             $voucher = Voucher::query()->create([
-                'property_id' => $data->propertyId, 'voucher_no' => $this->numbers->next($data->type->documentType(), $data->propertyId, CarbonImmutable::parse($data->date)),
+                'property_id' => $data->propertyId, 'voucher_no' => $this->numbers->next($data->type->documentType(), null, CarbonImmutable::parse($data->date)),
                 'type' => $data->type, 'voucher_date' => $data->date, 'account_id' => $data->accountId, 'cash_account_id' => $data->cashAccountId, 'department_id' => $data->departmentId,
                 'payee' => $data->payee, 'description' => $data->description, 'reference' => $data->reference, 'cheque_no' => $data->chequeNo, 'cheque_date' => $data->chequeNo !== null ? ($data->chequeDate ?? $data->date) : null, 'cheque_status' => $data->chequeNo !== null ? ChequeStatus::Pending : null, 'amount' => (string) $amount, 'tax_amount' => (string) $tax,
                 'status' => VoucherStatus::Posted, 'created_by' => $userId,

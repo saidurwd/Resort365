@@ -48,7 +48,7 @@ class CreateTransfer extends Action
 
         return $this->transaction(function () use ($data, $amount, $from, $to, $userId): FundTransfer {
             $transfer = FundTransfer::query()->create([
-                'property_id' => $data->propertyId, 'transfer_no' => $this->numbers->next('fund_transfer', $data->propertyId, CarbonImmutable::parse($data->date)), 'transfer_date' => $data->date,
+                'property_id' => $data->propertyId, 'transfer_no' => $this->numbers->next('fund_transfer', null, CarbonImmutable::parse($data->date)), 'transfer_date' => $data->date,
                 'from_bank_account_id' => $from->id, 'to_bank_account_id' => $to->id, 'amount' => (string) $amount, 'reference' => $data->reference, 'notes' => $data->notes,
                 'status' => VoucherStatus::Posted, 'created_by' => $userId,
             ]);

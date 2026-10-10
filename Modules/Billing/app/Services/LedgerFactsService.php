@@ -14,6 +14,7 @@ use Modules\Billing\Enums\PaymentStatus;
 use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Models\ChargeCode;
 use Modules\Billing\Models\CityLedgerEntry;
+use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
@@ -66,7 +67,7 @@ class LedgerFactsService implements LedgerFacts
         $entry = CityLedgerEntry::query()->find($entryId);
 
         return $entry instanceof CityLedgerEntry && $entry->folio_id !== null
-            ? new CityLedgerTransferFact($entry->id, $entry->property_id, $entry->company_id, $entry->folio_id, $entry->posted_on->toDateString(), (string) BigDecimal::of($entry->amount)->toScale(2), $entry->description)
+            ? new CityLedgerTransferFact($entry->id, $entry->property_id, $entry->company_id, $entry->folio_id, Folio::query()->whereKey($entry->folio_id)->value('reservation_id'), $entry->posted_on->toDateString(), (string) BigDecimal::of($entry->amount)->toScale(2), $entry->description)
             : null;
     }
 

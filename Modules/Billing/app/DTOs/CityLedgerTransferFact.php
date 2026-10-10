@@ -14,6 +14,7 @@ final readonly class CityLedgerTransferFact extends Data
         public int $propertyId,
         public int $companyId,
         public int $folioId,
+        public ?int $reservationId,
         public string $date,
         public string $amount,
         public string $description,

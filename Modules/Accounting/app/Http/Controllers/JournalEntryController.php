@@ -21,6 +21,7 @@ use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\JournalEntry;
 use Modules\Accounting\Models\JournalLine;
 use Modules\Accounting\Services\JournalEntriesTable;
+use Modules\Accounting\Services\SourceDocuments;
 use Modules\Core\Contracts\AuditTrail;
 use Modules\Core\Contracts\Settings;
 use Modules\IAM\Contracts\UserDirectory;
@@ -77,7 +78,7 @@ class JournalEntryController extends Controller
         $departments = collect(app(DepartmentDirectory::class)->all(false))->mapWithKeys(fn (DepartmentSummary $department): array => [$department->id => $department->name]);
 
         return view('accounting::journals.show', [
-            'entry' => $entry, 'names' => $names, 'properties' => $properties, 'departments' => $departments, 'trail' => $audit->for($entry),
+            'entry' => $entry, 'names' => $names, 'properties' => $properties, 'departments' => $departments, 'trail' => $audit->for($entry), 'sources' => app(SourceDocuments::class)->for($entry),
             'user' => auth()->user(),
         ]);
     }

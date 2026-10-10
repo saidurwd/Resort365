@@ -99,6 +99,8 @@ class AccountingServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('accounting.bank.view', 'View bank accounts, transfers, cheques and reconciliations', [$gm, $accountant]),
             new PermissionDefinition('accounting.bank.manage', 'Keep bank accounts, transfers, cheques and import statements', [$accountant]),
             new PermissionDefinition('accounting.bank.reconcile', 'Match bank statement lines and complete reconciliations', [$accountant]),
+            new PermissionDefinition('accounting.report.view', 'View the financial reports', [$gm, $accountant]),
+            new PermissionDefinition('accounting.report.export', 'Export the financial reports to Excel, CSV and PDF', [$gm, $accountant]),
             new PermissionDefinition('accounting.voucher.view', 'View income and expense vouchers', [$gm, $accountant]),
             new PermissionDefinition('accounting.voucher.create', 'Record income and expense vouchers', [$accountant]),
             new PermissionDefinition('accounting.voucher.void', 'Void posted vouchers', [$accountant]),
@@ -122,6 +124,8 @@ class AccountingServiceProvider extends ModuleServiceProvider
             permission: 'accounting.bank.view', module: 'accounting', active: 'accounting.cheques.*'));
         $menu->add(new MenuItem('accounting.reconciliation', 'Reconciliation', route: 'accounting.reconciliation.index', parent: 'accounting', order: 43,
             permission: 'accounting.bank.view', module: 'accounting', active: 'accounting.reconciliation.*'));
+        $menu->add(new MenuItem('accounting.reports', 'Financial reports', route: 'accounting.reports.index', parent: 'accounting', order: 50,
+            permission: 'accounting.report.view', module: 'accounting', active: 'accounting.reports.*'));
         $menu->add(new MenuItem('accounting.periods', 'Fiscal periods', route: 'accounting.periods.index', parent: 'accounting', order: 30,
             permission: 'accounting.period.view', module: 'accounting', active: 'accounting.periods.*'));
 

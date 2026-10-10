@@ -8,6 +8,7 @@ use Modules\Accounting\Http\Controllers\ChequeController;
 use Modules\Accounting\Http\Controllers\FiscalPeriodController;
 use Modules\Accounting\Http\Controllers\JournalEntryController;
 use Modules\Accounting\Http\Controllers\ReconciliationController;
+use Modules\Accounting\Http\Controllers\ReportController;
 use Modules\Accounting\Http\Controllers\TransferController;
 use Modules\Accounting\Http\Controllers\VoucherController;
 
@@ -82,6 +83,11 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
             Route::post('/statements/{statement}/suggest', 'suggest')->whereNumber('statement')->name('suggest');
             Route::post('/statements/{statement}/complete', 'complete')->whereNumber('statement')->name('complete');
         });
+    });
+
+    Route::middleware('can:accounting.report.view')->group(function (): void {
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/{report}', [ReportController::class, 'show'])->whereIn('report', array_keys(ReportController::REPORTS))->name('reports.show');
     });
 
     Route::get('/periods', [FiscalPeriodController::class, 'index'])->middleware('can:accounting.period.view')->name('periods.index');

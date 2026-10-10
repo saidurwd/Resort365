@@ -61,6 +61,15 @@
                     @if ($entry->source_type)<dt class="col-5">{{ __('Source') }}</dt><dd class="col-7">{{ $entry->source_type }} #{{ $entry->source_id }} · {{ $entry->source_event }}</dd>@endif
                 </dl>
             </x-card>
+            @if ($sources !== [])
+                <x-card :title="__('Source documents')" icon="bi-link-45deg" body-class="p-0">
+                    <ul class="list-group list-group-flush" data-sources>
+                        @foreach ($sources as $source)
+                            <li class="list-group-item"><a href="{{ $source['url'] }}" data-source>{{ $source['label'] }}</a>@if ($source['detail']) <span class="text-body-secondary small">{{ $source['detail'] }}</span>@endif</li>
+                        @endforeach
+                    </ul>
+                </x-card>
+            @endif
             <x-audit-trail :entries="$trail" />
         </div>
     </div>
