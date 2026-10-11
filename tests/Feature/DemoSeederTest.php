@@ -21,6 +21,9 @@ use Modules\Guest\Models\Company;
 use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
 use Modules\IAM\Models\User;
+use Modules\Inventory\Models\Item;
+use Modules\Inventory\Models\Store;
+use Modules\Inventory\Models\Unit;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\DTOs\UnitTypeSummary;
 use Modules\Property\Enums\BookingMode;
@@ -259,4 +262,20 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
             ->and(PosBill::query()->whereHas('outlet', fn ($query) => $query->where('code', 'PB'))->where('status', 'settled')->count())->toBe(3)
             ->and(PosOrderLine::query()->where('status', 'voided')->count())->toBe(1);
     });
+});
+
+it('seeds the inventory: units, stores and about 150 items, outlets linked to their stores (Step 5.2)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $stores = Store::query()->orderBy('code')->pluck('kind', 'code')->map(fn ($kind): string => $kind->value)->all();
+
+        expect($stores)->toBe(['BAR' => 'bar', 'HK' => 'housekeeping', 'KITCHEN' => 'kitchen', 'MAIN' => 'main', 'MNT' => 'maintenance'])
+            ->and(Item::query()->count())->toBeGreaterThanOrEqual(140)->toBeLessThanOrEqual(170)
+            ->and(Unit::query()->where('code', 'kg')->sole()->factor)->toBe('1000.000000')
+            ->and(Outlet::query()->orderBy('code')->get()->map(fn (Outlet $outlet): string => $outlet->code.'='.Store::query()->find($outlet->store_id)?->code)->all())->toBe(['MR=KITCHEN', 'PB=BAR', 'RS=KITCHEN'])
+            ->and(Item::query()->where('name', 'Basmati rice')->sole()->conversions()->sole()->factor)->toBe('25.000000');
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(Store::query()->count())->toBe(2));
 });

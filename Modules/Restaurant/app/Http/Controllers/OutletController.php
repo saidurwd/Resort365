@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Modules\Core\Contracts\TaxEngine;
+use Modules\Inventory\Contracts\StoreDirectory;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Restaurant\Actions\SaveOutlet;
 use Modules\Restaurant\Enums\OutletType;
@@ -94,6 +95,7 @@ class OutletController extends Controller
             'outlet' => $outlet,
             'types' => OutletType::options(),
             'taxCategories' => $this->taxCategories(),
+            'stores' => collect(app(StoreDirectory::class)->forProperty($this->propertyId()))->mapWithKeys(fn ($store): array => [$store->id => $store->name])->all(),
             'weekdays' => self::WEEKDAYS,
         ]);
     }

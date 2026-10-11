@@ -1,0 +1,24 @@
+{
+    "name": "resort365/inventory",
+    "description": "Resort365 Inventory module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Inventory\\": "app/",
+            "Modules\\Inventory\\Database\\Factories\\": "database/factories/",
+            "Modules\\Inventory\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Inventory\\Tests\\": "tests/"
+        }
+    }
+}

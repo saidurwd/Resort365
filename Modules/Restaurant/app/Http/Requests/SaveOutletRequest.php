@@ -3,9 +3,11 @@
 namespace Modules\Restaurant\Http\Requests;
 
 use App\Support\Tenancy\TenantRule;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Inventory\Contracts\StoreDirectory;
 use Modules\Restaurant\Enums\OutletType;
 use Modules\Restaurant\Http\Requests\Concerns\ForCurrentProperty;
 use Modules\Restaurant\Models\Outlet;
@@ -33,6 +35,13 @@ class SaveOutletRequest extends FormRequest
             'type' => ['required', Rule::enum(OutletType::class)],
             'prices_include_tax' => ['boolean'],
             'default_tax_category_id' => ['nullable', 'integer', TenantRule::exists('tax_categories')],
+            'store_id' => ['nullable', 'integer', function (string $attribute, mixed $value, Closure $fail): void {
+                $store = app(StoreDirectory::class)->find((int) $value);
+
+                if ($store === null || $store->propertyId !== $this->propertyId() || ! $store->isActive) {
+                    $fail(__('Choose an active store of this property.'));
+                }
+            }],
             'bill_prefix' => ['required', 'alpha_num', 'max:10'],
             'receipt_header' => ['nullable', 'string', 'max:500'],
             'receipt_footer' => ['nullable', 'string', 'max:500'],

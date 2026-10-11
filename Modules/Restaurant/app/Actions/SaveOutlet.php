@@ -18,7 +18,7 @@ class SaveOutlet extends Action
         $outlet ??= new Outlet(['property_id' => $propertyId]);
         $outlet->fill([
             'code' => strtoupper((string) $data['code']), 'name' => $data['name'], 'type' => $data['type'],
-            'prices_include_tax' => (bool) ($data['prices_include_tax'] ?? false), 'default_tax_category_id' => $data['default_tax_category_id'] ?? null,
+            'prices_include_tax' => (bool) ($data['prices_include_tax'] ?? false), 'default_tax_category_id' => $data['default_tax_category_id'] ?? null, 'store_id' => $data['store_id'] ?? null,
             'bill_prefix' => strtoupper((string) $data['bill_prefix']), 'receipt_header' => $data['receipt_header'] ?? null, 'receipt_footer' => $data['receipt_footer'] ?? null,
             'opening_hours' => $data['opening_hours'] ?? null, 'is_active' => (bool) ($data['is_active'] ?? true), 'sort_order' => (int) ($data['sort_order'] ?? 0),
         ])->save();

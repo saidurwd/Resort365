@@ -18,6 +18,11 @@
                         <div class="col-md-6"><x-form.select name="type" :label="__('Type')" :options="$types" :value="old('type', $outlet?->type->value)" :search="false" required /></div>
                         <div class="col-md-6"><x-form.input name="bill_prefix" :label="__('Bill number prefix')" :value="old('bill_prefix', $outlet?->bill_prefix)" required :help="__('E.g. MR for MR-2026-00001.')" /></div>
                     </div>
+                    @if ($stores !== [])
+                        <div class="row">
+                            <div class="col-md-6"><x-form.select name="store_id" :label="__('Store')" :options="$stores" :value="old('store_id', $outlet?->store_id)" :placeholder="__('None')" :help="__('The inventory store its ingredients and drinks come from.')" /></div>
+                        </div>
+                    @endif
                     <div class="row">
                         <div class="col-md-6"><x-form.select name="default_tax_category_id" :label="__('Tax category')" :options="$taxCategories" :value="old('default_tax_category_id', $outlet?->default_tax_category_id)" :placeholder="__('No tax')" :help="__('Service charge and VAT, from Setup → Taxes. Menu items may choose another.')" /></div>
                         <div class="col-md-6 pt-md-4">

@@ -26,6 +26,7 @@ use Modules\Restaurant\Enums\OutletType;
  * @property OutletType $type
  * @property bool $prices_include_tax
  * @property int|null $default_tax_category_id
+ * @property int|null $store_id
  * @property string $bill_prefix
  * @property string|null $receipt_header
  * @property string|null $receipt_footer
@@ -35,7 +36,7 @@ use Modules\Restaurant\Enums\OutletType;
  */
 #[UseFactory(OutletFactory::class)]
 #[Fillable([
-    'property_id', 'code', 'name', 'type', 'prices_include_tax', 'default_tax_category_id', 'bill_prefix', 'receipt_header', 'receipt_footer',
+    'property_id', 'code', 'name', 'type', 'prices_include_tax', 'default_tax_category_id', 'store_id', 'bill_prefix', 'receipt_header', 'receipt_footer',
     'opening_hours', 'is_active', 'sort_order',
 ])]
 class Outlet extends Model

@@ -141,6 +141,10 @@ class DemoSeeder extends Seeder
         // Step 3.8: room service and a pool delivery, a staff meal, table reservations, yesterday's sales for the reports.
         DemoRestaurant::service($rodela, $resort, self::DOMAINS['rodela']);
 
+        // Step 5.2: inventory units, stores and about 150 items.
+        DemoInventory::seed($rodela, $resort);
+        DemoInventory::seed($greenValley, $valley, full: false);
+
         // Step 5.1: approval workflows, and a refund waiting for the General Manager.
         DemoApprovals::seed($rodela, $resort, self::DOMAINS['rodela']);
         DemoApprovals::seed($greenValley, $valley);
