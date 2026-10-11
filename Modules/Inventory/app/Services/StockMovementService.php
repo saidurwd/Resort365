@@ -91,7 +91,7 @@ class StockMovementService implements StockMovementContract
                 }
 
                 $line = StockMovement::query()->create([
-                    'property_id' => $store->property_id, 'store_id' => $store->id, 'item_id' => $item->id, 'movement_type' => $movement->type, 'movement_date' => $date,
+                    'property_id' => $store->property_id, 'store_id' => $store->id, 'department_id' => $movement->departmentId, 'item_id' => $item->id, 'movement_type' => $movement->type, 'movement_date' => $date,
                     'quantity' => $adds ? $base : '-'.$base, 'unit_cost' => $result['unit_cost'], 'total_cost' => $this->costs->value($base, $result['unit_cost']), 'quantity_after' => $result['quantity'],
                     'avg_cost_after' => $result['avg_cost'], 'reason' => $movement->reason, 'notes' => $movement->notes !== null ? mb_substr($movement->notes, 0, 300) : null,
                     'source_type' => $movement->sourceType, 'source_id' => $movement->sourceId, 'source_event' => $movement->sourceEvent, 'idempotency_key' => $movement->idempotencyKey,

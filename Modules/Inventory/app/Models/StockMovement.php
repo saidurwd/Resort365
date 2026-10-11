@@ -21,6 +21,7 @@ use Modules\Inventory\Exceptions\StockRuleViolated;
  * @property int $tenant_id
  * @property int $property_id
  * @property int $store_id
+ * @property int|null $department_id
  * @property int $item_id
  * @property MovementType $movement_type
  * @property Carbon $movement_date
@@ -42,7 +43,7 @@ use Modules\Inventory\Exceptions\StockRuleViolated;
  * @property-read Store $store
  */
 #[UseFactory(StockMovementFactory::class)]
-#[Fillable(['property_id', 'store_id', 'item_id', 'movement_type', 'movement_date', 'quantity', 'unit_cost', 'total_cost', 'quantity_after', 'avg_cost_after', 'reason', 'notes', 'source_type', 'source_id', 'source_event', 'idempotency_key', 'reverses_id', 'created_by'])]
+#[Fillable(['property_id', 'store_id', 'department_id', 'item_id', 'movement_type', 'movement_date', 'quantity', 'unit_cost', 'total_cost', 'quantity_after', 'avg_cost_after', 'reason', 'notes', 'source_type', 'source_id', 'source_event', 'idempotency_key', 'reverses_id', 'created_by'])]
 class StockMovement extends Model
 {
     use BelongsToProperty;

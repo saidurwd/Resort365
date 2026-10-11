@@ -5,6 +5,7 @@ namespace Modules\Accounting\Services;
 use Modules\Accounting\Enums\PostingKey;
 use Modules\Billing\Contracts\LedgerFacts;
 use Modules\Billing\Enums\PaymentMethod;
+use Modules\Inventory\Enums\StockClass;
 use Modules\Restaurant\Contracts\RestaurantFacts;
 
 /**
@@ -41,6 +42,13 @@ class MappingCatalog
             $rows[] = ['key' => AccountResolver::outletKey($outlet['id'], 'food'), 'label' => $outlet['name'].' · '.__('Food'), 'group' => __('Restaurant revenue by outlet'), 'category' => null];
             $rows[] = ['key' => AccountResolver::outletKey($outlet['id'], 'beverage'), 'label' => $outlet['name'].' · '.__('Beverage'), 'group' => __('Restaurant revenue by outlet'), 'category' => null];
         }
+
+        foreach (StockClass::cases() as $class) {
+            $rows[] = ['key' => AccountResolver::stockKey('expense', $class->value), 'label' => $class->label().' · '.__('cost when issued'), 'group' => __('Stock'), 'category' => null];
+            $rows[] = ['key' => AccountResolver::stockKey('inventory', $class->value), 'label' => $class->label().' · '.__('inventory'), 'group' => __('Stock'), 'category' => null];
+        }
+
+        $rows[] = ['key' => 'stock:shrinkage', 'label' => __('Inventory shrinkage (count differences)'), 'group' => __('Stock'), 'category' => null];
 
         return $rows;
     }

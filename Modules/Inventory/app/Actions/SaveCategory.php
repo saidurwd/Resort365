@@ -12,7 +12,7 @@ use Modules\Inventory\Models\ItemCategory;
 class SaveCategory extends Action
 {
     /**
-     * @param  array{name: string, parent_id?: int|null, sort_order?: int, is_active?: bool}  $data
+     * @param  array{name: string, parent_id?: int|null, account_class?: string|null, sort_order?: int, is_active?: bool}  $data
      *
      * @throws InventoryRuleViolated
      */
@@ -31,7 +31,7 @@ class SaveCategory extends Action
         }
 
         $category ??= new ItemCategory;
-        $category->fill(['name' => trim($data['name']), 'parent_id' => $parentId, 'sort_order' => $data['sort_order'] ?? $category->sort_order ?? 0, 'is_active' => $data['is_active'] ?? true])->save();
+        $category->fill(['name' => trim($data['name']), 'parent_id' => $parentId, 'account_class' => $data['account_class'] ?? null, 'sort_order' => $data['sort_order'] ?? $category->sort_order ?? 0, 'is_active' => $data['is_active'] ?? true])->save();
 
         return $category;
     }

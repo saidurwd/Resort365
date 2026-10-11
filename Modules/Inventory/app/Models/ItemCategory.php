@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Inventory\Database\Factories\ItemCategoryFactory;
+use Modules\Inventory\Enums\StockClass;
 
 /**
  * A group of items, in a tree (Step 5.2): Food → Dairy, Housekeeping → Linen.
@@ -19,12 +20,13 @@ use Modules\Inventory\Database\Factories\ItemCategoryFactory;
  * @property int $tenant_id
  * @property int|null $parent_id
  * @property string $name
+ * @property StockClass|null $account_class
  * @property int $sort_order
  * @property bool $is_active
  * @property-read ItemCategory|null $parent
  */
 #[UseFactory(ItemCategoryFactory::class)]
-#[Fillable(['parent_id', 'name', 'sort_order', 'is_active'])]
+#[Fillable(['parent_id', 'name', 'account_class', 'sort_order', 'is_active'])]
 class ItemCategory extends Model
 {
     use BelongsToTenant;
@@ -39,7 +41,7 @@ class ItemCategory extends Model
      */
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'account_class' => StockClass::class];
     }
 
     /**
@@ -64,6 +66,18 @@ class ItemCategory extends Model
     public function items(): HasMany
     {
         return $this->hasMany(Item::class);
+    }
+
+    /** The class of the category, else of the nearest parent that has one, else operating supplies. */
+    public function stockClass(): StockClass
+    {
+        for ($category = $this, $guard = 0; $category instanceof self && $guard < 20; $category = $category->parent, $guard++) {
+            if ($category->account_class instanceof StockClass) {
+                return $category->account_class;
+            }
+        }
+
+        return StockClass::Operating;
     }
 
     /** "Food › Dairy" */

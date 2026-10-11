@@ -22,6 +22,11 @@ class AccountResolver
 
     private const array CATEGORY_DEFAULTS = ['room' => 'room_revenue', 'food_beverage' => 'food_revenue'];
 
+    private const array STOCK_EXPENSE_DEFAULTS = [
+        'food' => 'food_cost', 'beverage' => 'beverage_cost', 'housekeeping' => 'housekeeping_supplies_expense',
+        'maintenance' => 'engineering_supplies_expense', 'operating' => 'housekeeping_supplies_expense',
+    ];
+
     private const array METHOD_DEFAULTS = [
         'cash' => 'cash_on_hand', 'card' => 'card_clearing', 'bank_transfer' => 'bank', 'mobile_wallet' => 'wallet_clearing',
     ];
@@ -78,6 +83,29 @@ class AccountResolver
         return $this->resolve(self::outletKey($outletId, $class), $class === 'beverage' ? 'beverage_revenue' : 'food_revenue', __('Outlet :id :class revenue', ['id' => $outletId, 'class' => $class]));
     }
 
+    /** Cost account an issue of a stock class is charged to (Step 5.4): food cost, beverage cost, supplies expenses. */
+    public function stockExpense(string $class): int
+    {
+        return $this->resolve(self::stockKey('expense', $class), self::STOCK_EXPENSE_DEFAULTS[$class] ?? 'housekeeping_supplies_expense', __('Stock issued: :class', ['class' => $class]));
+    }
+
+    /** Inventory asset account of a stock class. */
+    public function stockInventory(string $class): int
+    {
+        return $this->resolve(self::stockKey('inventory', $class), 'inventory_'.$class, __('Inventory: :class', ['class' => $class]));
+    }
+
+    /** Where count losses and gains go. */
+    public function stockShrinkage(): int
+    {
+        return $this->resolve('stock:shrinkage', 'inventory_shrinkage', __('Inventory shrinkage'));
+    }
+
+    public static function stockKey(string $side, string $class): string
+    {
+        return 'stock:'.$side.':'.$class;
+    }
+
     public static function outletKey(int $outletId, string $class): string
     {
         return 'outlet:'.$outletId.':'.$class;
@@ -109,6 +137,18 @@ class AccountResolver
 
         if (str_starts_with($key, 'method:')) {
             return self::METHOD_DEFAULTS[substr($key, 7)] ?? null;
+        }
+
+        if ($key === 'stock:shrinkage') {
+            return 'inventory_shrinkage';
+        }
+
+        if (str_starts_with($key, 'stock:expense:')) {
+            return self::STOCK_EXPENSE_DEFAULTS[substr($key, 14)] ?? null;
+        }
+
+        if (str_starts_with($key, 'stock:inventory:')) {
+            return 'inventory_'.substr($key, 16);
         }
 
         if (str_starts_with($key, 'outlet:')) {

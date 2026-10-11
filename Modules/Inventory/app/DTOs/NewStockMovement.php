@@ -30,5 +30,6 @@ final readonly class NewStockMovement extends Data
         public ?int $userId = null,
         public ?int $reverses = null,
         public ?bool $adds = null,
+        public ?int $departmentId = null,
     ) {}
 }

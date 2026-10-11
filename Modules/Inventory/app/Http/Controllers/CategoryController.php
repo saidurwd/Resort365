@@ -7,6 +7,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Modules\Inventory\Actions\SaveCategory;
+use Modules\Inventory\Enums\StockClass;
 use Modules\Inventory\Exceptions\InventoryRuleViolated;
 use Modules\Inventory\Http\Requests\CategoryRequest;
 use Modules\Inventory\Models\ItemCategory;
@@ -24,6 +25,7 @@ class CategoryController extends Controller
         return view('inventory::categories.index', [
             'rows' => $categories->sortBy(fn (ItemCategory $category): string => mb_strtolower($category->path()))->values(),
             'options' => $categories->mapWithKeys(fn (ItemCategory $category): array => [$category->id => $category->path()])->all(),
+            'classes' => collect(StockClass::cases())->mapWithKeys(fn (StockClass $class): array => [$class->value => $class->label()])->all(),
             'canManage' => auth()->user()?->can('inventory.catalog.manage') ?? false,
         ]);
     }
@@ -47,7 +49,7 @@ class CategoryController extends Controller
         try {
             $save->handle($category, [
                 'name' => (string) $request->validated('name'), 'parent_id' => $request->filled('parent_id') ? (int) $request->validated('parent_id') : null,
-                'sort_order' => (int) ($request->validated('sort_order') ?? 0), 'is_active' => $request->boolean('is_active', true),
+                'account_class' => $request->filled('account_class') ? (string) $request->validated('account_class') : null, 'sort_order' => (int) ($request->validated('sort_order') ?? 0), 'is_active' => $request->boolean('is_active', true),
             ]);
         } catch (InventoryRuleViolated $exception) {
             return back()->withInput()->with('error', $exception->getMessage());

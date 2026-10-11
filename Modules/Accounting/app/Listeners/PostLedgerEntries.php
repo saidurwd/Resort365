@@ -11,6 +11,8 @@ use Modules\Billing\Events\InvoiceIssued;
 use Modules\Billing\Events\PaymentReceived;
 use Modules\Billing\Events\RefundIssued;
 use Modules\FrontOffice\Events\NightAuditCompleted;
+use Modules\Inventory\Events\StockAdjusted;
+use Modules\Inventory\Events\StockIssued;
 use Modules\Reservation\Events\ReservationCancelled;
 use Modules\Restaurant\Events\PosSessionClosed;
 use Modules\Restaurant\Events\RestaurantBillSettled;
@@ -73,6 +75,16 @@ class PostLedgerEntries
     public function onPosSessionClosed(PosSessionClosed $event): void
     {
         $this->safely(fn (): ?JournalEntry => $this->posting->sessionVariance($event->sessionId));
+    }
+
+    public function onStockIssued(StockIssued $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->stockIssue($event->issueId));
+    }
+
+    public function onStockAdjusted(StockAdjusted $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->stockAdjustment($event->sourceType, $event->sourceId));
     }
 
     private function safely(callable $post): void

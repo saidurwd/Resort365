@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Accounting\Models\JournalEntry;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\ExtraService;
@@ -21,9 +22,14 @@ use Modules\Guest\Models\Company;
 use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
 use Modules\IAM\Models\User;
+use Modules\Inventory\Enums\StockClass;
 use Modules\Inventory\Models\Item;
+use Modules\Inventory\Models\ItemCategory;
 use Modules\Inventory\Models\StockBalance;
+use Modules\Inventory\Models\StockCount;
+use Modules\Inventory\Models\StockIssue;
 use Modules\Inventory\Models\StockMovement;
+use Modules\Inventory\Models\StockRequisition;
 use Modules\Inventory\Models\StockTransfer;
 use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
@@ -293,7 +299,19 @@ it('seeds stock: opening balances, a dearer delivery, one transfer received and 
             ->and($balance('KITCHEN', 'Basmati rice')->quantity)->toBe('560.0000')->and($balance('KITCHEN', 'Basmati rice')->avg_cost)->toBe('167.3214')
             ->and($balance('MAIN', 'Basmati rice')->quantity)->toBe('540.0000')
             ->and(StockTransfer::query()->orderBy('id')->get()->map(fn (StockTransfer $transfer): string => $transfer->status->value)->all())->toBe(['received', 'dispatched'])
-            ->and($balance('MAIN', 'Wheat flour')->quantity)->toBe('270.0000')->and($balance('KITCHEN', 'Eggs')->quantity)->toBe('200.0000')->and($balance('BAR', 'Mineral water 500 ml')->quantity)->toBe('30.0000')
+            ->and($balance('MAIN', 'Wheat flour')->quantity)->toBe('270.0000')->and($balance('KITCHEN', 'Eggs')->quantity)->toBe('200.0000')->and($balance('BAR', 'Mineral water 500 ml')->quantity)->toBe('18.0000')
             ->and(StockMovement::query()->where('movement_type', 'opening')->count())->toBeGreaterThan(150);
+    });
+});
+
+it('seeds requisitions, issues and counts, posted to the ledger (Step 5.4)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        expect(StockRequisition::query()->orderBy('id')->get()->map(fn (StockRequisition $requisition): string => $requisition->status->value)->all())->toBe(['issued', 'pending'])
+            ->and(StockIssue::query()->orderBy('id')->pluck('reason')->all())->toBe(['requisition', 'Room amenities'])
+            ->and(StockCount::query()->orderBy('id')->get()->map(fn (StockCount $count): string => $count->status->value)->all())->toBe(['completed', 'counting'])
+            ->and(ItemCategory::query()->whereNull('parent_id')->where('name', 'Food')->value('account_class'))->toBe(StockClass::Food)
+            ->and(JournalEntry::query()->whereIn('source_type', ['stock_issue', 'stock_count'])->count())->toBe(3);
     });
 });

@@ -8,7 +8,9 @@ use Modules\Inventory\DTOs\NewStockMovement;
 use Modules\Inventory\DTOs\StockMovementSummary;
 use Modules\Inventory\Enums\AdjustmentReason;
 use Modules\Inventory\Enums\MovementType;
+use Modules\Inventory\Events\StockAdjusted;
 use Modules\Inventory\Exceptions\StockRuleViolated;
+use Modules\Inventory\Models\Store;
 
 /**
  * Corrects a store's stock by hand (Step 5.3): found stock comes in at the cost given (else the item's standard cost,
@@ -27,6 +29,12 @@ class AdjustStock extends Action
             throw new StockRuleViolated(__('Say what happened when the reason is "other".'));
         }
 
-        return $this->stock->record(new NewStockMovement($gain ? MovementType::AdjustmentIn : MovementType::AdjustmentOut, $storeId, $itemId, $quantity, $unitCost, date: $date, reason: $reason->value, notes: $notes, userId: $userId));
+        return $this->transaction(function () use ($storeId, $itemId, $gain, $quantity, $reason, $notes, $unitCost, $userId, $date): StockMovementSummary {
+            $movement = $this->stock->record(new NewStockMovement($gain ? MovementType::AdjustmentIn : MovementType::AdjustmentOut, $storeId, $itemId, $quantity, $unitCost, date: $date, reason: $reason->value, notes: $notes, userId: $userId));
+            $store = Store::query()->findOrFail($storeId);
+            StockAdjusted::dispatch($store->tenant_id, $store->property_id, 'stock_movement', $movement->id);
+
+            return $movement;
+        });
     }
 }

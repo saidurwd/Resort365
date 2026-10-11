@@ -17,6 +17,7 @@ use Modules\Housekeeping\Http\Requests\AssignTasksRequest;
 use Modules\Housekeeping\Http\Requests\ProgressTaskRequest;
 use Modules\Housekeeping\Models\HousekeepingTask;
 use Modules\Housekeeping\Services\TaskTransitions;
+use Modules\Inventory\Contracts\ItemCatalog;
 
 /**
  * Housekeeping → Tasks (supervisors: the day's tasks, assigning, inspecting, the daily round) and
@@ -44,7 +45,7 @@ class TaskController extends Controller
         ]);
     }
 
-    public function mine(TaskTransitions $transitions): View
+    public function mine(TaskTransitions $transitions, ItemCatalog $catalog): View
     {
         Gate::authorize('housekeeping.task.perform');
         $property = $this->property();
@@ -55,6 +56,7 @@ class TaskController extends Controller
                 ->where(fn ($query) => $query->where('assigned_to', $this->userId())->orWhereNull('assigned_to'))
                 ->whereIn('status', [TaskStatus::Pending->value, TaskStatus::InProgress->value])->orderByRaw('assigned_to is null')->orderBy('business_date')->orderBy('id')->get(),
             'rooms' => $this->roomOptions($property->id),
+            'amenities' => collect($catalog->search('', 200))->filter(fn ($item): bool => $item->isStockable && $item->isActive && str_starts_with($item->category, 'Housekeeping'))->values()->all(),
             'transitions' => $transitions,
         ]);
     }

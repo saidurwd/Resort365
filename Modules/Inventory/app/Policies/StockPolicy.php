@@ -26,6 +26,11 @@ class StockPolicy
         return $user->can('inventory.stock.adjust');
     }
 
+    public function issue(Authenticatable&Authorizable $user): bool
+    {
+        return $user->can('inventory.issue.create');
+    }
+
     public function create(Authenticatable&Authorizable $user): bool
     {
         return $user->can('inventory.transfer.manage');

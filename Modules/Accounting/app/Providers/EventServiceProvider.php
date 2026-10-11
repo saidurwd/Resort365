@@ -12,6 +12,8 @@ use Modules\Billing\Events\InvoiceIssued;
 use Modules\Billing\Events\PaymentReceived;
 use Modules\Billing\Events\RefundIssued;
 use Modules\FrontOffice\Events\NightAuditCompleted;
+use Modules\Inventory\Events\StockAdjusted;
+use Modules\Inventory\Events\StockIssued;
 use Modules\Reservation\Events\ReservationCancelled;
 use Modules\Restaurant\Events\PosSessionClosed;
 use Modules\Restaurant\Events\RestaurantBillSettled;
@@ -36,6 +38,8 @@ class EventServiceProvider extends ServiceProvider
         RestaurantBillSettled::class => [PostLedgerEntries::class.'@onRestaurantBillSettled'],
         RestaurantBillVoided::class => [PostLedgerEntries::class.'@onRestaurantBillVoided'],
         PosSessionClosed::class => [PostLedgerEntries::class.'@onPosSessionClosed'],
+        StockIssued::class => [PostLedgerEntries::class.'@onStockIssued'],
+        StockAdjusted::class => [PostLedgerEntries::class.'@onStockAdjusted'],
     ];
 
     /**

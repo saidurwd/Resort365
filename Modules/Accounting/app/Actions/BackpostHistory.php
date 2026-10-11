@@ -7,6 +7,7 @@ use Modules\Accounting\Exceptions\AccountingRuleViolated;
 use Modules\Accounting\Models\JournalEntry;
 use Modules\Accounting\Services\PostingService;
 use Modules\Billing\Contracts\LedgerFacts;
+use Modules\Inventory\Contracts\StockFacts;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Restaurant\Contracts\RestaurantFacts;
@@ -24,6 +25,7 @@ class BackpostHistory extends Action
         private readonly PropertyDirectory $properties,
         private readonly PostingService $posting,
         private readonly RestaurantFacts $restaurant,
+        private readonly StockFacts $stock,
     ) {}
 
     /**
@@ -72,6 +74,16 @@ class BackpostHistory extends Action
 
         foreach ($restaurant['sessions'] as $id) {
             $run(__('POS session #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->sessionVariance($id));
+        }
+
+        $stock = $this->stock->history();
+
+        foreach ($stock['issues'] as $id) {
+            $run(__('Stock issue #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->stockIssue($id));
+        }
+
+        foreach ($stock['adjustments'] as $adjustment) {
+            $run(__('Stock adjustment #:id', ['id' => $adjustment['id']]), fn (): ?JournalEntry => $this->posting->stockAdjustment($adjustment['type'], $adjustment['id']));
         }
 
         // A date is posted once its night audit has closed it: the property's business date is still open.

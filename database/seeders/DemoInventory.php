@@ -4,14 +4,22 @@ namespace Database\Seeders;
 
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Modules\Core\Contracts\ApprovalEngine;
+use Modules\IAM\Contracts\UserDirectory;
 use Modules\Inventory\Actions\AdjustStock;
+use Modules\Inventory\Actions\CompleteStockCount;
 use Modules\Inventory\Actions\DispatchTransfer;
 use Modules\Inventory\Actions\ImportItems;
+use Modules\Inventory\Actions\IssueRequisition;
+use Modules\Inventory\Actions\IssueStock;
 use Modules\Inventory\Actions\ReceiveTransfer;
 use Modules\Inventory\Actions\RecordOpeningBalance;
+use Modules\Inventory\Actions\SaveCountEntries;
 use Modules\Inventory\Actions\SaveItem;
 use Modules\Inventory\Actions\SaveStore;
 use Modules\Inventory\Actions\SeedStandardUnits;
+use Modules\Inventory\Actions\StartStockCount;
+use Modules\Inventory\Actions\SubmitRequisition;
 use Modules\Inventory\Contracts\StockMovementContract;
 use Modules\Inventory\DTOs\NewStockMovement;
 use Modules\Inventory\Enums\AdjustmentReason;
@@ -19,6 +27,8 @@ use Modules\Inventory\Enums\MovementType;
 use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\ItemCategory;
 use Modules\Inventory\Models\ItemStoreLevel;
+use Modules\Inventory\Models\StockRequisition;
+use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
 use Modules\Property\Contracts\DepartmentDirectory;
 use Modules\Restaurant\Models\Outlet;
@@ -27,7 +37,7 @@ use Modules\Restaurant\Models\Outlet;
  * Inventory demo (Step 5.2): standard units, five stores at Rodela (main, kitchen, bar, housekeeping, maintenance) and
  * about 150 items in food, beverage, housekeeping, maintenance and operating categories, loaded through the CSV
  * import, with box and sack conversions, levels per store and the restaurant outlets linked to their stores.
- * Green Valley gets a main and a kitchen store and a short list.
+ * Green Valley gets a main and a kitchen store and a short list. Step 5.4 adds requisitions, issues and counts (`activity()`).
  */
 final class DemoInventory
 {
@@ -179,6 +189,11 @@ final class DemoInventory
                 }
             }
 
+            // Categories carry the stock class the ledger posts by (Step 5.4).
+            foreach (['Food' => 'food', 'Beverages' => 'beverage', 'Housekeeping' => 'housekeeping', 'Maintenance' => 'maintenance', 'Operating supplies' => 'operating'] as $name => $class) {
+                ItemCategory::query()->whereNull('parent_id')->where('name', $name)->update(['account_class' => $class]);
+            }
+
             // Restaurant outlets draw from their stores.
             foreach (['MR' => 'KITCHEN', 'PB' => 'BAR', 'RS' => 'KITCHEN'] as $outlet => $store) {
                 if (isset($stores[$store])) {
@@ -186,6 +201,57 @@ final class DemoInventory
                 }
             }
 
+        });
+    }
+
+    /**
+     * Requisitions, issues and counts (Step 5.4): the chef's requisition approved by the F&B manager and issued, a
+     * second one still waiting, amenities issued to housekeeping, a bar count completed with differences and a dairy
+     * count in progress in the kitchen.
+     */
+    public static function activity(Tenant $tenant, int $propertyId, string $domain): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId, $domain): void {
+            $users = collect(app(UserDirectory::class)->all());
+            $chef = $users->firstWhere('email', 'chef@'.$domain);
+            $manager = $users->firstWhere('email', 'fnb@'.$domain);
+            $stores = Store::query()->where('property_id', $propertyId)->pluck('id', 'code');
+            $department = collect(app(DepartmentDirectory::class)->all(false))->keyBy('code');
+
+            if ($chef === null || $manager === null || ! isset($stores['KITCHEN'], $stores['BAR'], $stores['HK']) || StockRequisition::query()->exists()) {
+                return;
+            }
+
+            $item = fn (string $name): Item => Item::query()->where('name', $name)->firstOrFail();
+            $lines = fn (array $quantities): array => collect($quantities)->map(fn (string $quantity, string $name): array => ['item_id' => $item($name)->id, 'quantity' => $quantity])->values()->all();
+            $fbp = $department['FBP']->id;
+
+            $first = app(SubmitRequisition::class)->handle($stores['KITCHEN'], $fbp, $lines(['Chicken whole' => '12', 'Tomato' => '8', 'Onion' => '10']), $chef->id, notes: 'Dinner service');
+            app(ApprovalEngine::class)->approve((int) $first->approval_request_id, $manager->id);
+            app(IssueRequisition::class)->handle($first->fresh() ?? $first, [], $manager->id);
+
+            app(SubmitRequisition::class)->handle($stores['KITCHEN'], $fbp, $lines(['Hilsa fish' => '6', 'Tiger prawn' => '4', 'Cream' => '3']), $chef->id, notes: 'Weekend buffet');
+
+            if (isset($department['HK'])) {
+                app(IssueStock::class)->handle($stores['HK'], $department['HK']->id, $lines(['Shampoo 30 ml' => '120', 'Soap bar 25 g' => '120', 'Toilet roll' => '40']), 'Room amenities', 'Restock of the floor carts', $users->firstWhere('email', 'housekeeping@'.$domain)?->id);
+            }
+
+            $bar = app(StartStockCount::class)->handle($stores['BAR'], null, false, 'Month-end bar count', $manager->id);
+            $stock = app(StockMovementContract::class);
+            $entries = [];
+
+            foreach (['Coca-Cola 500 ml' => '-6', 'Sprite 500 ml' => '0', 'Mineral water 500 ml' => '-12', 'Tonic water' => '3'] as $name => $difference) {
+                $found = $item($name);
+                $entries[$found->id] = bcadd($stock->balance($stores['BAR'], $found->id)->quantity, $difference, 4);
+            }
+
+            app(SaveCountEntries::class)->handle($bar, $entries);
+            app(CompleteStockCount::class)->handle($bar->fresh() ?? $bar, $manager->id);
+
+            $dairy = ItemCategory::query()->where('name', 'Dairy')->first();
+            $kitchenCount = app(StartStockCount::class)->handle($stores['KITCHEN'], $dairy?->id, true, 'Weekly dairy count', $chef->id);
+            $milk = $item('Milk');
+            app(SaveCountEntries::class)->handle($kitchenCount, [$milk->id => $stock->balance($stores['KITCHEN'], $milk->id)->quantity]);
         });
     }
 }

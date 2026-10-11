@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Housekeeping\Http\Controllers\AmenityController;
 use Modules\Housekeeping\Http\Controllers\BlockController;
 use Modules\Housekeeping\Http\Controllers\BoardController;
 use Modules\Housekeeping\Http\Controllers\LostFoundController;
@@ -26,6 +27,7 @@ Route::prefix('housekeeping')->name('housekeeping.')->middleware(['auth', 'verif
     Route::post('/tasks/generate', [TaskController::class, 'generate'])->middleware('can:housekeeping.task.manage')->name('tasks.generate');
     Route::post('/tasks/assign', [TaskController::class, 'assign'])->middleware('can:housekeeping.task.manage')->name('tasks.assign');
     Route::get('/my-tasks', [TaskController::class, 'mine'])->middleware('can:housekeeping.task.perform')->name('tasks.mine');
+    Route::post('/amenities', [AmenityController::class, 'issue'])->middleware('can:housekeeping.task.perform')->name('amenities.issue');
     Route::post('/tasks/{task}/{step}', [TaskController::class, 'step'])->whereNumber('task')->whereIn('step', ['start', 'finish', 'pass', 'fail', 'skip'])->name('tasks.step');
 
     Route::middleware('can:housekeeping.block.manage')->group(function (): void {

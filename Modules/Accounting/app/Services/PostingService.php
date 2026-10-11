@@ -21,6 +21,9 @@ use Modules\Billing\DTOs\PaymentFact;
 use Modules\Billing\Enums\PaymentMethod;
 use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Enums\RefundKind;
+use Modules\Inventory\Contracts\StockFacts;
+use Modules\Inventory\DTOs\StockAdjustmentFact;
+use Modules\Inventory\DTOs\StockIssueFact;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\CancellationFact;
 use Modules\Restaurant\Contracts\RestaurantFacts;
@@ -49,7 +52,52 @@ class PostingService
         private readonly RestaurantFacts $restaurant,
         private readonly BillEntryBuilder $bills,
         private readonly ReverseJournalEntry $reverse,
+        private readonly StockFacts $stock,
     ) {}
+
+    /**
+     * Stock issued to a department (Step 5.4): Dr the class's cost account (with the department) / Cr its inventory account.
+     */
+    public function stockIssue(int $issueId): ?JournalEntry
+    {
+        $issue = $this->stock->issue($issueId);
+
+        if (! $issue instanceof StockIssueFact) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($issue->byClass as $class => $value) {
+            $lines[] = [...$this->line($this->accounts->stockExpense($class), $value, $issue->propertyId), 'department_id' => $issue->departmentId];
+            $lines[] = $this->line($this->accounts->stockInventory($class), '-'.$value, $issue->propertyId);
+        }
+
+        return $this->record('stock_issue', $issueId, 'issued', $issue->propertyId, $issue->date, __('Stock issue :no', ['no' => $issue->issueNo]), $issue->issueNo, $lines);
+    }
+
+    /**
+     * Count differences and manual adjustments: a loss is Dr inventory shrinkage / Cr inventory, a gain the reverse.
+     */
+    public function stockAdjustment(string $sourceType, int $sourceId): ?JournalEntry
+    {
+        $adjustment = $this->stock->adjustment($sourceType, $sourceId);
+
+        if (! $adjustment instanceof StockAdjustmentFact) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($adjustment->byClass as $class => $signed) {
+            // $signed is the change in stock value: a loss is negative, so the shrinkage expense is its opposite.
+            $expense = (string) BigDecimal::of($signed)->negated();
+            $lines[] = $this->line($this->accounts->stockShrinkage(), $expense, $adjustment->propertyId);
+            $lines[] = $this->line($this->accounts->stockInventory($class), $signed, $adjustment->propertyId);
+        }
+
+        return $this->record($sourceType, $sourceId, 'adjusted', $adjustment->propertyId, $adjustment->date, __('Stock adjustment :ref', ['ref' => $adjustment->reference]), $adjustment->reference, $lines);
+    }
 
     /**
      * The day's folio charges: Dr guest ledger / Cr revenue by charge code and taxes payable.
