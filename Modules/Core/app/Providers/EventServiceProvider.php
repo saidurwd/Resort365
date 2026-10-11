@@ -6,6 +6,7 @@ use App\Support\Tenancy\Events\PropertyCreated;
 use App\Support\Tenancy\Events\TenantCreated;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Modules\Core\Listeners\CreateDocumentSequences;
+use Modules\Core\Listeners\SeedApprovalWorkflowsForNewTenant;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -15,7 +16,7 @@ class EventServiceProvider extends ServiceProvider
      * @var array<string, array<int, string>>
      */
     protected $listen = [
-        TenantCreated::class => [CreateDocumentSequences::class],
+        TenantCreated::class => [CreateDocumentSequences::class, SeedApprovalWorkflowsForNewTenant::class],
         PropertyCreated::class => [CreateDocumentSequences::class.'@handlePropertyCreated'],
     ];
 

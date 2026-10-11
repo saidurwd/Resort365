@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Core\Http\Controllers\ApprovalController;
+use Modules\Core\Http\Controllers\ApprovalDelegationController;
+use Modules\Core\Http\Controllers\ApprovalWorkflowController;
 use Modules\Core\Http\Controllers\AttachmentController;
 use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\DocumentSequenceController;
@@ -19,6 +22,21 @@ use Modules\Core\Http\Controllers\TaxController;
 */
 
 Route::prefix('core')->name('core.')->middleware(['auth', 'verified'])->group(function (): void {
+    Route::middleware('can:core.approval.view')->group(function (): void {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::get('/approvals/{approval}', [ApprovalController::class, 'show'])->whereNumber('approval')->name('approvals.show');
+        Route::post('/approvals/{approval}/approve', [ApprovalController::class, 'approve'])->whereNumber('approval')->name('approvals.approve');
+        Route::post('/approvals/{approval}/reject', [ApprovalController::class, 'reject'])->whereNumber('approval')->name('approvals.reject');
+        Route::post('/approvals/{approval}/cancel', [ApprovalController::class, 'cancel'])->whereNumber('approval')->name('approvals.cancel');
+        Route::post('/approval-delegations', [ApprovalDelegationController::class, 'store'])->name('approval-delegations.store');
+        Route::delete('/approval-delegations/{delegation}', [ApprovalDelegationController::class, 'destroy'])->whereNumber('delegation')->name('approval-delegations.destroy');
+    });
+    Route::middleware('can:core.approval.manage')->group(function (): void {
+        Route::get('/approval-workflows', [ApprovalWorkflowController::class, 'index'])->name('approval-workflows.index');
+        Route::get('/approval-workflows/{workflow}/edit', [ApprovalWorkflowController::class, 'edit'])->whereNumber('workflow')->name('approval-workflows.edit');
+        Route::put('/approval-workflows/{workflow}', [ApprovalWorkflowController::class, 'update'])->whereNumber('workflow')->name('approval-workflows.update');
+    });
+
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('can:core.setting.view')->name('settings.index');
     Route::put('/settings/{group}', [SettingsController::class, 'update'])->middleware('can:core.setting.update')->name('settings.update');
 

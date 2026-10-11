@@ -6,7 +6,7 @@
 ])
 
 {{--
-    Approval chain for a document. Presentational until the approval workflow engine (TODO(step-5.1)).
+    Approval chain for a document (the approval workflow engine, Step 5.1; Core's ApprovalPanelData builds the steps).
     steps: list of ['level', 'role', 'approver' (?string), 'status' (HasLabelAndColor), 'acted_at' (?Carbon), 'comment' (?string)].
     Pass approveUrl / rejectUrl when the current user may act on the pending step.
 --}}
@@ -23,7 +23,7 @@
                     <div class="small text-body-secondary">
                         @if ($step['acted_at'])
                             {{ $step['approver'] }} · {{ $step['acted_at']->inPropertyTime()->format('d M Y H:i') }}
-                        @else
+                        @elseif ($step['status'] !== \Modules\Core\Enums\ApprovalStepState::Waiting)
                             {{ __('Awaiting decision') }}
                         @endif
                     </div>

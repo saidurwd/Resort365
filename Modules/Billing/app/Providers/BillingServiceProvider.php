@@ -39,7 +39,11 @@ use Modules\Billing\Services\FolioSettlementService;
 use Modules\Billing\Services\FoliosTab;
 use Modules\Billing\Services\LedgerFactsService;
 use Modules\Billing\Services\PaymentsTab;
+use Modules\Billing\Services\RefundApprovalHandler;
+use Modules\Core\Contracts\ApprovalRegistry;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\DTOs\ApprovalDocumentType;
+use Modules\Core\DTOs\ApprovalStepDefinition;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
@@ -85,6 +89,11 @@ class BillingServiceProvider extends ModuleServiceProvider
     {
         parent::boot();
 
+        $this->app->make(ApprovalRegistry::class)->register(new ApprovalDocumentType(
+            'refund', 'Refund', 'Money paid back to a guest. A refund from the amount of a step needs its approvers before it is paid.',
+            [new ApprovalStepDefinition('General Manager', 'billing.refund.approve', '5000.00')],
+        ), RefundApprovalHandler::class);
+
         Relation::morphMap([
             'payment' => Payment::class,
             'charge_code' => ChargeCode::class,
@@ -120,6 +129,7 @@ class BillingServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('billing.extra-service.manage', 'Change the extras catalogue', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager]),
             new PermissionDefinition('billing.invoice.view', 'View invoices and credit notes', [...$desk, DefaultRole::Accountant]),
             new PermissionDefinition('billing.credit-note.issue', 'Issue credit notes', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
+            new PermissionDefinition('billing.refund.approve', 'Approve refunds above the approval amount', [DefaultRole::GeneralManager]),
             new PermissionDefinition('billing.refund.issue', 'Pay refunds', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
             new PermissionDefinition('billing.city-ledger.view', 'View the city ledger', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
             new PermissionDefinition('billing.city-ledger.manage', 'Receive city-ledger payments', [DefaultRole::GeneralManager, DefaultRole::Accountant]),

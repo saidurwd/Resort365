@@ -32,6 +32,18 @@
         </x-card>
     </div>
     <div class="col-xl-5">
+        @if ($approvals !== [])
+            <x-card :title="__('Refunds asked for')" icon="bi-hourglass-split" body-class="p-0" data-refund-approvals>
+                <ul class="list-group list-group-flush">
+                    @foreach ($approvals as $approval)
+                        <li class="list-group-item d-flex justify-content-between align-items-center" data-refund-approval="{{ $approval->id }}">
+                            <span><a href="{{ $approval->url }}">{{ number_format((float) $approval->amount, 2) }}</a> <span class="small text-body-secondary">{{ $approval->payload['reason'] ?? '' }}</span></span>
+                            <x-status-badge :status="$approval->status" />
+                        </li>
+                    @endforeach
+                </ul>
+            </x-card>
+        @endif
         @if ($refunds !== [])
             @can('billing.refund.issue')
                 <x-card :title="__('Pay back')" icon="bi-arrow-counterclockwise" data-refunds>

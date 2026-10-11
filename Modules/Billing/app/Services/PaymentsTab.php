@@ -10,6 +10,9 @@ use Modules\Billing\Enums\RefundKind;
 use Modules\Billing\Models\CreditNote;
 use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\Payment;
+use Modules\Core\Contracts\ApprovalEngine;
+use Modules\Core\DTOs\ApprovalSummary;
+use Modules\Core\Enums\ApprovalStatus;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\ReservationSummary;
@@ -26,6 +29,7 @@ class PaymentsTab
         private readonly ReservationPayments $payments,
         private readonly ReservationLookup $reservations,
         private readonly PropertyDirectory $properties,
+        private readonly ApprovalEngine $approvals,
     ) {}
 
     public function render(int $reservationId): View|string
@@ -36,13 +40,16 @@ class PaymentsTab
             return '';
         }
 
+        $approvals = $this->approvals->forSubject('refund', 'reservation', $reservationId);
+
         return view('billing::payments.tab', [
             'reservation' => $reservation,
             'payments' => Payment::query()->where('reservation_id', $reservationId)->orderBy('received_at')->orderBy('id')->get(),
             'methods' => PaymentMethod::cases(),
             'suggested' => $this->suggested($reservation),
             'timezone' => $this->properties->find($reservation->propertyId)->timezone ?? 'UTC',
-            'refunds' => $this->refundOptions($reservation),
+            'refunds' => $this->refundOptions($reservation, $approvals),
+            'approvals' => array_slice($approvals, 0, 8),
         ]);
     }
 
@@ -65,9 +72,10 @@ class PaymentsTab
     /**
      * What can be paid back now, as kind => [label, amount, source id] (amount > 0 only).
      *
+     * @param  list<ApprovalSummary>  $approvals  refund requests of the booking
      * @return list<array{kind: RefundKind, label: string, amount: string, source: int|null}>
      */
-    private function refundOptions(ReservationSummary $reservation): array
+    private function refundOptions(ReservationSummary $reservation, array $approvals = []): array
     {
         $options = [];
 
@@ -89,6 +97,19 @@ class PaymentsTab
         foreach (CreditNote::query()->whereHas('invoice', fn ($query) => $query->where('reservation_id', $reservation->id))->get() as $note) {
             $options[] = ['kind' => RefundKind::CreditNote, 'label' => __('Credit note :no', ['no' => $note->credit_note_no]),
                 'amount' => (string) BigDecimal::of($note->refund_due)->minus($note->refunded)->toScale(2), 'source' => $note->id];
+        }
+
+        // What is already asked for and waiting for approval is not offered again.
+        foreach ($approvals as $approval) {
+            if ($approval->status !== ApprovalStatus::Pending) {
+                continue;
+            }
+
+            foreach ($options as $index => $option) {
+                if ($option['kind']->value === ($approval->payload['kind'] ?? null) && $option['source'] === ($approval->payload['source_id'] ?? null)) {
+                    $options[$index]['amount'] = (string) BigDecimal::of($option['amount'])->minus($approval->payload['amount'] ?? '0')->toScale(2);
+                }
+            }
         }
 
         return array_values(array_filter($options, fn (array $option): bool => BigDecimal::of($option['amount'])->isPositive()));

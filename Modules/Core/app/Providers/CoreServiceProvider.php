@@ -7,7 +7,11 @@ use App\Support\Authorization\PermissionDefinition;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
+use Modules\Core\Console\SeedApprovalsCommand;
+use Modules\Core\Contracts\ApprovalEngine;
+use Modules\Core\Contracts\ApprovalRegistry;
 use Modules\Core\Contracts\AuditTrail;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\ExchangeRates;
@@ -20,6 +24,10 @@ use Modules\Core\DTOs\NotificationTemplateDefinition;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
+use Modules\Core\Models\ApprovalRequest;
+use Modules\Core\Policies\ApprovalRequestPolicy;
+use Modules\Core\Services\ApprovalEngineService;
+use Modules\Core\Services\ApprovalRegistryService;
 use Modules\Core\Services\AuditTrailService;
 use Modules\Core\Services\DocumentNumberService;
 use Modules\Core\Services\ExchangeRateService;
@@ -51,6 +59,15 @@ class CoreServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    /**
+     * Command classes to register.
+     *
+     * @var string[]
+     */
+    protected array $commands = [
+        SeedApprovalsCommand::class,
+    ];
+
     public function register(): void
     {
         parent::register();
@@ -63,6 +80,8 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->app->singleton(ExchangeRates::class, ExchangeRateService::class);
         $this->app->singleton(ReferenceData::class, ReferenceDataService::class);
         $this->app->singleton(TaxEngine::class, TaxEngineService::class);
+        $this->app->singleton(ApprovalRegistry::class, ApprovalRegistryService::class);
+        $this->app->bind(ApprovalEngine::class, ApprovalEngineService::class);
     }
 
     public function boot(): void
@@ -75,6 +94,15 @@ class CoreServiceProvider extends ModuleServiceProvider
             'core.welcome', 'database', 'Welcome to {tenant}', 'Hi {name}, your account is ready. Explore the menu on the left to get started.', ['name', 'tenant'],
             'Welcome message', 'In-app, when a user account is created.',
         ));
+        foreach ([
+            ['requested', 'Approval needed: {reference}', '{person} asks for your approval of {reference} ({amount}).', ['reference', 'amount', 'person', 'comment'], 'Approval requested', 'In-app, to the people who may decide a step.'],
+            ['approved', '{reference} was approved', '{person} approved {reference} ({amount}). {comment}', ['reference', 'amount', 'person', 'comment'], 'Approval granted', 'In-app, to the person who asked.'],
+            ['rejected', '{reference} was rejected', '{person} rejected {reference} ({amount}): {comment}', ['reference', 'amount', 'person', 'comment'], 'Approval refused', 'In-app, to the person who asked.'],
+        ] as [$kind, $subject, $body, $placeholders, $label, $description]) {
+            $this->app->make(NotificationTemplates::class)->register(new NotificationTemplateDefinition('core.approval.'.$kind, 'database', $subject, $body, $placeholders, $label, $description));
+        }
+
+        Gate::policy(ApprovalRequest::class, ApprovalRequestPolicy::class);
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));
         $this->shareNotificationBell();
@@ -130,6 +158,11 @@ class CoreServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('core.notification-template.manage', 'Change email and notification templates', $managers),
         ]);
 
+        $permissions->register('Approvals', [
+            new PermissionDefinition('core.approval.view', 'See the approvals that concern them and delegate their own', DefaultRole::cases()),
+            new PermissionDefinition('core.approval.manage', 'Set up approval workflows and see every request', $managers),
+        ]);
+
         $permissions->register('Taxes', [
             new PermissionDefinition('core.tax.view', 'View taxes', [DefaultRole::GeneralManager, DefaultRole::Accountant, DefaultRole::FrontOfficeManager]),
             new PermissionDefinition('core.tax.manage', 'Change taxes and tax categories', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
@@ -141,6 +174,9 @@ class CoreServiceProvider extends ModuleServiceProvider
         $menu->group('setup', 'Setup', 'bi-gear', order: 900);
         $menu->add(new MenuItem('core.taxes', 'Taxes', route: 'core.taxes.index', parent: 'setup', order: 9,
             permission: 'core.tax.view', module: 'core', active: 'core.taxes.*'));
+        $menu->add(new MenuItem('core.approvals', 'Approvals', icon: 'bi-check2-square', route: 'core.approvals.index', order: 5, permission: 'core.approval.view', module: 'core', active: 'core.approvals.*'));
+        $menu->add(new MenuItem('core.approval-workflows', 'Approval workflows', route: 'core.approval-workflows.index', parent: 'setup', order: 34,
+            permission: 'core.approval.manage', module: 'core', active: 'core.approval-workflows.*'));
         $menu->add(new MenuItem('core.settings', 'Settings', route: 'core.settings.index', parent: 'setup', order: 30,
             permission: 'core.setting.view', module: 'core', active: 'core.settings.*'));
         $menu->add(new MenuItem('core.sequences', 'Document numbering', route: 'core.sequences.index', parent: 'setup', order: 40,

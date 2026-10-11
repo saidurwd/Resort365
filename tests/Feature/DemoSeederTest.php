@@ -171,24 +171,24 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
             ->and(Folio::query()->where('reservation_id', $group->id)->where('type', 'master')->exists())->toBeTrue();
         $bookings = $bookings->reject(fn (Reservation $reservation): bool => $reservation->id === $group->id)->values();
 
-        expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative'])
+        expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative', 'cancelled'])
             ->and($bookings[2]->items->sole()->check_out->diffInDays($bookings[2]->check_in, true))->toEqual(1)
             ->and($bookings[3]->deposit_due_at?->isPast())->toBeTrue()
             ->and($bookings[4]->deposit_percent)->toBe('50.00')
             ->and($bookings[5]->amount_paid)->toBe($bookings[5]->deposit_required)
-            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(5)
+            ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(6)
             ->and(CashierShift::query()->where('status', 'open')->count())->toBe(1)
             ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 1 + 2 + 3 + 3 * 3 + 6 * 2)
             ->and(ExtraService::query()->count())->toBe(6)
             ->and(CityLedgerEntry::query()->sole()->due_on->isPast())->toBeTrue()
-            ->and(Folio::query()->count())->toBe(9)
+            ->and(Folio::query()->count())->toBe(10)
             ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)', 'Main Restaurant bill MR-B000002', 'Room Service bill RS-B000001'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
     ExpireTentativeHolds::dispatchSync();
     app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->orderBy('check_in')->orderBy('id')->pluck('status')->map->value->all())
-        ->toBe(['checked_in', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative']));
+        ->toBe(['checked_in', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative', 'cancelled']));
 });
 
 it('sets up the restaurant: outlets with stations, terminals and floor plans (Step 3.1)', function (): void {

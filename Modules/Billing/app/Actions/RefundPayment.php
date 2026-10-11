@@ -46,6 +46,28 @@ class RefundPayment extends Action
     /**
      * @throws PaymentNotAllowed
      */
+    /**
+     * Whether the refund could be paid now, without paying it: `$alreadyPending` is the amount of other refunds of the
+     * same source waiting for approval.
+     *
+     * @throws PaymentNotAllowed
+     */
+    public function check(NewRefund $data, string $alreadyPending = '0.00'): void
+    {
+        $reservation = $this->reservations->find($data->reservationId) ?? throw new PaymentNotAllowed(__('Unknown reservation.'));
+        $amount = BigDecimal::of($data->amount)->toScale(2);
+
+        if (! $amount->isPositive()) {
+            throw new PaymentNotAllowed(__('The amount must be more than zero.'));
+        }
+
+        [$available] = $this->refundable($data, $reservation);
+
+        if ($amount->plus($alreadyPending)->isGreaterThan($available)) {
+            throw new PaymentNotAllowed(__('At most :amount can be refunded.', ['amount' => (string) BigDecimal::max($available->minus($alreadyPending), BigDecimal::zero())->toScale(2)]));
+        }
+    }
+
     public function handle(NewRefund $data): Payment
     {
         $reservation = $this->reservations->find($data->reservationId) ?? throw new PaymentNotAllowed(__('Unknown reservation.'));

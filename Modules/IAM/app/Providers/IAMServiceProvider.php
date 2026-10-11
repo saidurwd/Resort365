@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\LoginRateLimiter;
+use Modules\Core\Contracts\ApprovalParticipants;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingType;
@@ -37,6 +38,7 @@ use Modules\IAM\Models\Role;
 use Modules\IAM\Models\User;
 use Modules\IAM\Policies\RolePolicy;
 use Modules\IAM\Policies\UserPolicy;
+use Modules\IAM\Services\ApprovalParticipantsService;
 use Modules\IAM\Services\PosPinsService;
 use Modules\IAM\Services\RoleDirectoryService;
 use Modules\IAM\Services\UserDirectoryService;
@@ -83,6 +85,7 @@ class IAMServiceProvider extends ModuleServiceProvider
 
         $this->app->bind(LoginRateLimiter::class, TenantLoginRateLimiter::class);
         $this->app->singleton(UserDirectory::class, UserDirectoryService::class);
+        $this->app->bind(ApprovalParticipants::class, ApprovalParticipantsService::class);
         $this->app->singleton(PosPins::class, PosPinsService::class);
         $this->app->singleton(RoleDirectory::class, RoleDirectoryService::class);
     }
