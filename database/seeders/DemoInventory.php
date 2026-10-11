@@ -4,10 +4,18 @@ namespace Database\Seeders;
 
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Modules\Inventory\Actions\AdjustStock;
+use Modules\Inventory\Actions\DispatchTransfer;
 use Modules\Inventory\Actions\ImportItems;
+use Modules\Inventory\Actions\ReceiveTransfer;
+use Modules\Inventory\Actions\RecordOpeningBalance;
 use Modules\Inventory\Actions\SaveItem;
 use Modules\Inventory\Actions\SaveStore;
 use Modules\Inventory\Actions\SeedStandardUnits;
+use Modules\Inventory\Contracts\StockMovementContract;
+use Modules\Inventory\DTOs\NewStockMovement;
+use Modules\Inventory\Enums\AdjustmentReason;
+use Modules\Inventory\Enums\MovementType;
 use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\ItemCategory;
 use Modules\Inventory\Models\ItemStoreLevel;
@@ -102,6 +110,57 @@ final class DemoInventory
                 $top = $parent instanceof ItemCategory ? $parent->name : $item->category->name;
                 $store = $stores[self::HOME[$top] ?? 'MAIN'] ?? $stores['MAIN'];
                 ItemStoreLevel::query()->create(['item_id' => $item->id, 'store_id' => $store->id, 'par_level' => bcmul((string) $item->reorder_level, '3', 4), 'reorder_level' => $item->reorder_level]);
+            }
+
+            // Opening balances at the standard cost: each item in its own store, bulk dry goods also in the main store.
+            $opening = [];
+
+            foreach (Item::query()->with('category.parent')->get() as $item) {
+                $parent = $item->category->parent;
+                $top = $parent instanceof ItemCategory ? $parent->name : $item->category->name;
+                $home = $stores[self::HOME[$top] ?? 'MAIN'] ?? $stores['MAIN'];
+                $cost = (string) ($item->standard_cost ?? '0');
+                $opening[$home->id][] = ['item_id' => $item->id, 'quantity' => bcmul((string) $item->reorder_level, '4', 4) === '0.0000' ? '10' : bcmul((string) $item->reorder_level, '4', 4), 'unit_cost' => $cost];
+
+                if ($item->category->name === 'Dry goods' && $home->id !== $stores['MAIN']->id) {
+                    $opening[$stores['MAIN']->id][] = ['item_id' => $item->id, 'quantity' => bcmul((string) $item->reorder_level, '6', 4), 'unit_cost' => $cost];
+                }
+            }
+
+            foreach ($opening as $storeId => $lines) {
+                app(RecordOpeningBalance::class)->handle($storeId, $lines);
+            }
+
+            // A few movements to show: a dearer delivery re-averages the rice, a transfer received and another in transit,
+            // damaged water in the bar and expired eggs in the kitchen (so some items sit below their reorder level).
+            $stock = app(StockMovementContract::class);
+            $byName = fn (string $name): ?Item => Item::query()->where('name', $name)->first();
+            $rice = $byName('Basmati rice');
+
+            if ($rice instanceof Item) {
+                $stock->record(new NewStockMovement(MovementType::Receipt, $stores['KITCHEN']->id, $rice->id, '100', '178', reason: 'delivery', notes: 'Delivery at a higher price'));
+            }
+
+            $send = fn (array $lines) => app(DispatchTransfer::class)->handle($stores['MAIN']->id, $stores['KITCHEN']->id, $lines, 'Weekly kitchen supply');
+            $flour = $byName('Wheat flour');
+            $miniket = $byName('Miniket rice');
+
+            if ($rice instanceof Item && $miniket instanceof Item && $flour instanceof Item) {
+                app(ReceiveTransfer::class)->handle($send([['item_id' => $rice->id, 'quantity' => '60'], ['item_id' => $miniket->id, 'quantity' => '120']]));
+                $send([['item_id' => $flour->id, 'quantity' => '90']]);
+            }
+
+            $water = $byName('Mineral water 500 ml');
+            $eggs = $byName('Eggs');
+
+            if ($water instanceof Item && isset($stores['BAR'])) {
+                $held = $stock->balance($stores['BAR']->id, $water->id)->quantity;
+                app(AdjustStock::class)->handle($stores['BAR']->id, $water->id, false, bcsub($held, '30', 4), AdjustmentReason::Damage, 'Crates dropped at delivery');
+            }
+
+            if ($eggs instanceof Item) {
+                $held = $stock->balance($stores['KITCHEN']->id, $eggs->id)->quantity;
+                $stock->record(new NewStockMovement(MovementType::Wastage, $stores['KITCHEN']->id, $eggs->id, bcsub($held, '200', 4), reason: 'expired', notes: 'Past the date'));
             }
 
             // Sacks, cartons and trays: purchase units with their own conversions.

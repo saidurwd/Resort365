@@ -68,7 +68,18 @@
                     <a href="{{ route('inventory.items.index') }}" class="btn btn-outline-secondary">{{ __('Back') }}</a>
                 </div>
             </div>
-            <div class="col-xl-4">@if ($item)<x-audit-trail :entries="$trail" />@endif</div>
+            <div class="col-xl-4">
+                @if ($item && $balances->isNotEmpty())
+                    <x-card :title="__('On hand')" icon="bi-boxes" body-class="p-0" data-on-hand>
+                        <table class="table table-sm mb-0">
+                            @foreach ($balances as $balance)
+                                <tr><td class="ps-3">{{ $balance->store->name }}</td><td class="text-end font-monospace pe-3">{{ rtrim(rtrim((string) $balance->quantity, '0'), '.') ?: '0' }} <span class="text-body-secondary">@ {{ number_format((float) $balance->avg_cost, 2) }}</span></td></tr>
+                            @endforeach
+                        </table>
+                    </x-card>
+                @endif
+                @if ($item)<x-audit-trail :entries="$trail" />@endif
+            </div>
         </div>
     </form>
 </x-layouts::app>

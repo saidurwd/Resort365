@@ -15,6 +15,7 @@ use Modules\Inventory\Exceptions\InventoryRuleViolated;
 use Modules\Inventory\Http\Requests\ItemRequest;
 use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\ItemCategory;
+use Modules\Inventory\Models\StockBalance;
 use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\ItemsTable;
@@ -94,6 +95,7 @@ class ItemController extends Controller
             'conversions' => old('conversions', $item?->conversions->map(fn ($row): array => ['unit_id' => $row->unit_id, 'factor' => rtrim(rtrim((string) $row->factor, '0'), '.')])->all() ?? []),
             'levels' => old('levels', $item?->levels->map(fn ($row): array => ['store_id' => $row->store_id, 'par_level' => $row->par_level !== null ? rtrim(rtrim((string) $row->par_level, '0'), '.') : '', 'reorder_level' => $row->reorder_level !== null ? rtrim(rtrim((string) $row->reorder_level, '0'), '.') : ''])->all() ?? []),
             'trail' => $item instanceof Item ? app(AuditTrail::class)->for($item) : [],
+            'balances' => $item instanceof Item ? StockBalance::query()->with('store')->where('item_id', $item->id)->get()->filter(fn (StockBalance $row): bool => (float) $row->quantity !== 0.0)->values() : collect(),
         ]);
     }
 

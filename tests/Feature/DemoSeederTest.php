@@ -22,6 +22,9 @@ use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
 use Modules\IAM\Models\User;
 use Modules\Inventory\Models\Item;
+use Modules\Inventory\Models\StockBalance;
+use Modules\Inventory\Models\StockMovement;
+use Modules\Inventory\Models\StockTransfer;
 use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
 use Modules\Property\Contracts\InventoryCatalog;
@@ -278,4 +281,19 @@ it('seeds the inventory: units, stores and about 150 items, outlets linked to th
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(Store::query()->count())->toBe(2));
+});
+
+it('seeds stock: opening balances, a dearer delivery, one transfer received and one in transit, damage and expired eggs (Step 5.3)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $balance = fn (string $store, string $item): StockBalance => StockBalance::query()->whereHas('store', fn ($query) => $query->where('code', $store))->whereHas('item', fn ($query) => $query->where('name', $item))->sole();
+
+        expect(StockBalance::query()->count())->toBeGreaterThan(150)
+            ->and($balance('KITCHEN', 'Basmati rice')->quantity)->toBe('560.0000')->and($balance('KITCHEN', 'Basmati rice')->avg_cost)->toBe('167.3214')
+            ->and($balance('MAIN', 'Basmati rice')->quantity)->toBe('540.0000')
+            ->and(StockTransfer::query()->orderBy('id')->get()->map(fn (StockTransfer $transfer): string => $transfer->status->value)->all())->toBe(['received', 'dispatched'])
+            ->and($balance('MAIN', 'Wheat flour')->quantity)->toBe('270.0000')->and($balance('KITCHEN', 'Eggs')->quantity)->toBe('200.0000')->and($balance('BAR', 'Mineral water 500 ml')->quantity)->toBe('30.0000')
+            ->and(StockMovement::query()->where('movement_type', 'opening')->count())->toBeGreaterThan(150);
+    });
 });
