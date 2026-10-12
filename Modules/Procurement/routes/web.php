@@ -1,8 +1,12 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Procurement\Http\Controllers\BillController;
 use Modules\Procurement\Http\Controllers\OrderController;
+use Modules\Procurement\Http\Controllers\PaymentController;
+use Modules\Procurement\Http\Controllers\ReceiptController;
 use Modules\Procurement\Http\Controllers\RequisitionController;
+use Modules\Procurement\Http\Controllers\ReturnController;
 use Modules\Procurement\Http\Controllers\RfqController;
 use Modules\Procurement\Http\Controllers\SuggestionController;
 use Modules\Procurement\Http\Controllers\VendorController;
@@ -73,4 +77,41 @@ Route::prefix('procurement')->name('procurement.')->middleware(['auth', 'verifie
     Route::get('/orders/{order}', [OrderController::class, 'show'])->middleware('can:procurement.order.view')->whereNumber('order')->name('orders.show');
     Route::get('/orders/{order}/pdf', [OrderController::class, 'pdf'])->middleware('can:procurement.order.view')->whereNumber('order')->name('orders.pdf');
     Route::post('/orders/{order}/send', [OrderController::class, 'send'])->middleware('can:procurement.order.send')->whereNumber('order')->name('orders.send');
+
+    Route::middleware('can:procurement.receipt.view')->group(function (): void {
+        Route::get('/receipts', [ReceiptController::class, 'index'])->name('receipts.index');
+        Route::get('/receipts/{receipt}', [ReceiptController::class, 'show'])->whereNumber('receipt')->name('receipts.show');
+    });
+    Route::middleware('can:procurement.receipt.create')->group(function (): void {
+        Route::get('/orders/{order}/receive', [ReceiptController::class, 'create'])->whereNumber('order')->name('receipts.create');
+        Route::post('/orders/{order}/receive', [ReceiptController::class, 'store'])->whereNumber('order')->name('receipts.store');
+    });
+
+    Route::middleware('can:procurement.bill.view')->group(function (): void {
+        Route::get('/bills', [BillController::class, 'index'])->name('bills.index');
+        Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+    });
+    Route::middleware('can:procurement.bill.create')->group(function (): void {
+        Route::get('/bills/new', [BillController::class, 'create'])->name('bills.create');
+        Route::post('/bills', [BillController::class, 'store'])->name('bills.store');
+        Route::get('/bills/{bill}/edit', [BillController::class, 'edit'])->whereNumber('bill')->name('bills.edit');
+        Route::put('/bills/{bill}', [BillController::class, 'update'])->whereNumber('bill')->name('bills.update');
+        Route::post('/bills/{bill}/submit', [BillController::class, 'submit'])->whereNumber('bill')->name('bills.submit');
+        Route::post('/bills/{bill}/cancel', [BillController::class, 'cancel'])->whereNumber('bill')->name('bills.cancel');
+    });
+    Route::get('/bills/{bill}', [BillController::class, 'show'])->middleware('can:procurement.bill.view')->whereNumber('bill')->name('bills.show');
+
+    Route::middleware('can:procurement.payment.create')->group(function (): void {
+        Route::get('/payments/new', [PaymentController::class, 'create'])->name('payments.create');
+        Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
+        Route::post('/payments/{payment}/allocate', [PaymentController::class, 'allocate'])->whereNumber('payment')->name('payments.allocate');
+    });
+    Route::get('/payments/{payment}', [PaymentController::class, 'show'])->middleware('can:procurement.bill.view')->whereNumber('payment')->name('payments.show');
+
+    Route::get('/returns', [ReturnController::class, 'index'])->middleware('can:procurement.return.view')->name('returns.index');
+    Route::middleware('can:procurement.return.create')->group(function (): void {
+        Route::get('/receipts/{receipt}/return', [ReturnController::class, 'create'])->whereNumber('receipt')->name('returns.create');
+        Route::post('/receipts/{receipt}/return', [ReturnController::class, 'store'])->whereNumber('receipt')->name('returns.store');
+    });
+    Route::get('/returns/{return}', [ReturnController::class, 'show'])->middleware('can:procurement.return.view')->whereNumber('return')->name('returns.show');
 });

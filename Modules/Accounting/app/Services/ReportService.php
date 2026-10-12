@@ -17,6 +17,7 @@ use Modules\Accounting\Services\Statements\LedgerAging;
 use Modules\Accounting\Services\Statements\StatementTree;
 use Modules\Accounting\Services\Statements\TrialBalanceBuilder;
 use Modules\Guest\Contracts\GuestLookup;
+use Modules\Procurement\Contracts\VendorDirectory;
 use Modules\Property\Contracts\PropertyDirectory;
 
 /**
@@ -39,6 +40,7 @@ class ReportService
         private readonly LedgerAging $aging,
         private readonly PropertyDirectory $properties,
         private readonly GuestLookup $guests,
+        private readonly VendorDirectory $vendors,
     ) {}
 
     public function trialBalance(ReportFilter $filter): Report
@@ -310,6 +312,10 @@ class ReportService
 
         if ($type === 'company') {
             return $this->guests->findCompany($id)->name ?? __('Company #:id', ['id' => $id]);
+        }
+
+        if ($type === 'vendor') {
+            return $this->vendors->find($id)->name ?? __('Vendor #:id', ['id' => $id]);
         }
 
         return ucfirst(str_replace('_', ' ', $type)).' #'.$id;

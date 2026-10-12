@@ -24,6 +24,9 @@ enum PostingKey: string implements HasLabelAndColor
     case TipsPayable = 'tips_payable';
     case CashShort = 'cash_short_expense';
     case CashOver = 'cash_over_income';
+    case Grni = 'grni';
+    case AccountsPayable = 'accounts_payable';
+    case PriceVariance = 'purchase_price_variance';
 
     public function label(): string
     {
@@ -38,6 +41,9 @@ enum PostingKey: string implements HasLabelAndColor
             self::TipsPayable => __('Tips payable (to staff)'),
             self::CashShort => __('Cash short (expense)'),
             self::CashOver => __('Cash over (income)'),
+            self::Grni => __('Goods received not invoiced (GRNI)'),
+            self::AccountsPayable => __('Accounts payable (vendors)'),
+            self::PriceVariance => __('Purchase price variance'),
         };
     }
 

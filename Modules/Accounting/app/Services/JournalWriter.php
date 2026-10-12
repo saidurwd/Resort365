@@ -12,6 +12,8 @@ use Modules\Guest\Contracts\GuestLookup;
 use Modules\Guest\DTOs\CompanySummary;
 use Modules\Guest\DTOs\GuestSummary;
 use Modules\Guest\DTOs\TravelAgentSummary;
+use Modules\Procurement\Contracts\VendorDirectory;
+use Modules\Procurement\DTOs\VendorSummary;
 use Modules\Property\Contracts\DepartmentDirectory;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Property\DTOs\DepartmentSummary;
@@ -28,6 +30,7 @@ class JournalWriter
     public function __construct(
         private readonly PropertyDirectory $properties,
         private readonly DepartmentDirectory $departments,
+        private readonly VendorDirectory $vendors,
         private readonly GuestLookup $guests,
         private readonly JournalInvariants $invariants,
     ) {}
@@ -132,7 +135,8 @@ class JournalWriter
             PartyType::Guest => $this->guests->find($row['party_id']) instanceof GuestSummary,
             PartyType::Company => $this->guests->findCompany($row['party_id']) instanceof CompanySummary,
             PartyType::TravelAgent => $this->guests->findTravelAgent($row['party_id']) instanceof TravelAgentSummary,
-            default => true, // TODO(step-5.x, step-6.x): vendors and employees come with Procurement and HR.
+            PartyType::Vendor => $this->vendors->find($row['party_id']) instanceof VendorSummary,
+            default => true, // TODO(step-6.x): employees come with HR.
         };
 
         if (! $known) {

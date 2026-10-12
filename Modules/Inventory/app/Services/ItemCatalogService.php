@@ -69,6 +69,7 @@ class ItemCatalogService implements ItemCatalog
         return new ItemSummary(
             $item->id, $item->sku, $item->name, $item->category->path(), $item->base_unit_id, $item->baseUnit->code, $item->is_stockable, $item->track_batches, $item->track_expiry,
             (string) $item->reorder_level, (string) $item->reorder_qty, $item->standard_cost !== null ? (string) $item->standard_cost : null, $item->is_active,
+            $item->category->stockClass()->value,
         );
     }
 }

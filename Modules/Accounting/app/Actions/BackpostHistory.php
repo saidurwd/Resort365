@@ -8,6 +8,7 @@ use Modules\Accounting\Models\JournalEntry;
 use Modules\Accounting\Services\PostingService;
 use Modules\Billing\Contracts\LedgerFacts;
 use Modules\Inventory\Contracts\StockFacts;
+use Modules\Procurement\Contracts\ProcurementFacts;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Restaurant\Contracts\RestaurantFacts;
@@ -26,6 +27,7 @@ class BackpostHistory extends Action
         private readonly PostingService $posting,
         private readonly RestaurantFacts $restaurant,
         private readonly StockFacts $stock,
+        private readonly ProcurementFacts $procurement,
     ) {}
 
     /**
@@ -84,6 +86,24 @@ class BackpostHistory extends Action
 
         foreach ($stock['adjustments'] as $adjustment) {
             $run(__('Stock adjustment #:id', ['id' => $adjustment['id']]), fn (): ?JournalEntry => $this->posting->stockAdjustment($adjustment['type'], $adjustment['id']));
+        }
+
+        $purchasing = $this->procurement->history();
+
+        foreach ($purchasing['receipts'] as $id) {
+            $run(__('Goods receipt #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->goodsReceipt($id));
+        }
+
+        foreach ($purchasing['bills'] as $id) {
+            $run(__('Vendor bill #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->vendorBill($id));
+        }
+
+        foreach ($purchasing['payments'] as $id) {
+            $run(__('Vendor payment #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->vendorPayment($id));
+        }
+
+        foreach ($purchasing['returns'] as $id) {
+            $run(__('Purchase return #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->purchaseReturn($id));
         }
 
         // A date is posted once its night audit has closed it: the property's business date is still open.

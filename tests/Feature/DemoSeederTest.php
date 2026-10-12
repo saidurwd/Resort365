@@ -33,11 +33,15 @@ use Modules\Inventory\Models\StockRequisition;
 use Modules\Inventory\Models\StockTransfer;
 use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
+use Modules\Procurement\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
+use Modules\Procurement\Models\PurchaseReturn;
 use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\Vendor;
+use Modules\Procurement\Models\VendorBill;
 use Modules\Procurement\Models\VendorItem;
+use Modules\Procurement\Models\VendorPayment;
 use Modules\Procurement\Models\VendorQuotation;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\DTOs\UnitTypeSummary;
@@ -329,7 +333,10 @@ it('seeds vendors, requisitions, an awarded RFQ and purchase orders (Step 5.5)',
         expect(Vendor::query()->count())->toBe(5)->and(VendorItem::query()->count())->toBeGreaterThan(20)
             ->and(PurchaseRequisition::query()->orderBy('id')->get()->map(fn (PurchaseRequisition $requisition): string => $requisition->source->value.':'.$requisition->status->value)->all())->toBe(['reorder:approved', 'manual:ordered'])
             ->and(Rfq::query()->sole()->status->value)->toBe('awarded')->and(VendorQuotation::query()->count())->toBe(2)
-            ->and(PurchaseOrder::query()->orderBy('id')->get()->map(fn (PurchaseOrder $order): string => $order->status->value.':'.$order->total)->all())->toBe(['sent:63200.00', 'pending:29300.00']);
+            ->and(PurchaseOrder::query()->orderBy('id')->get()->map(fn (PurchaseOrder $order): string => $order->status->value.':'.$order->total)->all())->toBe(['closed:63200.00', 'pending:29300.00'])
+            ->and(GoodsReceipt::query()->count())->toBe(2)->and(VendorBill::query()->orderBy('id')->get()->map(fn (VendorBill $bill): string => $bill->status->value)->all())->toBe(['partial', 'pending'])
+            ->and(VendorPayment::query()->count())->toBe(2)->and(PurchaseReturn::query()->count())->toBe(1)
+            ->and(JournalEntry::query()->whereIn('source_type', ['goods_receipt', 'vendor_bill', 'vendor_payment', 'purchase_return'])->count())->toBe(6);
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(Vendor::query()->count())->toBe(0));

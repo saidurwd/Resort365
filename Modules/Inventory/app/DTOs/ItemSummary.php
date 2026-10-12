@@ -23,5 +23,6 @@ final readonly class ItemSummary extends Data
         public string $reorderQty,
         public ?string $standardCost,
         public bool $isActive,
+        public string $accountClass = 'operating',
     ) {}
 }

@@ -21,8 +21,10 @@ use Modules\Procurement\Exceptions\ProcurementRuleViolated;
 use Modules\Procurement\Http\Controllers\Concerns\ProcurementScreen;
 use Modules\Procurement\Http\Requests\OrderRequest;
 use Modules\Procurement\Http\Requests\RequisitionOrderRequest;
+use Modules\Procurement\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
+use Modules\Procurement\Models\VendorBill;
 use Modules\Procurement\Services\ItemLabels;
 use Modules\Procurement\Services\Lookups;
 use Modules\Procurement\Services\ProcurementDocuments;
@@ -91,6 +93,9 @@ class OrderController extends Controller
             'canEdit' => $order->status === PurchaseOrderStatus::Draft && Gate::allows('update', $order),
             'canSend' => in_array($order->status, [PurchaseOrderStatus::Approved, PurchaseOrderStatus::Sent], true) && Gate::allows('send', $order),
             'canCancel' => in_array($order->status, [PurchaseOrderStatus::Draft, PurchaseOrderStatus::Pending, PurchaseOrderStatus::Approved, PurchaseOrderStatus::Sent], true) && Gate::allows('update', $order),
+            'receipts' => GoodsReceipt::query()->where('purchase_order_id', $order->id)->orderBy('id')->get(), 'bills' => VendorBill::query()->where('purchase_order_id', $order->id)->orderBy('id')->get(),
+            'canReceive' => in_array($order->status, [PurchaseOrderStatus::Approved, PurchaseOrderStatus::Sent, PurchaseOrderStatus::Partial], true) && ($request->user()?->can('procurement.receipt.create') ?? false),
+            'canBill' => in_array($order->status, [PurchaseOrderStatus::Partial, PurchaseOrderStatus::Received, PurchaseOrderStatus::Closed], true) && ($request->user()?->can('procurement.bill.create') ?? false),
             'subtitle' => $this->propertyName(),
         ]);
     }

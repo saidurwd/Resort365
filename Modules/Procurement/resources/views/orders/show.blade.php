@@ -2,6 +2,8 @@
 <x-layouts::app :title="$order->order_no" :subtitle="$order->vendor->name" :breadcrumbs="[__('Dashboard') => route('dashboard'), __('Procurement') => null, __('Purchase orders') => route('procurement.orders.index'), $order->order_no => null]">
     <x-slot:actions>
         <a href="{{ route('procurement.orders.pdf', $order) }}" class="btn btn-outline-secondary" data-pdf><i class="bi bi-file-earmark-pdf"></i> {{ __('PDF') }}</a>
+        @if ($canReceive)<a href="{{ route('procurement.receipts.create', $order) }}" class="btn btn-success" data-receive-goods><i class="bi bi-box-arrow-in-down"></i> {{ __('Receive goods') }}</a>@endif
+        @if ($canBill)<a href="{{ route('procurement.bills.create', ['order' => $order->id]) }}" class="btn btn-outline-primary" data-enter-bill><i class="bi bi-receipt"></i> {{ __('Enter a bill') }}</a>@endif
         @if ($canEdit)
             <a href="{{ route('procurement.orders.edit', $order) }}" class="btn btn-outline-secondary" data-edit-order><i class="bi bi-pencil"></i> {{ __('Change') }}</a>
             <form method="POST" action="{{ route('procurement.orders.submit', $order) }}" class="d-inline">@csrf<button type="submit" class="btn btn-primary" data-submit-order><i class="bi bi-send-check"></i> {{ __('Send for approval') }}</button></form>
@@ -60,6 +62,14 @@
                     @if ($order->notes)<dt class="col-5">{{ __('Notes') }}</dt><dd class="col-7">{{ $order->notes }}</dd>@endif
                 </dl>
             </x-card>
+            @if ($receipts->isNotEmpty() || $bills->isNotEmpty())
+                <x-card :title="__('Receipts and bills')" icon="bi-diagram-3" body-class="p-0">
+                    <ul class="list-group list-group-flush" data-order-documents>
+                        @foreach ($receipts as $receipt)<li class="list-group-item d-flex justify-content-between"><a href="{{ route('procurement.receipts.show', $receipt) }}">{{ $receipt->receipt_no }}</a><span class="font-monospace small">{{ number_format((float) $receipt->total_value, 2) }}</span></li>@endforeach
+                        @foreach ($bills as $bill)<li class="list-group-item d-flex justify-content-between"><a href="{{ route('procurement.bills.show', $bill) }}">{{ $bill->bill_no }}</a><x-status-badge :status="$bill->status" /></li>@endforeach
+                    </ul>
+                </x-card>
+            @endif
             <x-audit-trail :entries="$trail" />
         </div>
     </div>

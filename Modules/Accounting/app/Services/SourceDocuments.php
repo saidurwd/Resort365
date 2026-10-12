@@ -53,6 +53,18 @@ class SourceDocuments
             case 'pos_session':
                 $links[] = ['label' => (string) __('POS session report'), 'url' => route('restaurant.sessions.report', $id), 'detail' => null];
                 break;
+            case 'goods_receipt':
+                $links[] = ['label' => (string) __('Goods receipt'), 'url' => route('procurement.receipts.show', $id), 'detail' => null];
+                break;
+            case 'vendor_bill':
+                $links[] = ['label' => (string) __('Vendor bill'), 'url' => route('procurement.bills.show', $id), 'detail' => null];
+                break;
+            case 'vendor_payment':
+                $links[] = ['label' => (string) __('Vendor payment'), 'url' => route('procurement.payments.show', $id), 'detail' => null];
+                break;
+            case 'purchase_return':
+                $links[] = ['label' => (string) __('Purchase return'), 'url' => route('procurement.returns.show', $id), 'detail' => null];
+                break;
             case 'voucher':
                 $links[] = ['label' => (string) __('Voucher'), 'url' => route('accounting.vouchers.show', $id), 'detail' => null];
                 break;

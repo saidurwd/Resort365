@@ -1,5 +1,6 @@
 <x-layouts::app :title="$vendor->name" :subtitle="$vendor->code" :breadcrumbs="[__('Dashboard') => route('dashboard'), __('Procurement') => null, __('Vendors') => route('procurement.vendors.index'), $vendor->name => null]">
     <x-slot:actions>
+        @if ($canPay)<a href="{{ route('procurement.payments.create', ['vendor' => $vendor->id]) }}" class="btn btn-success" data-pay-vendor><i class="bi bi-cash-coin"></i> {{ __('Pay') }}</a>@endif
         @if ($canManage)<a href="{{ route('procurement.vendors.edit', $vendor) }}" class="btn btn-outline-secondary" data-edit-vendor><i class="bi bi-pencil"></i> {{ __('Change') }}</a>@endif
     </x-slot:actions>
     <div class="row">
@@ -55,6 +56,8 @@
                     @if ($vendor->email)<dt class="col-5">{{ __('Email') }}</dt><dd class="col-7">{{ $vendor->email }}</dd>@endif
                     @if ($vendor->phone)<dt class="col-5">{{ __('Phone') }}</dt><dd class="col-7">{{ $vendor->phone }}</dd>@endif
                     @if ($vendor->address)<dt class="col-5">{{ __('Address') }}</dt><dd class="col-7">{{ $vendor->address }}</dd>@endif
+                    <dt class="col-5">{{ __('Payable') }}</dt><dd class="col-7 font-monospace" data-payable>{{ number_format((float) $payable, 2) }}</dd>
+                    <dt class="col-5">{{ __('Advances') }}</dt><dd class="col-7 font-monospace" data-advances>{{ number_format((float) $advance, 2) }}</dd>
                     <dt class="col-5">{{ __('Currency') }}</dt><dd class="col-7">{{ $vendor->currency }}</dd>
                     <dt class="col-5">{{ __('Terms') }}</dt><dd class="col-7">{{ trans_choice(':count day|:count days', $vendor->payment_terms_days) }}</dd>
                     @if ($vendor->bank_name || $vendor->bank_account_no)<dt class="col-5">{{ __('Bank') }}</dt><dd class="col-7">{{ collect([$vendor->bank_name, $vendor->bank_branch, $vendor->bank_account_name, $vendor->bank_account_no])->filter()->implode(' · ') }}</dd>@endif

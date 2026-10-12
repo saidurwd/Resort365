@@ -27,6 +27,11 @@ class AccountResolver
         'maintenance' => 'engineering_supplies_expense', 'operating' => 'housekeeping_supplies_expense',
     ];
 
+    private const array BILL_EXPENSE_DEFAULTS = [
+        'food' => 'food_cost', 'beverage' => 'beverage_cost', 'housekeeping' => 'housekeeping_supplies_expense', 'maintenance' => 'engineering_supplies_expense',
+        'utilities' => 'utilities_expense', 'repairs' => 'repairs_expense', 'administrative' => 'office_expense', 'other' => 'office_expense',
+    ];
+
     private const array METHOD_DEFAULTS = [
         'cash' => 'cash_on_hand', 'card' => 'card_clearing', 'bank_transfer' => 'bank', 'mobile_wallet' => 'wallet_clearing',
     ];
@@ -101,6 +106,27 @@ class AccountResolver
         return $this->resolve('stock:shrinkage', 'inventory_shrinkage', __('Inventory shrinkage'));
     }
 
+    /** Expense account of a service bill line by its class (Step 5.6). */
+    public function billExpense(string $class): int
+    {
+        return $this->resolve(self::billKey($class), self::BILL_EXPENSE_DEFAULTS[$class] ?? 'office_expense', __('Bill expense: :class', ['class' => $class]));
+    }
+
+    /** Where a vendor payment leaves from: cash, bank (transfers and cheques) or the wallet. */
+    public function vendorMethod(string $method): int
+    {
+        return $this->method(match ($method) {
+            'cash' => PaymentMethod::Cash,
+            'mobile_wallet' => PaymentMethod::MobileWallet,
+            default => PaymentMethod::BankTransfer,
+        });
+    }
+
+    public static function billKey(string $class): string
+    {
+        return 'bill:expense:'.$class;
+    }
+
     public static function stockKey(string $side, string $class): string
     {
         return 'stock:'.$side.':'.$class;
@@ -137,6 +163,10 @@ class AccountResolver
 
         if (str_starts_with($key, 'method:')) {
             return self::METHOD_DEFAULTS[substr($key, 7)] ?? null;
+        }
+
+        if (str_starts_with($key, 'bill:expense:')) {
+            return self::BILL_EXPENSE_DEFAULTS[substr($key, 13)] ?? null;
         }
 
         if ($key === 'stock:shrinkage') {

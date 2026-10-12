@@ -24,6 +24,11 @@ use Modules\Billing\Enums\RefundKind;
 use Modules\Inventory\Contracts\StockFacts;
 use Modules\Inventory\DTOs\StockAdjustmentFact;
 use Modules\Inventory\DTOs\StockIssueFact;
+use Modules\Procurement\Contracts\ProcurementFacts;
+use Modules\Procurement\DTOs\ReceiptFact;
+use Modules\Procurement\DTOs\ReturnFact;
+use Modules\Procurement\DTOs\VendorBillFact;
+use Modules\Procurement\DTOs\VendorPaymentFact;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\CancellationFact;
 use Modules\Restaurant\Contracts\RestaurantFacts;
@@ -53,7 +58,105 @@ class PostingService
         private readonly BillEntryBuilder $bills,
         private readonly ReverseJournalEntry $reverse,
         private readonly StockFacts $stock,
+        private readonly ProcurementFacts $procurement,
     ) {}
+
+    /**
+     * Goods received (Step 5.6): Dr inventory by class / Cr goods received not invoiced.
+     */
+    public function goodsReceipt(int $receiptId): ?JournalEntry
+    {
+        $receipt = $this->procurement->receipt($receiptId);
+
+        if (! $receipt instanceof ReceiptFact) {
+            return null;
+        }
+
+        $lines = [];
+        $total = BigDecimal::zero();
+
+        foreach ($receipt->byClass as $class => $value) {
+            $lines[] = $this->line($this->accounts->stockInventory($class), $value, $receipt->propertyId);
+            $total = $total->plus($value);
+        }
+
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::Grni), '-'.$total->toScale(2), $receipt->propertyId, ['vendor', $receipt->vendorId]);
+
+        return $this->record('goods_receipt', $receiptId, 'received', $receipt->propertyId, $receipt->date, __('Goods received :no', ['no' => $receipt->receiptNo]), $receipt->receiptNo, $lines);
+    }
+
+    /**
+     * An approved vendor bill (Step 5.6): a goods bill clears GRNI (price variance to its own account), a service bill
+     * books the expense with the department; the input VAT is recoverable; accounts payable is credited with the vendor.
+     */
+    public function vendorBill(int $billId): ?JournalEntry
+    {
+        $bill = $this->procurement->bill($billId);
+
+        if (! $bill instanceof VendorBillFact) {
+            return null;
+        }
+
+        $lines = [];
+
+        if (BigDecimal::of($bill->grni)->isPositive() || $bill->expenseByClass === []) {
+            $lines[] = $this->line($this->accounts->fixed(PostingKey::Grni), $bill->grni, $bill->propertyId);
+            $lines[] = $this->line($this->accounts->fixed(PostingKey::PriceVariance), $bill->variance, $bill->propertyId);
+        }
+
+        foreach ($bill->expenseByClass as $class => $net) {
+            $lines[] = [...$this->line($this->accounts->billExpense($class), $net, $bill->propertyId), 'department_id' => $bill->departmentId];
+        }
+
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::InputVat), $bill->tax, $bill->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::AccountsPayable), '-'.$bill->total, $bill->propertyId, ['vendor', $bill->vendorId]);
+
+        return $this->record('vendor_bill', $billId, 'approved', $bill->propertyId, $bill->date, __('Vendor bill :no', ['no' => $bill->billNo]), $bill->billNo, $lines);
+    }
+
+    /**
+     * A vendor payment, allocated or an advance (Step 5.6): Dr accounts payable (with the vendor) / Cr cash or bank.
+     */
+    public function vendorPayment(int $paymentId): ?JournalEntry
+    {
+        $payment = $this->procurement->payment($paymentId);
+
+        if (! $payment instanceof VendorPaymentFact) {
+            return null;
+        }
+
+        return $this->record('vendor_payment', $paymentId, 'paid', $payment->propertyId, $payment->date, __('Vendor payment :no', ['no' => $payment->paymentNo]), $payment->paymentNo, [
+            $this->line($this->accounts->fixed(PostingKey::AccountsPayable), $payment->amount, $payment->propertyId, ['vendor', $payment->vendorId]),
+            $this->line($this->accounts->vendorMethod($payment->method), '-'.$payment->amount, $payment->propertyId),
+        ]);
+    }
+
+    /**
+     * Goods returned with a debit note (Step 5.6): the unbilled part reverses GRNI, the billed part (and its tax) reduces
+     * accounts payable; inventory leaves at its cost and any difference to the credited value is price variance.
+     */
+    public function purchaseReturn(int $returnId): ?JournalEntry
+    {
+        $return = $this->procurement->purchaseReturn($returnId);
+
+        if (! $return instanceof ReturnFact) {
+            return null;
+        }
+
+        $lines = [
+            $this->line($this->accounts->fixed(PostingKey::Grni), $return->grni, $return->propertyId),
+            $this->line($this->accounts->fixed(PostingKey::AccountsPayable), (string) BigDecimal::of($return->billedNet)->plus($return->tax)->toScale(2), $return->propertyId, ['vendor', $return->vendorId]),
+        ];
+
+        foreach ($return->inventoryByClass as $class => $cost) {
+            $lines[] = $this->line($this->accounts->stockInventory($class), '-'.$cost, $return->propertyId);
+        }
+
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::InputVat), '-'.$return->tax, $return->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::PriceVariance), (string) BigDecimal::of($return->variance)->negated()->toScale(2), $return->propertyId);
+
+        return $this->record('purchase_return', $returnId, 'returned', $return->propertyId, $return->date, __('Debit note :no', ['no' => $return->debitNoteNo]), $return->debitNoteNo, $lines);
+    }
 
     /**
      * Stock issued to a department (Step 5.4): Dr the class's cost account (with the department) / Cr its inventory account.

@@ -12,16 +12,25 @@ use Modules\Inventory\Contracts\StoreDirectory;
 use Modules\Procurement\Actions\AwardRfq;
 use Modules\Procurement\Actions\CreateRequisitionFromSuggestions;
 use Modules\Procurement\Actions\CreateRfq;
+use Modules\Procurement\Actions\ReceiveGoods;
 use Modules\Procurement\Actions\RecordQuotation;
+use Modules\Procurement\Actions\RecordVendorPayment;
+use Modules\Procurement\Actions\ReturnToVendor;
 use Modules\Procurement\Actions\SavePurchaseOrder;
 use Modules\Procurement\Actions\SavePurchaseRequisition;
 use Modules\Procurement\Actions\SaveVendor;
+use Modules\Procurement\Actions\SaveVendorBill;
 use Modules\Procurement\Actions\SaveVendorContact;
 use Modules\Procurement\Actions\SaveVendorPrice;
 use Modules\Procurement\Actions\SendPurchaseOrder;
 use Modules\Procurement\Actions\SendRfq;
 use Modules\Procurement\Actions\SubmitPurchaseOrder;
+use Modules\Procurement\Actions\SubmitVendorBill;
 use Modules\Procurement\DTOs\NewPurchaseOrder;
+use Modules\Procurement\DTOs\NewVendorBill;
+use Modules\Procurement\DTOs\NewVendorPayment;
+use Modules\Procurement\Enums\VendorBillKind;
+use Modules\Procurement\Enums\VendorPaymentMethod;
 use Modules\Procurement\Models\PurchaseRequisition;
 use Modules\Procurement\Models\Vendor;
 use Modules\Property\Contracts\DepartmentDirectory;
@@ -29,7 +38,8 @@ use Modules\Property\Contracts\DepartmentDirectory;
 /**
  * Procurement demo (Step 5.5), Rodela only: five vendors with contacts and price lists, a requisition raised from the
  * reorder levels and approved, a second one that went through an RFQ (two quotations compared, Bay Fisheries won) into
- * a large order approved by two people and emailed, and a smaller order still waiting for approval.
+ * a large order approved by two people and emailed, delivered in two parts with the bill matched, part paid and chicken
+ * returned, an advance to another vendor, a service bill awaiting approval, and a smaller order still waiting for approval.
  */
 final class DemoProcurement
 {
@@ -106,6 +116,31 @@ final class DemoProcurement
                 app(ApprovalEngine::class)->approve((int) $order->approval_request_id, $accountant);
                 app(ApprovalEngine::class)->approve((int) $order->approval_request_id, $gm);
                 app(SendPurchaseOrder::class)->handle($order->fresh() ?? $order);
+
+                // Two partial deliveries (one hilsa rejected), the bill matched to them, part of it paid, and chicken sent back.
+                $order = $order->fresh(['lines']) ?? $order;
+                $line = fn (string $name): int => (int) $order->lines->firstWhere('item_id', $itemId($name))?->id;
+                $first = app(ReceiveGoods::class)->handle($order, [
+                    ['purchase_order_line_id' => $line('Chicken whole'), 'accepted_quantity' => '25'], ['purchase_order_line_id' => $line('Hilsa fish'), 'accepted_quantity' => '12', 'rejected_quantity' => '1', 'reject_reason' => 'Not fresh'],
+                    ['purchase_order_line_id' => $line('Tiger prawn'), 'accepted_quantity' => '10'],
+                ], $keeper, deliveryNote: 'BF-2210');
+                app(ReceiveGoods::class)->handle($order->fresh() ?? $order, [['purchase_order_line_id' => $line('Chicken whole'), 'accepted_quantity' => '15'], ['purchase_order_line_id' => $line('Hilsa fish'), 'accepted_quantity' => '8']], $keeper, deliveryNote: 'BF-2214');
+                $order = $order->fresh(['lines']) ?? $order;
+                $bill = app(SaveVendorBill::class)->handle(null, new NewVendorBill($propertyId, $order->vendor_id, VendorBillKind::Purchase, [
+                    ['purchase_order_line_id' => $line('Chicken whole'), 'quantity' => '40', 'unit_price' => '290'], ['purchase_order_line_id' => $line('Hilsa fish'), 'quantity' => '20', 'unit_price' => '1790'],
+                    ['purchase_order_line_id' => $line('Tiger prawn'), 'quantity' => '10', 'unit_price' => '1580'],
+                ], $buyer, $order->id, vendorReference: 'BF/INV/0457'));
+                $bill = app(SubmitVendorBill::class)->handle($bill, $buyer);
+                app(ApprovalEngine::class)->approve((int) $bill->approval_request_id, $accountant);
+                app(RecordVendorPayment::class)->handle(new NewVendorPayment($propertyId, $order->vendor_id, VendorPaymentMethod::BankTransfer, '40000.00', $accountant, [$bill->id => '40000.00'], reference: 'TT-5531'));
+                app(ReturnToVendor::class)->handle($first, [['goods_receipt_line_id' => (int) $first->lines->firstWhere('item_id', $itemId('Chicken whole'))?->id, 'quantity' => '2']], 'Torn packaging', $keeper);
+                app(RecordVendorPayment::class)->handle(new NewVendorPayment($propertyId, $vendors['DHAKADRY']->id, VendorPaymentMethod::Cash, '10000.00', $accountant, notes: 'Advance for the monthly order'));
+
+                // A service bill (generator repair) waiting for the accounts approver.
+                $service = app(SaveVendorBill::class)->handle(null, new NewVendorBill($propertyId, $vendors['CLEANCARE']->id, VendorBillKind::Service, [
+                    ['description' => 'Pool pump servicing', 'expense_class' => 'repairs', 'quantity' => '1', 'unit_price' => '12000'],
+                ], $buyer, vendorReference: 'CC-118', departmentId: $departments['ENG']->id ?? null));
+                app(SubmitVendorBill::class)->handle($service, $buyer);
 
                 // A smaller order still waiting for its approver.
                 $dry = $vendors['DHAKADRY'];

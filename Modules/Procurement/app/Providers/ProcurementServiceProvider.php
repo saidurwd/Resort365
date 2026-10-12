@@ -12,21 +12,38 @@ use Illuminate\Support\Facades\Gate;
 use Modules\Core\Contracts\ApprovalRegistry;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\NotificationTemplates;
+use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\ApprovalDocumentType;
 use Modules\Core\DTOs\ApprovalStepDefinition;
 use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\NotificationTemplateDefinition;
+use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SequenceReset;
+use Modules\Core\Enums\SettingScope;
+use Modules\Core\Enums\SettingType;
+use Modules\Procurement\Contracts\ProcurementFacts;
+use Modules\Procurement\Contracts\VendorDirectory;
+use Modules\Procurement\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
+use Modules\Procurement\Models\PurchaseReturn;
 use Modules\Procurement\Models\Rfq;
 use Modules\Procurement\Models\Vendor;
+use Modules\Procurement\Models\VendorBill;
+use Modules\Procurement\Models\VendorPayment;
+use Modules\Procurement\Policies\BillPolicy;
 use Modules\Procurement\Policies\OrderPolicy;
+use Modules\Procurement\Policies\PaymentPolicy;
+use Modules\Procurement\Policies\ReceiptPolicy;
 use Modules\Procurement\Policies\RequisitionPolicy;
+use Modules\Procurement\Policies\ReturnPolicy;
 use Modules\Procurement\Policies\RfqPolicy;
 use Modules\Procurement\Policies\VendorPolicy;
+use Modules\Procurement\Services\ProcurementFactsService;
 use Modules\Procurement\Services\PurchaseOrderApprovalHandler;
 use Modules\Procurement\Services\PurchaseRequisitionApprovalHandler;
+use Modules\Procurement\Services\VendorBillApprovalHandler;
+use Modules\Procurement\Services\VendorDirectoryService;
 use Modules\Procurement\Services\VendorEmailComposer;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -52,20 +69,36 @@ class ProcurementServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->bind(VendorDirectory::class, VendorDirectoryService::class);
+        $this->app->bind(ProcurementFacts::class, ProcurementFactsService::class);
+    }
+
     public function boot(): void
     {
         parent::boot();
 
-        Relation::morphMap(['vendor' => Vendor::class, 'purchase_requisition' => PurchaseRequisition::class, 'rfq' => Rfq::class, 'purchase_order' => PurchaseOrder::class]);
+        Relation::morphMap(['vendor' => Vendor::class, 'purchase_requisition' => PurchaseRequisition::class, 'rfq' => Rfq::class, 'purchase_order' => PurchaseOrder::class, 'goods_receipt' => GoodsReceipt::class, 'vendor_bill' => VendorBill::class, 'vendor_payment' => VendorPayment::class, 'purchase_return' => PurchaseReturn::class]);
         Gate::policy(Vendor::class, VendorPolicy::class);
         Gate::policy(PurchaseRequisition::class, RequisitionPolicy::class);
         Gate::policy(Rfq::class, RfqPolicy::class);
         Gate::policy(PurchaseOrder::class, OrderPolicy::class);
+        Gate::policy(GoodsReceipt::class, ReceiptPolicy::class);
+        Gate::policy(VendorBill::class, BillPolicy::class);
+        Gate::policy(VendorPayment::class, PaymentPolicy::class);
+        Gate::policy(PurchaseReturn::class, ReturnPolicy::class);
 
         $numbers = $this->app->make(DocumentNumbers::class);
         $numbers->register(new DocumentType('vendor', 'Vendor code', 'VND', '{PREFIX}-{SEQ:4}', SequenceReset::Never));
         $numbers->register(new DocumentType('purchase_requisition', 'Purchase requisition', 'PR'));
         $numbers->register(new DocumentType('rfq', 'Request for quotation', 'RFQ'));
+        $numbers->register(new DocumentType('vendor_bill', 'Vendor bill', 'VB'));
+        $numbers->register(new DocumentType('vendor_payment', 'Vendor payment', 'VP'));
+        $numbers->register(new DocumentType('purchase_return', 'Purchase return', 'RTV'));
+        $numbers->register(new DocumentType('debit_note', 'Debit note', 'DN'));
 
         $approvals = $this->app->make(ApprovalRegistry::class);
         $approvals->register(new ApprovalDocumentType(
@@ -76,6 +109,18 @@ class ProcurementServiceProvider extends ModuleServiceProvider
             'purchase_order', 'Purchase order', 'An order to a vendor. Approved before it is sent; large orders also need the General Manager.',
             [new ApprovalStepDefinition('Purchasing approver', 'procurement.order.approve', '0.00'), new ApprovalStepDefinition('General Manager', 'procurement.order.approve-large', '50000.00')],
         ), PurchaseOrderApprovalHandler::class);
+        $approvals->register(new ApprovalDocumentType(
+            'vendor_bill', 'Vendor bill', 'A vendor\'s invoice, matched to the order and the goods received. Approved before it can be paid.',
+            [new ApprovalStepDefinition('Accounts approver', 'procurement.bill.approve', '0.00')],
+        ), VendorBillApprovalHandler::class);
+
+        $settings = $this->app->make(Settings::class);
+        $settings->define(new SettingDefinition('procurement.over_receipt_percent', 'Over-receipt allowed (%)', SettingType::Decimal, '0', SettingScope::Property, 'Procurement',
+            help: 'How far above the ordered quantity a goods receipt may go, in percent of the order line.'));
+        $settings->define(new SettingDefinition('procurement.quantity_tolerance_percent', 'Billed quantity tolerance (%)', SettingType::Decimal, '0', SettingScope::Property, 'Procurement',
+            help: 'How far above the received quantity a vendor bill may go before the 3-way match blocks it.'));
+        $settings->define(new SettingDefinition('procurement.price_tolerance_percent', 'Billed price tolerance (%)', SettingType::Decimal, '2', SettingScope::Property, 'Procurement',
+            help: 'How far above the order price a billed price may go before the bill needs the match override.'));
 
         $order = ['vendor', 'order_no', 'property', 'property_phone', 'property_email', 'currency', 'total', 'expected_on', 'payment_terms'];
         $rfq = ['vendor', 'rfq_no', 'property', 'property_phone', 'property_email', 'due_on'];
@@ -103,6 +148,15 @@ class ProcurementServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('procurement.order.approve', 'Approve purchase orders', [$gm, DefaultRole::Accountant]),
             new PermissionDefinition('procurement.order.approve-large', 'Approve large purchase orders', [$gm]),
             new PermissionDefinition('procurement.order.send', 'Email approved purchase orders to vendors', [$gm, $buyer]),
+            new PermissionDefinition('procurement.receipt.view', 'View goods receipts', [...$viewers, DefaultRole::Chef]),
+            new PermissionDefinition('procurement.receipt.create', 'Receive goods against purchase orders', [$gm, $buyer, DefaultRole::StoreKeeper]),
+            new PermissionDefinition('procurement.bill.view', 'View vendor bills and payments', [$gm, $buyer, DefaultRole::Accountant]),
+            new PermissionDefinition('procurement.bill.create', 'Enter and submit vendor bills', [$gm, $buyer, DefaultRole::Accountant]),
+            new PermissionDefinition('procurement.bill.approve', 'Approve vendor bills', [$gm, DefaultRole::Accountant]),
+            new PermissionDefinition('procurement.bill.override-match', 'Override the price check of the 3-way match', [$gm, DefaultRole::Accountant]),
+            new PermissionDefinition('procurement.payment.create', 'Pay vendors', [$gm, DefaultRole::Accountant]),
+            new PermissionDefinition('procurement.return.view', 'View purchase returns', [...$viewers]),
+            new PermissionDefinition('procurement.return.create', 'Return goods to vendors', [$gm, $buyer, DefaultRole::StoreKeeper]),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
@@ -111,6 +165,10 @@ class ProcurementServiceProvider extends ModuleServiceProvider
         $menu->add(new MenuItem('procurement.requisitions', 'Requisitions', route: 'procurement.requisitions.index', parent: 'procurement', order: 20, permission: 'procurement.requisition.view', module: 'procurement', active: 'procurement.requisitions.*'));
         $menu->add(new MenuItem('procurement.suggestions', 'Reorder suggestions', route: 'procurement.suggestions.index', parent: 'procurement', order: 25, permission: 'procurement.requisition.view', module: 'procurement', active: 'procurement.suggestions.*'));
         $menu->add(new MenuItem('procurement.rfqs', 'RFQs', route: 'procurement.rfqs.index', parent: 'procurement', order: 30, permission: 'procurement.rfq.view', module: 'procurement', active: 'procurement.rfqs.*'));
+        $menu->add(new MenuItem('procurement.receipts', 'Goods receipts', route: 'procurement.receipts.index', parent: 'procurement', order: 50, permission: 'procurement.receipt.view', module: 'procurement', active: 'procurement.receipts.*'));
+        $menu->add(new MenuItem('procurement.bills', 'Vendor bills', route: 'procurement.bills.index', parent: 'procurement', order: 60, permission: 'procurement.bill.view', module: 'procurement', active: 'procurement.bills.*'));
+        $menu->add(new MenuItem('procurement.payments', 'Vendor payments', route: 'procurement.payments.index', parent: 'procurement', order: 70, permission: 'procurement.bill.view', module: 'procurement', active: 'procurement.payments.*'));
+        $menu->add(new MenuItem('procurement.returns', 'Returns', route: 'procurement.returns.index', parent: 'procurement', order: 80, permission: 'procurement.return.view', module: 'procurement', active: 'procurement.returns.*'));
         $menu->add(new MenuItem('procurement.orders', 'Purchase orders', route: 'procurement.orders.index', parent: 'procurement', order: 40, permission: 'procurement.order.view', module: 'procurement', active: 'procurement.orders.*'));
     }
 }

@@ -25,6 +25,7 @@ use Modules\Procurement\Models\VendorContact;
 use Modules\Procurement\Models\VendorItem;
 use Modules\Procurement\Services\ItemLabels;
 use Modules\Procurement\Services\Lookups;
+use Modules\Procurement\Services\VendorBalances;
 
 /**
  * Procurement → Vendors: the supplier list, a vendor's profile with contacts, price list and documents.
@@ -84,7 +85,7 @@ class VendorController extends Controller
         return to_route('procurement.vendors.show', $vendor)->with('success', __('Vendor saved.'));
     }
 
-    public function show(Request $request, Vendor $vendor, ItemLabels $labels, Lookups $lookups, AuditTrail $audit): View
+    public function show(Request $request, Vendor $vendor, ItemLabels $labels, Lookups $lookups, AuditTrail $audit, VendorBalances $balances): View
     {
         Gate::authorize('view', $vendor);
         $vendor->load(['contacts', 'prices']);
@@ -93,6 +94,8 @@ class VendorController extends Controller
         return view('procurement::vendors.show', [
             'vendor' => $vendor, 'items' => $labels->for($vendor->prices->pluck('item_id')), 'itemOptions' => $lookups->items(), 'today' => $today,
             'orders' => PurchaseOrder::query()->where('vendor_id', $vendor->id)->orderByDesc('id')->limit(10)->get(),
+            'payable' => $balances->payable($vendor->id), 'advance' => $balances->advance($vendor->id),
+            'canPay' => $request->user()?->can('procurement.payment.create') ?? false,
             'canManage' => $request->user()?->can('procurement.vendor.manage') ?? false, 'trail' => $audit->for($vendor),
         ]);
     }

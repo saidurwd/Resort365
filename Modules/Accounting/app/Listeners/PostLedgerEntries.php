@@ -13,6 +13,10 @@ use Modules\Billing\Events\RefundIssued;
 use Modules\FrontOffice\Events\NightAuditCompleted;
 use Modules\Inventory\Events\StockAdjusted;
 use Modules\Inventory\Events\StockIssued;
+use Modules\Procurement\Events\GoodsReceived;
+use Modules\Procurement\Events\PurchaseReturned;
+use Modules\Procurement\Events\VendorBillApproved;
+use Modules\Procurement\Events\VendorPaymentMade;
 use Modules\Reservation\Events\ReservationCancelled;
 use Modules\Restaurant\Events\PosSessionClosed;
 use Modules\Restaurant\Events\RestaurantBillSettled;
@@ -85,6 +89,26 @@ class PostLedgerEntries
     public function onStockAdjusted(StockAdjusted $event): void
     {
         $this->safely(fn (): ?JournalEntry => $this->posting->stockAdjustment($event->sourceType, $event->sourceId));
+    }
+
+    public function onGoodsReceived(GoodsReceived $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->goodsReceipt($event->receiptId));
+    }
+
+    public function onVendorBillApproved(VendorBillApproved $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->vendorBill($event->billId));
+    }
+
+    public function onVendorPaymentMade(VendorPaymentMade $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->vendorPayment($event->paymentId));
+    }
+
+    public function onPurchaseReturned(PurchaseReturned $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->purchaseReturn($event->returnId));
     }
 
     private function safely(callable $post): void

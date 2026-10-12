@@ -6,6 +6,7 @@ use Modules\Accounting\Enums\PostingKey;
 use Modules\Billing\Contracts\LedgerFacts;
 use Modules\Billing\Enums\PaymentMethod;
 use Modules\Inventory\Enums\StockClass;
+use Modules\Procurement\Enums\ExpenseClass;
 use Modules\Restaurant\Contracts\RestaurantFacts;
 
 /**
@@ -46,6 +47,10 @@ class MappingCatalog
         foreach (StockClass::cases() as $class) {
             $rows[] = ['key' => AccountResolver::stockKey('expense', $class->value), 'label' => $class->label().' · '.__('cost when issued'), 'group' => __('Stock'), 'category' => null];
             $rows[] = ['key' => AccountResolver::stockKey('inventory', $class->value), 'label' => $class->label().' · '.__('inventory'), 'group' => __('Stock'), 'category' => null];
+        }
+
+        foreach (ExpenseClass::cases() as $class) {
+            $rows[] = ['key' => AccountResolver::billKey($class->value), 'label' => $class->label(), 'group' => __('Vendor bills (services and expenses)'), 'category' => null];
         }
 
         $rows[] = ['key' => 'stock:shrinkage', 'label' => __('Inventory shrinkage (count differences)'), 'group' => __('Stock'), 'category' => null];
