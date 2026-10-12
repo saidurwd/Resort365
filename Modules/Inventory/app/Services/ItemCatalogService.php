@@ -21,6 +21,17 @@ class ItemCatalogService implements ItemCatalog
         return $item instanceof Item ? $this->summary($item) : null;
     }
 
+    public function many(array $itemIds): array
+    {
+        $found = [];
+
+        foreach (Item::query()->with(['category', 'baseUnit'])->whereIn('id', array_values(array_unique($itemIds)))->get() as $item) {
+            $found[$item->id] = $this->summary($item);
+        }
+
+        return $found;
+    }
+
     public function search(string $term, int $limit = 20): array
     {
         $term = trim($term);

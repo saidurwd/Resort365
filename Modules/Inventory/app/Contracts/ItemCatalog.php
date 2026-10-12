@@ -13,6 +13,14 @@ interface ItemCatalog
     public function find(int $itemId): ?ItemSummary;
 
     /**
+     * Several items at once (any status), keyed by id; unknown ids are left out.
+     *
+     * @param  list<int>  $itemIds
+     * @return array<int, ItemSummary>
+     */
+    public function many(array $itemIds): array;
+
+    /**
      * Active items whose name, SKU or barcode starts with the term.
      *
      * @return list<ItemSummary>

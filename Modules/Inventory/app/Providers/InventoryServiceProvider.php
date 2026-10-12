@@ -21,6 +21,7 @@ use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
 use Modules\Inventory\Console\SeedUnitsCommand;
 use Modules\Inventory\Contracts\ItemCatalog;
+use Modules\Inventory\Contracts\ReorderSuggestions;
 use Modules\Inventory\Contracts\StockFacts;
 use Modules\Inventory\Contracts\StockIssuing;
 use Modules\Inventory\Contracts\StockMovementContract;
@@ -42,6 +43,7 @@ use Modules\Inventory\Policies\RequisitionPolicy;
 use Modules\Inventory\Policies\StockPolicy;
 use Modules\Inventory\Policies\StorePolicy;
 use Modules\Inventory\Services\ItemCatalogService;
+use Modules\Inventory\Services\ReorderSuggestionService;
 use Modules\Inventory\Services\RequisitionApprovalHandler;
 use Modules\Inventory\Services\StockFactsService;
 use Modules\Inventory\Services\StockIssuer;
@@ -89,6 +91,7 @@ class InventoryServiceProvider extends ModuleServiceProvider
         $this->app->bind(StockMovementContract::class, StockMovementService::class);
         $this->app->bind(StockIssuing::class, StockIssuer::class);
         $this->app->bind(StockFacts::class, StockFactsService::class);
+        $this->app->bind(ReorderSuggestions::class, ReorderSuggestionService::class);
     }
 
     public function boot(): void

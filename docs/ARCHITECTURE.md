@@ -793,6 +793,7 @@ flowchart LR
 - **Vendor payments:** against one or more bills; advance payments; payment vouchers.
 - **Purchase returns** to vendor, with debit notes.
 - Reports: open POs, pending GRNs, vendor ledger, AP aging, purchase history by item and vendor, price variance.
+- *Implemented in Step 5.5: vendors are tenant-wide (`vendors`, `vendor_contacts`, `vendor_items` for the price list: price per base unit with four decimals, minimum quantity, validity dates); purchase requisitions, RFQs, quotations and purchase orders belong to a property. A requisition is valued at the given or standard cost and approved through the `purchase_requisition` workflow; reorder suggestions come from Inventory's `ReorderSuggestions` contract. An RFQ is always made from an approved requisition (so it has no lines of its own) and sent to two or more vendors; a quotation may answer some lines, but only one that answers all of them can be awarded, which drafts a purchase order at its prices. Orders are approved through the `purchase_order` workflow (a purchasing approver at any amount, the General Manager from 50,000) and emailed as a PDF; line totals are rounded once, half up, and tax per line comes from `TaxEngine`. Order amounts are in the vendor's currency without conversion (`TODO(step-5.6)`). The statuses partially received, received and closed are set when goods are received (Step 5.6).*
 
 ### 5.14 Accounting
 

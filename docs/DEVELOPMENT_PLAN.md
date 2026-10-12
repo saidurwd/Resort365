@@ -118,7 +118,7 @@ The AI ticks a step here when it commits the step.
 | **2. Front Office, Billing & Housekeeping** | [x] 2.1 · [x] 2.2 · [x] 2.3 · [x] 2.4 · [x] 2.5 · [x] 2.6 · [x] 2.7 |
 | **3. Restaurant POS** | [x] 3.1 · [x] 3.2 · [x] 3.3 · [x] 3.4 · [x] 3.5 · [x] 3.6 · [x] 3.7 · [x] 3.8 |
 | **4. Accounting** | [x] 4.1 · [x] 4.2 · [x] 4.3 · [x] 4.4 · [x] 4.5 |
-| **5. Inventory & Procurement** | [x] 5.1 · [x] 5.2 · [x] 5.3 · [x] 5.4 · [ ] 5.5 · [ ] 5.6 · [ ] 5.7 · [ ] 5.8 |
+| **5. Inventory & Procurement** | [x] 5.1 · [x] 5.2 · [x] 5.3 · [x] 5.4 · [x] 5.5 · [ ] 5.6 · [ ] 5.7 · [ ] 5.8 |
 | **6. HR & Payroll** | [ ] 6.1 · [ ] 6.2 · [ ] 6.3 · [ ] 6.4 · [ ] 6.5 · [ ] 6.6 |
 | **7. Reports & SaaS** | [ ] 7.1 · [ ] 7.2 · [ ] 7.3 · [ ] 7.4 · [ ] 7.5 |
 | **8. Online & Integrations** | [ ] 8.1 · [ ] 8.2 · [ ] 8.3 · [ ] 8.4 · [ ] 8.5 |

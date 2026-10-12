@@ -152,6 +152,9 @@ class DemoSeeder extends Seeder
         // Step 5.4: requisitions, issues and stock counts (before the accounts, which post them).
         DemoInventory::activity($rodela, $resort, self::DOMAINS['rodela']);
 
+        // Step 5.5: vendors, requisitions, an RFQ and purchase orders.
+        DemoProcurement::seed($rodela, $resort, self::DOMAINS['rodela']);
+
         // Step 4.1: chart of accounts, fiscal year and journals.
         DemoAccounting::seed($rodela, $resort);
         DemoAccounting::seed($greenValley, $valley);

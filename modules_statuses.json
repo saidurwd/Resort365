@@ -11,5 +11,6 @@
     "Housekeeping": true,
     "Restaurant": true,
     "Accounting": true,
-    "Inventory": true
+    "Inventory": true,
+    "Procurement": true
 }

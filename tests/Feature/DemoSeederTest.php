@@ -33,6 +33,12 @@ use Modules\Inventory\Models\StockRequisition;
 use Modules\Inventory\Models\StockTransfer;
 use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
+use Modules\Procurement\Models\PurchaseOrder;
+use Modules\Procurement\Models\PurchaseRequisition;
+use Modules\Procurement\Models\Rfq;
+use Modules\Procurement\Models\Vendor;
+use Modules\Procurement\Models\VendorItem;
+use Modules\Procurement\Models\VendorQuotation;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\DTOs\UnitTypeSummary;
 use Modules\Property\Enums\BookingMode;
@@ -314,4 +320,17 @@ it('seeds requisitions, issues and counts, posted to the ledger (Step 5.4)', fun
             ->and(ItemCategory::query()->whereNull('parent_id')->where('name', 'Food')->value('account_class'))->toBe(StockClass::Food)
             ->and(JournalEntry::query()->whereIn('source_type', ['stock_issue', 'stock_count'])->count())->toBe(3);
     });
+});
+
+it('seeds vendors, requisitions, an awarded RFQ and purchase orders (Step 5.5)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        expect(Vendor::query()->count())->toBe(5)->and(VendorItem::query()->count())->toBeGreaterThan(20)
+            ->and(PurchaseRequisition::query()->orderBy('id')->get()->map(fn (PurchaseRequisition $requisition): string => $requisition->source->value.':'.$requisition->status->value)->all())->toBe(['reorder:approved', 'manual:ordered'])
+            ->and(Rfq::query()->sole()->status->value)->toBe('awarded')->and(VendorQuotation::query()->count())->toBe(2)
+            ->and(PurchaseOrder::query()->orderBy('id')->get()->map(fn (PurchaseOrder $order): string => $order->status->value.':'.$order->total)->all())->toBe(['sent:63200.00', 'pending:29300.00']);
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(Vendor::query()->count())->toBe(0));
 });
