@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Restaurant\Http\Controllers\BillReceiptController;
+use Modules\Restaurant\Http\Controllers\CostingController;
 use Modules\Restaurant\Http\Controllers\DiscountLimitController;
 use Modules\Restaurant\Http\Controllers\Kds\KdsController;
 use Modules\Restaurant\Http\Controllers\MenuCategoryController;
@@ -19,8 +20,11 @@ use Modules\Restaurant\Http\Controllers\Pos\PosSessionController;
 use Modules\Restaurant\Http\Controllers\PosSessionsController;
 use Modules\Restaurant\Http\Controllers\PriceListController;
 use Modules\Restaurant\Http\Controllers\PrinterController;
+use Modules\Restaurant\Http\Controllers\RecipeController;
 use Modules\Restaurant\Http\Controllers\RestaurantReportController;
+use Modules\Restaurant\Http\Controllers\SubRecipeController;
 use Modules\Restaurant\Http\Controllers\TableReservationController;
+use Modules\Restaurant\Http\Controllers\WastageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +37,27 @@ use Modules\Restaurant\Http\Controllers\TableReservationController;
 */
 
 Route::prefix('restaurant')->name('restaurant.')->middleware(['auth', 'verified'])->group(function (): void {
+    Route::middleware('can:restaurant.recipe.view')->group(function (): void {
+        Route::get('/menu/items/{item}/recipe', [RecipeController::class, 'edit'])->whereNumber('item')->name('recipes.edit');
+        Route::get('/costing', [CostingController::class, 'index'])->name('costing.index');
+        Route::get('/sub-recipes', [SubRecipeController::class, 'index'])->name('sub-recipes.index');
+    });
+    Route::middleware('can:restaurant.recipe.manage')->group(function (): void {
+        Route::put('/menu/items/{item}/recipe', [RecipeController::class, 'update'])->whereNumber('item')->name('recipes.update');
+        Route::get('/sub-recipes/new', [SubRecipeController::class, 'create'])->name('sub-recipes.create');
+        Route::post('/sub-recipes', [SubRecipeController::class, 'store'])->name('sub-recipes.store');
+        Route::put('/sub-recipes/{recipe}', [SubRecipeController::class, 'update'])->whereNumber('recipe')->name('sub-recipes.update');
+        Route::delete('/sub-recipes/{recipe}', [SubRecipeController::class, 'destroy'])->whereNumber('recipe')->name('sub-recipes.destroy');
+    });
+    Route::get('/sub-recipes/{recipe}/edit', [SubRecipeController::class, 'edit'])->middleware('can:restaurant.recipe.view')->whereNumber('recipe')->name('sub-recipes.edit');
+
+    Route::get('/wastage', [WastageController::class, 'index'])->middleware('can:restaurant.wastage.view')->name('wastage.index');
+    Route::middleware('can:restaurant.wastage.record')->group(function (): void {
+        Route::get('/wastage/new', [WastageController::class, 'create'])->name('wastage.create');
+        Route::post('/wastage', [WastageController::class, 'store'])->name('wastage.store');
+    });
+    Route::get('/wastage/{entry}', [WastageController::class, 'show'])->middleware('can:restaurant.wastage.view')->whereNumber('entry')->name('wastage.show');
+
     Route::middleware('can:restaurant.outlet.view')->group(function (): void {
         Route::get('/outlets', [OutletController::class, 'index'])->name('outlets.index');
         Route::get('/outlets/{outlet}', [OutletController::class, 'show'])->whereNumber('outlet')->name('outlets.show');

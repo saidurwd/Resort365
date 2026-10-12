@@ -36,7 +36,10 @@
                         <div class="col-md-4"><x-form.select name="tax_category_id" :label="__('Tax category')" :options="$taxCategories" :value="old('tax_category_id', $item?->tax_category_id)" :placeholder="__('The outlet\'s')" /></div>
                     </div>
                     <p class="small text-body-secondary" x-show="kind === 'open'" x-cloak>{{ __('An open item is priced by the staff member on the POS (with permission).') }}</p>
-                    <p class="small text-body-secondary" x-show="kind === 'direct_stock'" x-cloak>{{ __('Sold as bought (bottled drinks, snacks); linked to its inventory item once Inventory is set up.') }}</p>
+                    <div x-show="kind === 'direct_stock'" x-cloak>
+                        <div class="row"><div class="col-md-8"><x-form.select name="inventory_item_id" :label="__('Inventory item')" :options="$inventoryItems" :value="old('inventory_item_id', $item?->inventory_item_id)" :placeholder="__('Not linked')" :help="__('Sold as bought (bottled drinks, snacks): each sale takes one unit of this item out of the outlet\'s store.')" /></div></div>
+                    </div>
+                    @if ($item && $canRecipe)<p class="small mb-3"><a href="{{ route('restaurant.recipes.edit', $item) }}" data-recipe-link><i class="bi bi-journal-text"></i> {{ __('Recipe and plate cost') }}</a></p>@endif
                     <div class="row">
                         <div class="col-md-6">
                             <x-form.field name="dietary_tags" :label="__('Dietary')">

@@ -698,6 +698,8 @@ Resort guests often book a rate that includes meals (CP = breakfast, MAP = half 
 - **Wastage entry:** kitchen records spoiled or dropped food; it is deducted from stock and costed.
 - **Theoretical vs actual:** a physical stock count of the kitchen store compares what *should* have been used (from sales) with what *was* used. The variance reveals waste, over-portioning or theft.
 
+- *Implemented in Step 5.7: recipes live in Restaurant (`recipes`, `recipe_lines`): one per menu item, variant (replaces the item's recipe) or modifier (adds to it), plus named sub-recipes with a yield, which dishes use by quantity of that yield (a fraction of the sub-recipe's own lines; no stock of their own, `TODO(production)`). A line's waste percent is yield loss. Direct-stock items link to an inventory item through `menu_items.inventory_item_id`. Plate cost uses the outlet store's average cost (else the item's standard cost) and the Food costing screen shows food cost % against the price and the price that gives `restaurant.target_food_cost_percent`. A settled bill queues the consumption of its lines' ingredients out of the outlet's store (movement type `consumption`, recorded in `sale_consumptions` with the cost; a store that runs short goes negative rather than refusing the sale), a bill voided before the food was made puts them back, and `restaurant:consume-sales` back-fills. Wastage entries (`wastage_entries`, `WST-…`) write off raw items or dishes (through recipes) at cost; a line voided after it was made writes itself off. Complimentary and staff-meal bills consume too and are booked to staff-meal and complimentary expense. Theoretical vs actual comes with Step 5.8.*
+
 #### 5.10.11 POS Sessions & Cash Control
 
 - A cashier **opens a session** on a terminal with an opening cash float. Every payment is tied to a session.
@@ -1079,7 +1081,9 @@ Operational modules **never write journal entries directly**. They emit events. 
 | Restaurant tip received | Cash / Card Clearing | Tips Payable |
 | Restaurant complimentary / staff meal | Entertainment / Staff Meal Expense (at cost) | Inventory |
 | Meal-plan redemption | *(no revenue entry — revenue was allocated at night audit)* | — |
-| Recipe consumption on sale | Food Cost of Sales / Beverage Cost of Sales (by outlet) | Inventory |
+| Recipe consumption on sale | Food Cost of Sales / Beverage Cost of Sales (by item class, per outlet bill) | Inventory |
+| Recipe consumption on a complimentary or staff-meal bill | Staff meals and complimentary expense | Inventory |
+| Bill voided before the food was made | *(the consumption entry reversed)* | |
 | Kitchen wastage | Food Wastage Expense | Inventory |
 | Stock issued to a department (requisition, direct or amenity issue) | Food / Beverage Cost, Housekeeping / Engineering Supplies Expense (by item class, with the department) | Inventory (by class) |
 | Stock count loss / gain | Inventory Shrinkage / Inventory | Inventory / Inventory Shrinkage |

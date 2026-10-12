@@ -40,6 +40,7 @@ class MenuItemRequest extends FormRequest
             'description.*' => ['nullable', 'string', 'max:1000'],
             'course' => ['required', Rule::enum(Course::class)],
             'kind' => ['required', Rule::enum(MenuItemKind::class)],
+            'inventory_item_id' => ['nullable', 'integer', TenantRule::exists('items')],
             'tax_category_id' => ['nullable', 'integer', TenantRule::exists('tax_categories')],
             'dietary_tags' => ['nullable', 'array'],
             'dietary_tags.*' => [Rule::enum(DietaryTag::class)],

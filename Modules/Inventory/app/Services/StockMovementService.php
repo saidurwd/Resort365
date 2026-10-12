@@ -84,7 +84,7 @@ class StockMovementService implements StockMovementContract
                 $cost = $unitCost ?? ($adds && ! BigDecimal::of($balance->avg_cost)->isPositive() && $item->standard_cost !== null ? (string) $item->standard_cost : null);
                 $result = $this->costs->apply($before, (string) $balance->avg_cost, $adds ? $base : '-'.$base, $cost);
 
-                if (BigDecimal::of($result['quantity'])->isNegative() && ! $this->allowNegative()) {
+                if (BigDecimal::of($result['quantity'])->isNegative() && ! $movement->allowNegative && ! $this->allowNegative()) {
                     throw new InsufficientStock(__(':store holds only :held :unit of :item, not :asked.', [
                         'store' => $store->name, 'held' => $this->plain($before), 'unit' => $item->baseUnit->code, 'item' => $item->name, 'asked' => $this->plain($base),
                     ]));

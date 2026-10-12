@@ -77,7 +77,10 @@ use Modules\Restaurant\Models\PackageRedemption;
 use Modules\Restaurant\Models\PosBill;
 use Modules\Restaurant\Models\PosOrder;
 use Modules\Restaurant\Models\PosOrderLine;
+use Modules\Restaurant\Models\Recipe;
+use Modules\Restaurant\Models\SaleConsumption;
 use Modules\Restaurant\Models\TableReservation;
+use Modules\Restaurant\Models\WastageEntry;
 
 use function Pest\Laravel\seed;
 
@@ -309,7 +312,7 @@ it('seeds stock: opening balances, a dearer delivery, one transfer received and 
             ->and($balance('KITCHEN', 'Basmati rice')->quantity)->toBe('560.0000')->and($balance('KITCHEN', 'Basmati rice')->avg_cost)->toBe('167.3214')
             ->and($balance('MAIN', 'Basmati rice')->quantity)->toBe('540.0000')
             ->and(StockTransfer::query()->orderBy('id')->get()->map(fn (StockTransfer $transfer): string => $transfer->status->value)->all())->toBe(['received', 'dispatched'])
-            ->and($balance('MAIN', 'Wheat flour')->quantity)->toBe('270.0000')->and($balance('KITCHEN', 'Eggs')->quantity)->toBe('200.0000')->and($balance('BAR', 'Mineral water 500 ml')->quantity)->toBe('18.0000')
+            ->and($balance('MAIN', 'Wheat flour')->quantity)->toBe('270.0000')->and($balance('KITCHEN', 'Eggs')->quantity)->toBe('196.6400')->and($balance('BAR', 'Mineral water 500 ml')->quantity)->toBe('18.0000')
             ->and(StockMovement::query()->where('movement_type', 'opening')->count())->toBeGreaterThan(150);
     });
 });
@@ -340,4 +343,18 @@ it('seeds vendors, requisitions, an awarded RFQ and purchase orders (Step 5.5)',
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), fn () => expect(Vendor::query()->count())->toBe(0));
+});
+
+it('seeds recipes, the stock the demo sales used, and wastage (Step 5.7)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $burger = MenuItem::query()->where('code', 'GR04')->sole();
+        $sauce = Recipe::query()->where('kind', 'sub')->sole();
+
+        expect(Recipe::query()->count())->toBe(20)->and($sauce->name)->toBe('Burger sauce')->and(Recipe::query()->where('menu_item_id', $burger->id)->sole()->lines)->toHaveCount(6)
+            ->and(SaleConsumption::query()->count())->toBeGreaterThan(10)->and(MenuItem::query()->where('code', 'SD02')->value('inventory_item_id'))->not->toBeNull()
+            ->and(WastageEntry::query()->sole()->total_cost)->toBe('643.25')
+            ->and(JournalEntry::query()->whereIn('source_event', ['consumed', 'wasted'])->count())->toBeGreaterThan(5);
+    });
 });

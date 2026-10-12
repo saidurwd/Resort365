@@ -4,6 +4,10 @@ namespace Modules\Restaurant\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Modules\FrontOffice\Events\NightAuditCompleted;
+use Modules\Restaurant\Events\KotItemVoided;
+use Modules\Restaurant\Events\RestaurantBillSettled;
+use Modules\Restaurant\Events\RestaurantBillVoided;
+use Modules\Restaurant\Listeners\QueueIngredientConsumption;
 use Modules\Restaurant\Listeners\SnapshotMealsAfterNightAudit;
 
 class EventServiceProvider extends ServiceProvider
@@ -15,6 +19,9 @@ class EventServiceProvider extends ServiceProvider
      */
     protected $listen = [
         NightAuditCompleted::class => [SnapshotMealsAfterNightAudit::class],
+        RestaurantBillSettled::class => [QueueIngredientConsumption::class.'@onSettled'],
+        RestaurantBillVoided::class => [QueueIngredientConsumption::class.'@onVoided'],
+        KotItemVoided::class => [QueueIngredientConsumption::class.'@onLineVoided'],
     ];
 
     /**

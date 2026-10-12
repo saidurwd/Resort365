@@ -21,6 +21,9 @@ use Modules\Reservation\Events\ReservationCancelled;
 use Modules\Restaurant\Events\PosSessionClosed;
 use Modules\Restaurant\Events\RestaurantBillSettled;
 use Modules\Restaurant\Events\RestaurantBillVoided;
+use Modules\Restaurant\Events\SalesConsumed;
+use Modules\Restaurant\Events\SalesConsumptionReversed;
+use Modules\Restaurant\Events\WastageRecorded;
 
 /**
  * Turns the operational events into journal entries (ARCHITECTURE §7.1, Step 4.2). A posting the ledger
@@ -109,6 +112,21 @@ class PostLedgerEntries
     public function onPurchaseReturned(PurchaseReturned $event): void
     {
         $this->safely(fn (): ?JournalEntry => $this->posting->purchaseReturn($event->returnId));
+    }
+
+    public function onSalesConsumed(SalesConsumed $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->saleConsumption($event->billId));
+    }
+
+    public function onSalesConsumptionReversed(SalesConsumptionReversed $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->saleConsumptionReversed($event->billId));
+    }
+
+    public function onWastageRecorded(WastageRecorded $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->wastage($event->wastageId));
     }
 
     private function safely(callable $post): void

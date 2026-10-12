@@ -65,6 +65,9 @@ class SourceDocuments
             case 'purchase_return':
                 $links[] = ['label' => (string) __('Purchase return'), 'url' => route('procurement.returns.show', $id), 'detail' => null];
                 break;
+            case 'wastage_entry':
+                $links[] = ['label' => (string) __('Wastage'), 'url' => route('restaurant.wastage.show', $id), 'detail' => null];
+                break;
             case 'voucher':
                 $links[] = ['label' => (string) __('Voucher'), 'url' => route('accounting.vouchers.show', $id), 'detail' => null];
                 break;

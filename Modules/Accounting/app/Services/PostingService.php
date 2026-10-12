@@ -31,9 +31,12 @@ use Modules\Procurement\DTOs\VendorBillFact;
 use Modules\Procurement\DTOs\VendorPaymentFact;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\DTOs\CancellationFact;
+use Modules\Restaurant\Contracts\ConsumptionFacts;
 use Modules\Restaurant\Contracts\RestaurantFacts;
 use Modules\Restaurant\DTOs\BillFact;
+use Modules\Restaurant\DTOs\ConsumptionFact;
 use Modules\Restaurant\DTOs\SessionFact;
+use Modules\Restaurant\DTOs\WastageFact;
 
 /**
  * Turns operational events into balanced journal entries (ARCHITECTURE §7). Operational modules never
@@ -59,7 +62,68 @@ class PostingService
         private readonly ReverseJournalEntry $reverse,
         private readonly StockFacts $stock,
         private readonly ProcurementFacts $procurement,
+        private readonly ConsumptionFacts $consumption,
     ) {}
+
+    /**
+     * The ingredients a settled bill used (Step 5.7): Dr cost of sales by class (staff meals and complimentary for a
+     * comped bill) / Cr inventory by class.
+     */
+    public function saleConsumption(int $billId): ?JournalEntry
+    {
+        $fact = $this->consumption->consumption($billId);
+
+        if (! $fact instanceof ConsumptionFact) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($fact->byClass as $class => $cost) {
+            $lines[] = $this->line($this->accounts->saleCost($class, $fact->complimentary), $cost, $fact->propertyId);
+            $lines[] = $this->line($this->accounts->stockInventory($class), '-'.$cost, $fact->propertyId);
+        }
+
+        return $this->record('pos_bill', $billId, 'consumed', $fact->propertyId, $fact->businessDate, __('Ingredients used by bill :no', ['no' => $fact->billNo]), $fact->billNo, $lines);
+    }
+
+    /**
+     * A voided bill's ingredients went back into stock: the mirror of the consumption entry.
+     */
+    public function saleConsumptionReversed(int $billId): ?JournalEntry
+    {
+        $entry = JournalEntry::query()->where('source_type', 'pos_bill')->where('source_id', $billId)->where('source_event', 'consumed')->where('status', JournalStatus::Posted->value)->first();
+        $fact = $this->consumption->consumption($billId);
+
+        if (! $entry instanceof JournalEntry || ! $fact instanceof ConsumptionFact || $this->exists('pos_bill', $billId, 'consumption_reversed')) {
+            return null;
+        }
+
+        [$date] = $this->postingDate($fact->businessDate);
+
+        return $this->reverse->handle($entry, $date, null, __('Bill :no voided', ['no' => $fact->billNo]));
+    }
+
+    /**
+     * Food written off (Step 5.7): Dr food wastage / Cr inventory by class.
+     */
+    public function wastage(int $wastageId): ?JournalEntry
+    {
+        $fact = $this->consumption->wastage($wastageId);
+
+        if (! $fact instanceof WastageFact) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($fact->byClass as $class => $cost) {
+            $lines[] = $this->line($this->accounts->wastageExpense(), $cost, $fact->propertyId);
+            $lines[] = $this->line($this->accounts->stockInventory($class), '-'.$cost, $fact->propertyId);
+        }
+
+        return $this->record('wastage_entry', $wastageId, 'wasted', $fact->propertyId, $fact->date, __('Wastage :no', ['no' => $fact->wastageNo]), $fact->wastageNo, $lines);
+    }
 
     /**
      * Goods received (Step 5.6): Dr inventory by class / Cr goods received not invoiced.

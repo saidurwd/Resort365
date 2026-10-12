@@ -22,6 +22,9 @@ use Modules\Reservation\Events\ReservationCancelled;
 use Modules\Restaurant\Events\PosSessionClosed;
 use Modules\Restaurant\Events\RestaurantBillSettled;
 use Modules\Restaurant\Events\RestaurantBillVoided;
+use Modules\Restaurant\Events\SalesConsumed;
+use Modules\Restaurant\Events\SalesConsumptionReversed;
+use Modules\Restaurant\Events\WastageRecorded;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -44,6 +47,9 @@ class EventServiceProvider extends ServiceProvider
         PosSessionClosed::class => [PostLedgerEntries::class.'@onPosSessionClosed'],
         StockIssued::class => [PostLedgerEntries::class.'@onStockIssued'],
         StockAdjusted::class => [PostLedgerEntries::class.'@onStockAdjusted'],
+        SalesConsumed::class => [PostLedgerEntries::class.'@onSalesConsumed'],
+        SalesConsumptionReversed::class => [PostLedgerEntries::class.'@onSalesConsumptionReversed'],
+        WastageRecorded::class => [PostLedgerEntries::class.'@onWastageRecorded'],
         GoodsReceived::class => [PostLedgerEntries::class.'@onGoodsReceived'],
         VendorBillApproved::class => [PostLedgerEntries::class.'@onVendorBillApproved'],
         VendorPaymentMade::class => [PostLedgerEntries::class.'@onVendorPaymentMade'],

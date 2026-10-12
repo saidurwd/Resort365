@@ -155,6 +155,9 @@ class DemoSeeder extends Seeder
         // Step 5.5: vendors, requisitions, an RFQ and purchase orders.
         DemoProcurement::seed($rodela, $resort, self::DOMAINS['rodela']);
 
+        // Step 5.7: recipes, the stock the demo sales used, and wastage.
+        DemoRecipes::seed($rodela, $resort);
+
         // Step 4.1: chart of accounts, fiscal year and journals.
         DemoAccounting::seed($rodela, $resort);
         DemoAccounting::seed($greenValley, $valley);

@@ -11,6 +11,7 @@ use Modules\Inventory\Contracts\StockFacts;
 use Modules\Procurement\Contracts\ProcurementFacts;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Reservation\Contracts\ReservationLookup;
+use Modules\Restaurant\Contracts\ConsumptionFacts;
 use Modules\Restaurant\Contracts\RestaurantFacts;
 
 /**
@@ -28,6 +29,7 @@ class BackpostHistory extends Action
         private readonly RestaurantFacts $restaurant,
         private readonly StockFacts $stock,
         private readonly ProcurementFacts $procurement,
+        private readonly ConsumptionFacts $consumption,
     ) {}
 
     /**
@@ -104,6 +106,20 @@ class BackpostHistory extends Action
 
         foreach ($purchasing['returns'] as $id) {
             $run(__('Purchase return #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->purchaseReturn($id));
+        }
+
+        $recipes = $this->consumption->history();
+
+        foreach ($recipes['bills'] as $id) {
+            $run(__('Ingredients of restaurant bill #:id', ['id' => $id]), function () use ($id): ?JournalEntry {
+                $entry = $this->posting->saleConsumption($id);
+
+                return $this->restaurant->bill($id)?->voided === true && $entry instanceof JournalEntry ? $this->posting->saleConsumptionReversed($id) : $entry;
+            });
+        }
+
+        foreach ($recipes['wastage'] as $id) {
+            $run(__('Wastage #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->wastage($id));
         }
 
         // A date is posted once its night audit has closed it: the property's business date is still open.

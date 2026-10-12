@@ -122,6 +122,24 @@ class AccountResolver
         });
     }
 
+    /** Cost of the ingredients a sale used: cost of sales by class, or staff-meal and complimentary expense (Step 5.7). */
+    public function saleCost(string $class, bool $complimentary): int
+    {
+        return $complimentary
+            ? $this->resolve('consumption:complimentary', 'staff_meal_expense', __('Staff meals and complimentary'))
+            : $this->resolve(self::consumptionKey($class), $class === 'beverage' ? 'beverage_cost' : 'food_cost', __('Cost of sales: :class', ['class' => $class]));
+    }
+
+    public function wastageExpense(): int
+    {
+        return $this->resolve('wastage:expense', 'food_wastage', __('Food wastage'));
+    }
+
+    public static function consumptionKey(string $class): string
+    {
+        return 'consumption:cost:'.($class === 'beverage' ? 'beverage' : 'food');
+    }
+
     public static function billKey(string $class): string
     {
         return 'bill:expense:'.$class;
@@ -163,6 +181,18 @@ class AccountResolver
 
         if (str_starts_with($key, 'method:')) {
             return self::METHOD_DEFAULTS[substr($key, 7)] ?? null;
+        }
+
+        if ($key === 'consumption:complimentary') {
+            return 'staff_meal_expense';
+        }
+
+        if (str_starts_with($key, 'consumption:cost:')) {
+            return str_ends_with($key, ':beverage') ? 'beverage_cost' : 'food_cost';
+        }
+
+        if ($key === 'wastage:expense') {
+            return 'food_wastage';
         }
 
         if (str_starts_with($key, 'bill:expense:')) {

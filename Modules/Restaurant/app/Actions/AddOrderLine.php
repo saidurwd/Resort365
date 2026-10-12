@@ -92,7 +92,7 @@ class AddOrderLine extends Action
                 'property_id' => $order->property_id, 'pos_order_id' => $order->id, 'menu_item_id' => $item->id, 'menu_item_variant_id' => $variant?->id,
                 'name_snapshot' => $item->translated('name'), 'variant_snapshot' => $variant?->name, 'quantity' => $quantity, 'unit_price' => $price,
                 'modifiers' => array_map(fn (array $modifier): array => ['group' => $modifier['group'], 'name' => $modifier['name'], 'price' => (string) $modifier['price']], $check['selected']) ?: null,
-                'modifier_total' => $money['modifier_total'], 'line_total' => $money['line_total'], 'course' => $data['course'] ?? $item->course->value,
+                'modifier_ids' => array_column($check['selected'], 'id') ?: null, 'modifier_total' => $money['modifier_total'], 'line_total' => $money['line_total'], 'course' => $data['course'] ?? $item->course->value,
                 'seat_no' => $data['seat'] ?? null, 'kitchen_station_id' => $station, 'status' => OrderLineStatus::Pending, 'is_held' => (bool) ($data['held'] ?? false),
                 'notes' => isset($data['notes']) && trim((string) $data['notes']) !== '' ? mb_substr(trim((string) $data['notes']), 0, 300) : null, 'added_by' => $userId,
             ]);

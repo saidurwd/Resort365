@@ -49,6 +49,11 @@ class MappingCatalog
             $rows[] = ['key' => AccountResolver::stockKey('inventory', $class->value), 'label' => $class->label().' · '.__('inventory'), 'group' => __('Stock'), 'category' => null];
         }
 
+        $rows[] = ['key' => AccountResolver::consumptionKey('food'), 'label' => __('Food sold (ingredients used)'), 'group' => __('Cost of sales (recipes)'), 'category' => null];
+        $rows[] = ['key' => AccountResolver::consumptionKey('beverage'), 'label' => __('Beverages sold (ingredients used)'), 'group' => __('Cost of sales (recipes)'), 'category' => null];
+        $rows[] = ['key' => 'consumption:complimentary', 'label' => __('Complimentary and staff meals (ingredients used)'), 'group' => __('Cost of sales (recipes)'), 'category' => null];
+        $rows[] = ['key' => 'wastage:expense', 'label' => __('Food wastage'), 'group' => __('Cost of sales (recipes)'), 'category' => null];
+
         foreach (ExpenseClass::cases() as $class) {
             $rows[] = ['key' => AccountResolver::billKey($class->value), 'label' => $class->label(), 'group' => __('Vendor bills (services and expenses)'), 'category' => null];
         }

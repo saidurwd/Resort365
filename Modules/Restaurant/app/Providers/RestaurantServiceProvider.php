@@ -13,13 +13,17 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Modules\Billing\Contracts\FolioReferenceLinks;
+use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
 use Modules\FrontOffice\Contracts\NightAuditBlockers;
 use Modules\Restaurant\Auth\StationDisplay;
 use Modules\Restaurant\Broadcasting\RestaurantChannels;
+use Modules\Restaurant\Console\ConsumeSalesCommand;
+use Modules\Restaurant\Contracts\ConsumptionFacts;
 use Modules\Restaurant\Contracts\RestaurantFacts;
 use Modules\Restaurant\Http\Middleware\EnsureKdsStation;
 use Modules\Restaurant\Http\Middleware\EnsurePosStaff;
@@ -49,13 +53,18 @@ use Modules\Restaurant\Models\PosPayment;
 use Modules\Restaurant\Models\PosSession;
 use Modules\Restaurant\Models\PosTerminal;
 use Modules\Restaurant\Models\Printer;
+use Modules\Restaurant\Models\Recipe;
 use Modules\Restaurant\Models\TableReservation;
+use Modules\Restaurant\Models\WastageEntry;
 use Modules\Restaurant\Policies\MenuItemPolicy;
 use Modules\Restaurant\Policies\OutletPolicy;
 use Modules\Restaurant\Policies\PosBillPolicy;
 use Modules\Restaurant\Policies\PosOrderPolicy;
 use Modules\Restaurant\Policies\PrinterPolicy;
+use Modules\Restaurant\Policies\RecipePolicy;
 use Modules\Restaurant\Policies\TableReservationPolicy;
+use Modules\Restaurant\Policies\WastagePolicy;
+use Modules\Restaurant\Services\ConsumptionFactsService;
 use Modules\Restaurant\Services\KdsContext;
 use Modules\Restaurant\Services\KdsDevice;
 use Modules\Restaurant\Services\OpenSessionsBlocker;
@@ -85,11 +94,21 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    /**
+     * Command classes to register.
+     *
+     * @var string[]
+     */
+    protected array $commands = [
+        ConsumeSalesCommand::class,
+    ];
+
     public function register(): void
     {
         parent::register();
 
         $this->app->bind(RestaurantFacts::class, RestaurantFactsService::class);
+        $this->app->bind(ConsumptionFacts::class, ConsumptionFactsService::class);
         $this->app->scoped(PosContext::class);
         $this->app->scoped(KdsContext::class);
 
@@ -126,6 +145,8 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             'pos_bill_line' => PosBillLine::class,
             'pos_payment' => PosPayment::class,
             'discount_limit' => DiscountLimit::class,
+            'recipe' => Recipe::class,
+            'wastage_entry' => WastageEntry::class,
             'package_redemption' => PackageRedemption::class,
             'table_reservation' => TableReservation::class,
         ]);
@@ -133,6 +154,9 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         Gate::policy(PosBill::class, PosBillPolicy::class);
         Gate::policy(TableReservation::class, TableReservationPolicy::class);
         Gate::policy(MenuItemModel::class, MenuItemPolicy::class);
+        Gate::policy(Recipe::class, RecipePolicy::class);
+        Gate::policy(WastageEntry::class, WastagePolicy::class);
+        $this->app->make(DocumentNumbers::class)->register(new DocumentType('wastage', 'Wastage', 'WST'));
         $this->app->make(Router::class)->aliasMiddleware('pos.terminal', EnsurePosTerminal::class);
         $this->app->make(Router::class)->aliasMiddleware('pos.staff', EnsurePosStaff::class);
         $this->app->make(Router::class)->aliasMiddleware('kds.station', EnsureKdsStation::class);
@@ -156,6 +180,10 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('restaurant.menu.manage', 'Change the menu (items, categories, modifiers, import)', $managers),
             new PermissionDefinition('restaurant.price.manage', 'Set outlet prices, schedules and sold-out items', $managers),
             new PermissionDefinition('restaurant.menu.mark-sold-out', 'Mark items sold out (86)', [DefaultRole::Chef, DefaultRole::Bartender, DefaultRole::OutletCashier]),
+            new PermissionDefinition('restaurant.recipe.view', 'View recipes, sub-recipes and food costing', [...$managers, DefaultRole::Chef, DefaultRole::Accountant]),
+            new PermissionDefinition('restaurant.recipe.manage', 'Write recipes and sub-recipes', [...$managers, DefaultRole::Chef]),
+            new PermissionDefinition('restaurant.wastage.view', 'View wastage', [...$managers, DefaultRole::Chef, DefaultRole::Bartender, DefaultRole::Accountant]),
+            new PermissionDefinition('restaurant.wastage.record', 'Write off spoiled or dropped food', [...$managers, DefaultRole::Chef, DefaultRole::Bartender]),
             new PermissionDefinition('restaurant.pos.use', 'Work on the POS', [...$managers, DefaultRole::Waiter, DefaultRole::Bartender, DefaultRole::OutletCashier]),
             new PermissionDefinition('restaurant.session.manage', 'Open and close POS sessions', [...$managers, DefaultRole::OutletCashier]),
             new PermissionDefinition('restaurant.session.view', 'View every POS session and its reports', [...$managers, DefaultRole::Accountant]),
@@ -186,6 +214,12 @@ class RestaurantServiceProvider extends ModuleServiceProvider
             permission: 'restaurant.menu.view', module: 'restaurant', active: ['restaurant.menu.items.*', 'restaurant.menu.import*']));
         $menu->add(new MenuItem('restaurant.menu-categories', 'Menu categories', route: 'restaurant.menu.categories.index', parent: 'restaurant', order: 16,
             permission: 'restaurant.menu.view', module: 'restaurant', active: 'restaurant.menu.categories.*'));
+        $menu->add(new MenuItem('restaurant.costing', 'Food costing', route: 'restaurant.costing.index', parent: 'restaurant', order: 17,
+            permission: 'restaurant.recipe.view', module: 'restaurant', active: ['restaurant.costing.*', 'restaurant.recipes.*']));
+        $menu->add(new MenuItem('restaurant.sub-recipes', 'Sub-recipes', route: 'restaurant.sub-recipes.index', parent: 'restaurant', order: 17,
+            permission: 'restaurant.recipe.view', module: 'restaurant', active: 'restaurant.sub-recipes.*'));
+        $menu->add(new MenuItem('restaurant.wastage', 'Wastage', route: 'restaurant.wastage.index', parent: 'restaurant', order: 21,
+            permission: 'restaurant.wastage.view', module: 'restaurant', active: 'restaurant.wastage.*'));
         $menu->add(new MenuItem('restaurant.modifiers', 'Modifiers', route: 'restaurant.menu.modifiers.index', parent: 'restaurant', order: 17,
             permission: 'restaurant.menu.view', module: 'restaurant', active: 'restaurant.menu.modifiers.*'));
         $menu->add(new MenuItem('restaurant.sessions', 'POS sessions', route: 'restaurant.sessions.index', parent: 'restaurant', order: 18,
@@ -203,6 +237,8 @@ class RestaurantServiceProvider extends ModuleServiceProvider
         $menu->add(new MenuItem('restaurant.access', 'Outlet access', route: 'restaurant.access.index', parent: 'restaurant', order: 30,
             permission: 'restaurant.access.manage', module: 'restaurant', active: 'restaurant.access.*'));
 
+        $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.target_food_cost_percent', 'Target food cost (%)', SettingType::Decimal, '30', SettingScope::Property, 'Restaurant',
+            help: 'Food costing suggests the price at which a dish costs this percent of its price.', rules: ['min:1', 'max:100']));
         $this->app->make(Settings::class)->define(new SettingDefinition('restaurant.menu_languages', 'Menu languages', SettingType::Text, 'en,bn', SettingScope::Tenant,
             'Restaurant', help: 'Language codes menus are written in, separated by commas (en = English, bn = Bangla). English is always included.',
             rules: ['regex:/^\\s*[a-z]{2}(\\s*,\\s*[a-z]{2})*\\s*$/']));

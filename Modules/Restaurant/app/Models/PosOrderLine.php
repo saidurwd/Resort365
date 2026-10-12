@@ -19,7 +19,7 @@ use Modules\Restaurant\Enums\VoidReason;
 
 /**
  * A line of a POS order (ARCHITECTURE §8.4): the item (and variant) as named and priced when ordered, the
- * modifiers chosen (snapshot: group, name, price), course, seat, the station that makes it, notes.
+ * modifiers chosen (snapshot: group, name, price; `modifier_ids` for the recipes), course, seat, the station that makes it, notes.
  * Pending until sent; held lines wait for "fire"; a sent line is never deleted, only voided (reason,
  * who, a manager's approval when needed, wastage if already made).
  *
@@ -34,6 +34,7 @@ use Modules\Restaurant\Enums\VoidReason;
  * @property int $quantity
  * @property string $unit_price
  * @property list<array{group: string, name: string, price: string}>|null $modifiers
+ * @property list<int>|null $modifier_ids
  * @property string $modifier_total
  * @property string $line_total
  * @property Course $course
@@ -60,7 +61,7 @@ use Modules\Restaurant\Enums\VoidReason;
 #[UseFactory(PosOrderLineFactory::class)]
 #[Fillable([
     'property_id', 'pos_order_id', 'menu_item_id', 'menu_item_variant_id', 'name_snapshot', 'variant_snapshot', 'quantity', 'unit_price',
-    'modifiers', 'modifier_total', 'line_total', 'course', 'seat_no', 'kitchen_station_id', 'status', 'is_held', 'sent_at', 'notes', 'void_reason',
+    'modifiers', 'modifier_ids', 'modifier_total', 'line_total', 'course', 'seat_no', 'kitchen_station_id', 'status', 'is_held', 'sent_at', 'notes', 'void_reason',
     'void_note', 'voided_by', 'voided_at', 'manager_approval_id', 'is_wastage', 'added_by',
 ])]
 class PosOrderLine extends Model
@@ -82,6 +83,7 @@ class PosOrderLine extends Model
             'discount_type' => DiscountType::class,
             'discount_value' => 'decimal:2',
             'modifiers' => 'array',
+            'modifier_ids' => 'array',
             'unit_price' => 'decimal:2',
             'modifier_total' => 'decimal:2',
             'line_total' => 'decimal:2',

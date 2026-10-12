@@ -4,6 +4,8 @@ namespace Modules\Restaurant\Actions;
 
 use App\Support\Actions\Action;
 use Illuminate\Support\Facades\DB;
+use Modules\Inventory\Contracts\ItemCatalog;
+use Modules\Inventory\DTOs\ItemSummary;
 use Modules\Restaurant\Enums\MenuItemKind;
 use Modules\Restaurant\Exceptions\RestaurantSetupInvalid;
 use Modules\Restaurant\Models\ComboComponent;
@@ -18,9 +20,11 @@ use Modules\Restaurant\Models\MenuItemVariant;
  */
 class SaveMenuItem extends Action
 {
+    public function __construct(private readonly ItemCatalog $items) {}
+
     /**
      * @param  array{menu_category_id: int, code: string, name: array<string, string|null>, description?: array<string, string|null>, course: string,
-     *     tax_category_id?: int|null, kind: string, dietary_tags?: list<string>, allergens?: list<string>, sort_order?: int, is_active?: bool,
+     *     tax_category_id?: int|null, kind: string, inventory_item_id?: int|null, dietary_tags?: list<string>, allergens?: list<string>, sort_order?: int, is_active?: bool,
      *     variants?: list<string>, modifier_group_ids?: list<int>, components?: list<array{item_id: int, variant_id?: int|null, quantity?: int}>}  $data
      *
      * @throws RestaurantSetupInvalid
@@ -45,7 +49,7 @@ class SaveMenuItem extends Action
             $item->fill([
                 'menu_category_id' => $data['menu_category_id'], 'code' => strtoupper($data['code']), 'name' => $clean($data['name']),
                 'description' => $clean($data['description'] ?? []) ?: null, 'course' => $data['course'], 'tax_category_id' => $data['tax_category_id'] ?? null,
-                'kind' => $kind, 'dietary_tags' => array_values(array_unique($data['dietary_tags'] ?? [])), 'allergens' => array_values(array_unique($data['allergens'] ?? [])),
+                'kind' => $kind, 'inventory_item_id' => $kind === MenuItemKind::DirectStock ? $this->inventoryItem($data['inventory_item_id'] ?? null) : null, 'dietary_tags' => array_values(array_unique($data['dietary_tags'] ?? [])), 'allergens' => array_values(array_unique($data['allergens'] ?? [])),
                 'sort_order' => $data['sort_order'] ?? $item->sort_order ?? 0, 'is_active' => $data['is_active'] ?? true,
             ])->save();
 
@@ -63,6 +67,24 @@ class SaveMenuItem extends Action
 
             return $item;
         });
+    }
+
+    /**
+     * @throws RestaurantSetupInvalid
+     */
+    private function inventoryItem(?int $itemId): ?int
+    {
+        if ($itemId === null) {
+            return null;
+        }
+
+        $found = $this->items->find($itemId);
+
+        if (! $found instanceof ItemSummary || ! $found->isStockable) {
+            throw new RestaurantSetupInvalid(__('Link a stocked inventory item.'));
+        }
+
+        return $found->id;
     }
 
     /**

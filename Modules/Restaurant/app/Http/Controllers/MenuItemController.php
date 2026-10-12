@@ -18,6 +18,7 @@ use Modules\Restaurant\Http\Controllers\Concerns\CurrentProperty;
 use Modules\Restaurant\Http\Requests\MenuItemRequest;
 use Modules\Restaurant\Models\MenuItem;
 use Modules\Restaurant\Models\ModifierGroup;
+use Modules\Restaurant\Services\Lookups\RecipeOptions;
 use Modules\Restaurant\Services\MenuItemsTable;
 use Modules\Restaurant\Services\MenuLanguages;
 
@@ -48,11 +49,11 @@ class MenuItemController extends Controller
         return $table->toJson($this->propertyId(), $request->integer('category') ?: null);
     }
 
-    public function create(MenuLanguages $languages): View
+    public function create(MenuLanguages $languages, RecipeOptions $options): View
     {
         Gate::authorize('create', MenuItem::class);
 
-        return $this->form(null, $languages);
+        return $this->form(null, $languages, $options);
     }
 
     public function store(MenuItemRequest $request, SaveMenuItem $save): RedirectResponse
@@ -66,11 +67,11 @@ class MenuItemController extends Controller
         return to_route('restaurant.menu.items.edit', $item)->with('success', __('Item saved. Price it on each outlet\'s price list.'));
     }
 
-    public function edit(MenuItem $item, MenuLanguages $languages): View
+    public function edit(MenuItem $item, MenuLanguages $languages, RecipeOptions $options): View
     {
         Gate::authorize('view', $item);
 
-        return $this->form($item->load(['variants', 'modifierGroups', 'components', 'outletPrices']), $languages);
+        return $this->form($item->load(['variants', 'modifierGroups', 'components', 'outletPrices']), $languages, $options);
     }
 
     public function update(MenuItemRequest $request, MenuItem $item, SaveMenuItem $save): RedirectResponse
@@ -84,7 +85,7 @@ class MenuItemController extends Controller
         return to_route('restaurant.menu.items.edit', $item)->with('success', __('Item saved.'));
     }
 
-    private function form(?MenuItem $item, MenuLanguages $languages): View
+    private function form(?MenuItem $item, MenuLanguages $languages, RecipeOptions $options): View
     {
         $propertyId = $item->property_id ?? $this->propertyId();
 
@@ -104,12 +105,13 @@ class MenuItemController extends Controller
                     : $option->variants->mapWithKeys(fn ($variant): array => [$option->id.':'.$variant->id => $option->code.' · '.$option->translated('name').' ('.$variant->name.')'])->all())
                 ->all(),
             'canManage' => auth()->user()?->can('create', MenuItem::class) ?? false,
+            'inventoryItems' => $options->items(), 'canRecipe' => auth()->user()?->can('restaurant.recipe.view') ?? false,
         ]);
     }
 
     /**
      * @return array{menu_category_id: int, code: string, name: array<string, string|null>, description: array<string, string|null>, course: string,
-     *     tax_category_id: int|null, kind: string, dietary_tags: list<string>, allergens: list<string>, sort_order: int, is_active: bool,
+     *     tax_category_id: int|null, kind: string, inventory_item_id: int|null, dietary_tags: list<string>, allergens: list<string>, sort_order: int, is_active: bool,
      *     variants: list<string>, modifier_group_ids: list<int>, components: list<array{item_id: int, variant_id: int|null, quantity: int}>}
      */
     private function payload(MenuItemRequest $request): array
@@ -122,6 +124,7 @@ class MenuItemController extends Controller
             'course' => (string) $request->validated('course'),
             'tax_category_id' => $request->filled('tax_category_id') ? (int) $request->validated('tax_category_id') : null,
             'kind' => (string) $request->validated('kind'),
+            'inventory_item_id' => $request->filled('inventory_item_id') ? (int) $request->validated('inventory_item_id') : null,
             'dietary_tags' => array_values((array) ($request->validated('dietary_tags') ?? [])),
             'allergens' => array_values((array) ($request->validated('allergens') ?? [])),
             'sort_order' => (int) ($request->validated('sort_order') ?? 0),
