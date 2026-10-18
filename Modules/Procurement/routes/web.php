@@ -5,6 +5,7 @@ use Modules\Procurement\Http\Controllers\BillController;
 use Modules\Procurement\Http\Controllers\OrderController;
 use Modules\Procurement\Http\Controllers\PaymentController;
 use Modules\Procurement\Http\Controllers\ReceiptController;
+use Modules\Procurement\Http\Controllers\ReportController;
 use Modules\Procurement\Http\Controllers\RequisitionController;
 use Modules\Procurement\Http\Controllers\ReturnController;
 use Modules\Procurement\Http\Controllers\RfqController;
@@ -77,6 +78,12 @@ Route::prefix('procurement')->name('procurement.')->middleware(['auth', 'verifie
     Route::get('/orders/{order}', [OrderController::class, 'show'])->middleware('can:procurement.order.view')->whereNumber('order')->name('orders.show');
     Route::get('/orders/{order}/pdf', [OrderController::class, 'pdf'])->middleware('can:procurement.order.view')->whereNumber('order')->name('orders.pdf');
     Route::post('/orders/{order}/send', [OrderController::class, 'send'])->middleware('can:procurement.order.send')->whereNumber('order')->name('orders.send');
+
+    Route::middleware('can:procurement.report.view')->group(function (): void {
+        foreach (ReportController::REPORTS as $report) {
+            Route::get('/reports/'.$report, [ReportController::class, 'show'])->defaults('report', $report)->name('reports.'.$report);
+        }
+    });
 
     Route::middleware('can:procurement.receipt.view')->group(function (): void {
         Route::get('/receipts', [ReceiptController::class, 'index'])->name('receipts.index');

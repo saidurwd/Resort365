@@ -155,6 +155,7 @@ class ProcurementServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('procurement.bill.approve', 'Approve vendor bills', [$gm, DefaultRole::Accountant]),
             new PermissionDefinition('procurement.bill.override-match', 'Override the price check of the 3-way match', [$gm, DefaultRole::Accountant]),
             new PermissionDefinition('procurement.payment.create', 'Pay vendors', [$gm, DefaultRole::Accountant]),
+            new PermissionDefinition('procurement.report.view', 'View procurement reports (open orders, vendor ledger, aging, price variance…)', [$gm, $buyer, DefaultRole::Accountant, DefaultRole::StoreKeeper]),
             new PermissionDefinition('procurement.return.view', 'View purchase returns', [...$viewers]),
             new PermissionDefinition('procurement.return.create', 'Return goods to vendors', [$gm, $buyer, DefaultRole::StoreKeeper]),
         ]);
@@ -168,6 +169,7 @@ class ProcurementServiceProvider extends ModuleServiceProvider
         $menu->add(new MenuItem('procurement.receipts', 'Goods receipts', route: 'procurement.receipts.index', parent: 'procurement', order: 50, permission: 'procurement.receipt.view', module: 'procurement', active: 'procurement.receipts.*'));
         $menu->add(new MenuItem('procurement.bills', 'Vendor bills', route: 'procurement.bills.index', parent: 'procurement', order: 60, permission: 'procurement.bill.view', module: 'procurement', active: 'procurement.bills.*'));
         $menu->add(new MenuItem('procurement.payments', 'Vendor payments', route: 'procurement.payments.index', parent: 'procurement', order: 70, permission: 'procurement.bill.view', module: 'procurement', active: 'procurement.payments.*'));
+        $menu->add(new MenuItem('procurement.reports', 'Reports', route: 'procurement.reports.open-orders', parent: 'procurement', order: 90, permission: 'procurement.report.view', module: 'procurement', active: 'procurement.reports.*'));
         $menu->add(new MenuItem('procurement.returns', 'Returns', route: 'procurement.returns.index', parent: 'procurement', order: 80, permission: 'procurement.return.view', module: 'procurement', active: 'procurement.returns.*'));
         $menu->add(new MenuItem('procurement.orders', 'Purchase orders', route: 'procurement.orders.index', parent: 'procurement', order: 40, permission: 'procurement.order.view', module: 'procurement', active: 'procurement.orders.*'));
     }

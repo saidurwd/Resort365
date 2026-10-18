@@ -11,6 +11,7 @@ use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Restaurant\Http\Requests\RestaurantReportRequest;
 use Modules\Restaurant\Models\Outlet;
 use Modules\Restaurant\Services\OutletAccess;
+use Modules\Restaurant\Services\Reports\CostReports;
 use Modules\Restaurant\Services\Reports\RestaurantReports;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -20,9 +21,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class RestaurantReportController extends Controller
 {
-    public const array REPORTS = ['sales', 'exceptions', 'room-charges', 'meal-plans', 'sessions', 'turnover'];
+    public const array REPORTS = ['sales', 'exceptions', 'room-charges', 'meal-plans', 'sessions', 'turnover', 'food-cost'];
 
-    public function show(RestaurantReportRequest $request, string $report, RestaurantReports $reports, PropertyDirectory $properties, OutletAccess $access): View|StreamedResponse|Response
+    public function show(RestaurantReportRequest $request, string $report, RestaurantReports $reports, CostReports $costs, PropertyDirectory $properties, OutletAccess $access): View|StreamedResponse|Response
     {
         abort_unless(in_array($report, self::REPORTS, true), 404);
         $propertyId = app(PropertyContext::class)->currentId() ?? abort(403, __('Choose a property first.'));
@@ -41,6 +42,7 @@ class RestaurantReportController extends Controller
             'room-charges' => $reports->roomCharges($propertyId, $from, $to, $outletId),
             'meal-plans' => $reports->mealPlans($propertyId, $from, $to, $outletId),
             'sessions' => $reports->sessions($propertyId, $from, $to, $outletId),
+            'food-cost' => $costs->foodCost($propertyId, $from, $to, $outletId),
             default => $reports->turnover($propertyId, $from, $to, $outletId),
         };
 
@@ -64,7 +66,7 @@ class RestaurantReportController extends Controller
 
         return view('restaurant::reports.show', [
             'report' => $report, 'data' => $data, 'from' => $from, 'to' => $to, 'by' => $by, 'outlets' => $outlets, 'outletId' => $outletId,
-            'tabs' => ['sales' => __('Sales'), 'exceptions' => __('Exceptions'), 'room-charges' => __('Room charges'), 'meal-plans' => __('Meal plans'), 'sessions' => __('POS sessions'), 'turnover' => __('Table turnover')],
+            'tabs' => ['sales' => __('Sales'), 'exceptions' => __('Exceptions'), 'room-charges' => __('Room charges'), 'meal-plans' => __('Meal plans'), 'sessions' => __('POS sessions'), 'turnover' => __('Table turnover'), 'food-cost' => __('Food cost %')],
             'currency' => $property->currencyCode ?? '',
             'saleBy' => ['outlet' => __('Outlet'), 'category' => __('Category'), 'item' => __('Item'), 'hour' => __('Hour'), 'waiter' => __('Waiter'), 'method' => __('Payment method')],
         ]);

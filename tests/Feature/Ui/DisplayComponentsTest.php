@@ -21,6 +21,12 @@ it('renders a stat box with a link', function (): void {
         ->assertSee('href="/reports"', false);
 });
 
+it('renders a report table with summary, totals and a note, and an empty state without rows', function (): void {
+    blade('<x-report-table name="valuation" :data="[\'title\' => \'Valuation\', \'summary\' => [[\'label\' => \'Total\', \'value\' => \'10.00\']], \'columns\' => [\'Item\', \'Value\'], \'rows\' => [[\'Rice\', \'10.00\']], \'totals\' => [\'Total\', \'10.00\'], \'note\' => \'At average cost\']" />')
+        ->assertSee('data-report-table="valuation"', false)->assertSeeInOrder(['Valuation', 'Item', 'Rice', 'Total', 'At average cost']);
+    blade('<x-report-table :data="[\'title\' => \'Empty\', \'columns\' => [\'Item\'], \'rows\' => []]" />')->assertSee('Nothing to report');
+});
+
 it('renders an empty state with an action', function (): void {
     blade('<x-empty-state title="No rooms" message="Add one."><a href="/new">Add</a></x-empty-state>')
         ->assertSeeInOrder(['No rooms', 'Add one.', '<a href="/new">Add</a>'], false);

@@ -7,7 +7,9 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Accounting\DTOs\ReportFilter;
 use Modules\Accounting\Models\JournalEntry;
+use Modules\Accounting\Services\ReportService;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\ExtraService;
@@ -356,5 +358,17 @@ it('seeds recipes, the stock the demo sales used, and wastage (Step 5.7)', funct
             ->and(SaleConsumption::query()->count())->toBeGreaterThan(10)->and(MenuItem::query()->where('code', 'SD02')->value('inventory_item_id'))->not->toBeNull()
             ->and(WastageEntry::query()->sole()->total_cost)->toBe('643.25')
             ->and(JournalEntry::query()->whereIn('source_event', ['consumed', 'wasted'])->count())->toBeGreaterThan(5);
+    });
+});
+
+it('seeds stock that matches the ledger, with opening balances posted (Step 5.8)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $report = app(ReportService::class)->inventoryReconciliation(new ReportFilter('2000-01-01', now()->addDay()->toDateString()));
+        $total = collect($report->rows)->last()['cells'];
+
+        expect(JournalEntry::query()->where('source_type', 'stock_opening')->count())->toBeGreaterThan(0)
+            ->and(abs((float) str_replace(',', '', $total[4])))->toBeLessThan(0.1)->and((float) str_replace(',', '', $total[1]))->toBeGreaterThan(0.0);
     });
 });

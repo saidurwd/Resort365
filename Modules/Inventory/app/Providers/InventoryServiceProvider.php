@@ -139,6 +139,7 @@ class InventoryServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('inventory.requisition.approve', 'Approve store requisitions', [$gm, DefaultRole::FnbManager, DefaultRole::HousekeepingSupervisor]),
             new PermissionDefinition('inventory.requisition.issue', 'Issue approved requisitions', [$gm, $keeper]),
             new PermissionDefinition('inventory.issue.create', 'Issue stock to a department without a requisition', [$gm, $keeper]),
+            new PermissionDefinition('inventory.report.view', 'View stock reports (valuation, consumption, slow-moving, theoretical vs actual)', [$gm, $keeper, $buyer, DefaultRole::FnbManager, DefaultRole::Accountant]),
             new PermissionDefinition('inventory.count.view', 'View physical stock counts', $viewers),
             new PermissionDefinition('inventory.count.manage', 'Start, enter, complete and cancel stock counts', [$gm, $keeper]),
             new PermissionDefinition('inventory.transfer.manage', 'Dispatch, receive and cancel stock transfers', [$gm, $keeper]),
@@ -155,6 +156,7 @@ class InventoryServiceProvider extends ModuleServiceProvider
         $menu->add(new MenuItem('inventory.requisitions', 'Requisitions', route: 'inventory.requisitions.index', parent: 'inventory', order: 13, permission: 'inventory.requisition.view', module: 'inventory', active: 'inventory.requisitions.*'));
         $menu->add(new MenuItem('inventory.issues', 'Direct issue', route: 'inventory.issues.create', parent: 'inventory', order: 17, permission: 'inventory.issue.create', module: 'inventory', active: 'inventory.issues.*'));
         $menu->add(new MenuItem('inventory.counts', 'Stock counts', route: 'inventory.counts.index', parent: 'inventory', order: 19, permission: 'inventory.count.view', module: 'inventory', active: 'inventory.counts.*'));
+        $menu->add(new MenuItem('inventory.reports', 'Reports', route: 'inventory.reports.valuation', parent: 'inventory', order: 60, permission: 'inventory.report.view', module: 'inventory', active: 'inventory.reports.*'));
         $menu->add(new MenuItem('inventory.categories', 'Categories', route: 'inventory.categories.index', parent: 'inventory', order: 20, permission: 'inventory.item.view', module: 'inventory', active: 'inventory.categories.*'));
         $menu->add(new MenuItem('inventory.units', 'Units', route: 'inventory.units.index', parent: 'inventory', order: 30, permission: 'inventory.item.view', module: 'inventory', active: 'inventory.units.*'));
         $menu->add(new MenuItem('inventory.stores', 'Stores', route: 'inventory.stores.index', parent: 'inventory', order: 40, permission: 'inventory.store.view', module: 'inventory', active: 'inventory.stores.*'));

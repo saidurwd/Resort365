@@ -4,10 +4,10 @@ namespace Database\Seeders;
 
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Modules\Inventory\Actions\AdjustStock;
 use Modules\Inventory\Contracts\ItemCatalog;
 use Modules\Inventory\Contracts\StockMovementContract;
-use Modules\Inventory\DTOs\NewStockMovement;
-use Modules\Inventory\Enums\MovementType;
+use Modules\Inventory\Enums\AdjustmentReason;
 use Modules\Restaurant\Actions\RecordBillConsumption;
 use Modules\Restaurant\Actions\RecordWastage;
 use Modules\Restaurant\Actions\SaveRecipe;
@@ -123,7 +123,7 @@ final class DemoRecipes
                     foreach ($book->portion($dish, $orderLine->menu_item_variant_id, $book->modifierIds($orderLine)) as $ingredient => $quantity) {
                         if (bccomp($stock->balance($storeId, $ingredient)->quantity, bcmul($quantity, '50', 4), 4) < 0) {
                             $cost = $catalog->find($ingredient)->standardCost ?? '1';
-                            $stock->record(new NewStockMovement(MovementType::Receipt, $storeId, $ingredient, bcmul($quantity, '100', 4), $cost, reason: 'opening top-up', notes: 'Demo ingredient stock'));
+                            app(AdjustStock::class)->handle($storeId, $ingredient, true, bcmul($quantity, '100', 4), AdjustmentReason::Other, 'Demo ingredient stock', $cost);
                         }
                     }
                 }

@@ -6,9 +6,11 @@ use App\Support\Actions\Action;
 use Modules\Inventory\Contracts\StockMovementContract;
 use Modules\Inventory\DTOs\NewStockMovement;
 use Modules\Inventory\Enums\MovementType;
+use Modules\Inventory\Events\StockOpened;
 use Modules\Inventory\Exceptions\StockRuleViolated;
 use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\StockMovement;
+use Modules\Inventory\Models\Store;
 
 /**
  * Sets what a store held when the system started, per item with its cost (Step 5.3). An item and store get one opening
@@ -31,6 +33,7 @@ class RecordOpeningBalance extends Action
 
         return $this->transaction(function () use ($storeId, $lines, $userId, $date): int {
             $seen = [];
+            $ids = [];
 
             foreach ($lines as $line) {
                 $item = Item::query()->find($line['item_id']) ?? throw new StockRuleViolated(__('Unknown item.'));
@@ -45,8 +48,11 @@ class RecordOpeningBalance extends Action
                     throw new StockRuleViolated(__(':item has moved in this store already: correct it with an adjustment.', ['item' => $item->name]));
                 }
 
-                $this->stock->record(new NewStockMovement(MovementType::Opening, $storeId, $item->id, $line['quantity'], $line['unit_cost'], date: $date, reason: 'opening', userId: $userId));
+                $ids[] = $this->stock->record(new NewStockMovement(MovementType::Opening, $storeId, $item->id, $line['quantity'], $line['unit_cost'], date: $date, reason: 'opening', userId: $userId))->id;
             }
+
+            $store = Store::query()->findOrFail($storeId);
+            StockOpened::dispatch($store->tenant_id, $store->property_id, min($ids));
 
             return count($lines);
         });

@@ -17,6 +17,8 @@ use Modules\Accounting\Services\Statements\LedgerAging;
 use Modules\Accounting\Services\Statements\StatementTree;
 use Modules\Accounting\Services\Statements\TrialBalanceBuilder;
 use Modules\Guest\Contracts\GuestLookup;
+use Modules\Inventory\Contracts\StockFacts;
+use Modules\Inventory\Enums\StockClass;
 use Modules\Procurement\Contracts\VendorDirectory;
 use Modules\Property\Contracts\PropertyDirectory;
 
@@ -41,6 +43,7 @@ class ReportService
         private readonly PropertyDirectory $properties,
         private readonly GuestLookup $guests,
         private readonly VendorDirectory $vendors,
+        private readonly StockFacts $stock,
     ) {}
 
     public function trialBalance(ReportFilter $filter): Report
@@ -239,6 +242,49 @@ class ReportService
         $rows[] = ['cells' => [__('Gross operating profit'), $this->money($built['income_total']), '', $this->money($built['gross_operating_profit'])], 'bold' => true];
 
         return new Report(__('USALI departmental report'), $this->period($filter).$this->propertyLabel($filter), [__('Department'), __('Revenue'), __('Expense'), __('Profit')], $rows);
+    }
+
+    /**
+     * The ledger's inventory accounts against the stock valuation (Step 5.8): they should agree once the stock in transit
+     * between stores is counted. A past date uses each item's last movement; stock in transit is always today's.
+     */
+    public function inventoryReconciliation(ReportFilter $filter): Report
+    {
+        $propertyIds = $filter->propertyId() !== null ? [$filter->propertyId()] : collect($this->properties->all())->pluck('id')->all();
+        $today = now()->toDateString();
+        $asOf = $filter->to < $today ? $filter->to : null;
+        $stock = [];
+        $transit = [];
+
+        foreach ($propertyIds as $propertyId) {
+            $valuation = $this->stock->valuation((int) $propertyId, $asOf);
+
+            foreach ($valuation['stock'] as $class => $value) {
+                $stock[$class] = bcadd($stock[$class] ?? '0', $value, 2);
+            }
+
+            foreach ($valuation['in_transit'] as $class => $value) {
+                $transit[$class] = bcadd($transit[$class] ?? '0', $value, 2);
+            }
+        }
+
+        $accounts = Account::query()->whereIn('system_key', array_map(fn (StockClass $class): string => 'inventory_'.$class->value, StockClass::cases()))->orderBy('code')->get()->mapWithKeys(fn (Account $account): array => [substr((string) $account->system_key, 10) => $account->id]);
+        $activity = collect($this->ledger->activity(new ReportFilter('0001-01-01', $filter->to, $filter->property)))->keyBy('id');
+        $rows = [];
+        $sums = ['ledger' => '0', 'stock' => '0', 'transit' => '0'];
+
+        foreach ($accounts as $class => $accountId) {
+            $ledger = $activity->get($accountId)?->closing() ?? '0.00';
+            $onShelf = $stock[$class] ?? '0.00';
+            $moving = $transit[$class] ?? '0.00';
+            $rows[] = ['cells' => [ucfirst((string) $class), $this->money($ledger), $this->money($onShelf), $this->money($moving), $this->money(bcsub($ledger, bcadd($onShelf, $moving, 2), 2))], 'links' => [1 => route('accounting.reports.show', ['report' => 'ledger', 'account' => $accountId, 'from' => $filter->from, 'to' => $filter->to])]];
+            $sums = ['ledger' => bcadd($sums['ledger'], $ledger, 2), 'stock' => bcadd($sums['stock'], $onShelf, 2), 'transit' => bcadd($sums['transit'], $moving, 2)];
+        }
+
+        $rows[] = ['cells' => [__('Total'), $this->money($sums['ledger']), $this->money($sums['stock']), $this->money($sums['transit']), $this->money(bcsub($sums['ledger'], bcadd($sums['stock'], $sums['transit'], 2), 2))], 'bold' => true];
+
+        return new Report(__('Inventory: ledger against stock'), __('As at :date', ['date' => CarbonImmutable::parse($filter->to)->format('d M Y')]), [__('Stock class'), __('Ledger'), __('Stock valuation'), __('In transit'), __('Difference')], $rows,
+            [__('The ledger is the balance of the inventory accounts; the stock valuation is quantity × average cost in every store. Each movement is rounded to cents when it is posted, so a few cents of difference are rounding. A larger difference means stock moved without reaching the ledger (post the missed events with accounting:backpost) or an account is not mapped.')]);
     }
 
     public function aging(bool $receivable, string $asOf, ?string $property = null): Report

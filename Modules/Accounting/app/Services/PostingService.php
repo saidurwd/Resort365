@@ -24,6 +24,7 @@ use Modules\Billing\Enums\RefundKind;
 use Modules\Inventory\Contracts\StockFacts;
 use Modules\Inventory\DTOs\StockAdjustmentFact;
 use Modules\Inventory\DTOs\StockIssueFact;
+use Modules\Inventory\DTOs\StockOpeningFact;
 use Modules\Procurement\Contracts\ProcurementFacts;
 use Modules\Procurement\DTOs\ReceiptFact;
 use Modules\Procurement\DTOs\ReturnFact;
@@ -241,6 +242,30 @@ class PostingService
         }
 
         return $this->record('stock_issue', $issueId, 'issued', $issue->propertyId, $issue->date, __('Stock issue :no', ['no' => $issue->issueNo]), $issue->issueNo, $lines);
+    }
+
+    /**
+     * Opening stock entered for a store (Step 5.8): Dr inventory by class / Cr opening balance equity.
+     */
+    public function stockOpening(int $batchId): ?JournalEntry
+    {
+        $opening = $this->stock->opening($batchId);
+
+        if (! $opening instanceof StockOpeningFact) {
+            return null;
+        }
+
+        $lines = [];
+        $total = BigDecimal::zero();
+
+        foreach ($opening->byClass as $class => $value) {
+            $lines[] = $this->line($this->accounts->stockInventory($class), $value, $opening->propertyId);
+            $total = $total->plus($value);
+        }
+
+        $lines[] = $this->line($this->accounts->stockOpeningEquity(), '-'.$total->toScale(2), $opening->propertyId);
+
+        return $this->record('stock_opening', $batchId, 'opened', $opening->propertyId, $opening->date, __('Opening stock'), null, $lines);
     }
 
     /**

@@ -370,3 +370,17 @@ it('keeps recipes and wastage to the people who hold the permissions', function 
     get(tenantUrl('sunrise', '/restaurant/wastage/new'))->assertForbidden();
     put(tenantUrl('sunrise', "/restaurant/menu/items/{$burger->id}/recipe"), ['sections' => []])->assertForbidden();
 });
+
+it('reports food cost percent per outlet from what the sales cost against what they brought in (Step 5.8)', function (): void {
+    $setup = billSetup();
+    $store = rcKitchen($setup);
+    [$burger] = rcBurger($setup, $store);
+    cashierOn($setup);
+    rcSell($setup, $burger, 10);
+    staffUser(DefaultRole::GeneralManager);
+
+    // 10 burgers at 450 net 4,500.00; ingredients 1,600 + 72 + 360 + 38.92 + 8.40 + 17.10 = 2,096.42, which is 46.59%.
+    get(tenantUrl('sunrise', '/restaurant/reports/food-cost?from=2020-01-01&to=2099-12-31'))->assertOk()->assertSeeHtml('data-report-table="food-cost"')
+        ->assertSee('4,500.00')->assertSee('2,096.42')->assertSee('46.59');
+    expect(get(tenantUrl('sunrise', '/restaurant/reports/food-cost?from=2020-01-01&to=2099-12-31&export=csv'))->streamedContent())->toContain('2,096.42');
+});

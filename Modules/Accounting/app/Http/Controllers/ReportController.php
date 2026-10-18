@@ -27,6 +27,7 @@ class ReportController extends Controller
     public const array REPORTS = [
         'trial-balance' => 'Trial balance', 'ledger' => 'General ledger', 'profit-loss' => 'Profit and loss', 'balance-sheet' => 'Balance sheet',
         'cash-flow' => 'Cash flow', 'departmental' => 'USALI departmental report', 'aging-receivable' => 'Receivables aging', 'aging-payable' => 'Payables aging',
+        'inventory' => 'Inventory against the ledger',
     ];
 
     public function index(): View
@@ -51,6 +52,7 @@ class ReportController extends Controller
                 'cash-flow' => $reports->cashFlow($filter),
                 'departmental' => $reports->departmental($filter),
                 'aging-receivable' => $reports->aging(true, $filter->to, $filter->property),
+                'inventory' => $reports->inventoryReconciliation($filter),
                 default => $reports->aging(false, $filter->to, $filter->property),
             };
         } catch (AccountingRuleViolated $exception) {
@@ -65,7 +67,7 @@ class ReportController extends Controller
 
         return view('accounting::reports.show', [
             'key' => $report, 'title' => __(self::REPORTS[$report]), 'report' => $built, 'filter' => $filter, 'account' => $request->filled('account') ? (int) $request->validated('account') : null,
-            'rangeless' => in_array($report, ['balance-sheet', 'aging-receivable', 'aging-payable'], true),
+            'rangeless' => in_array($report, ['balance-sheet', 'aging-receivable', 'aging-payable', 'inventory'], true),
             'properties' => collect(app(PropertyDirectory::class)->all())->mapWithKeys(fn ($property): array => [(string) $property->id => $property->name])->all(),
             'accounts' => Account::query()->where('is_group', false)->orderBy('code')->get()->mapWithKeys(fn (Account $account): array => [$account->id => $account->label()])->all(),
             'departments' => collect(app(DepartmentDirectory::class)->all())->mapWithKeys(fn ($department): array => [$department->id => $department->name])->all(),

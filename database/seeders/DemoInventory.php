@@ -21,9 +21,7 @@ use Modules\Inventory\Actions\SeedStandardUnits;
 use Modules\Inventory\Actions\StartStockCount;
 use Modules\Inventory\Actions\SubmitRequisition;
 use Modules\Inventory\Contracts\StockMovementContract;
-use Modules\Inventory\DTOs\NewStockMovement;
 use Modules\Inventory\Enums\AdjustmentReason;
-use Modules\Inventory\Enums\MovementType;
 use Modules\Inventory\Models\Item;
 use Modules\Inventory\Models\ItemCategory;
 use Modules\Inventory\Models\ItemStoreLevel;
@@ -148,7 +146,7 @@ final class DemoInventory
             $rice = $byName('Basmati rice');
 
             if ($rice instanceof Item) {
-                $stock->record(new NewStockMovement(MovementType::Receipt, $stores['KITCHEN']->id, $rice->id, '100', '178', reason: 'delivery', notes: 'Delivery at a higher price'));
+                app(AdjustStock::class)->handle($stores['KITCHEN']->id, $rice->id, true, '100', AdjustmentReason::Other, 'Delivery at a higher price', '178');
             }
 
             $send = fn (array $lines) => app(DispatchTransfer::class)->handle($stores['MAIN']->id, $stores['KITCHEN']->id, $lines, 'Weekly kitchen supply');
@@ -170,7 +168,7 @@ final class DemoInventory
 
             if ($eggs instanceof Item) {
                 $held = $stock->balance($stores['KITCHEN']->id, $eggs->id)->quantity;
-                $stock->record(new NewStockMovement(MovementType::Wastage, $stores['KITCHEN']->id, $eggs->id, bcsub($held, '200', 4), reason: 'expired', notes: 'Past the date'));
+                app(AdjustStock::class)->handle($stores['KITCHEN']->id, $eggs->id, false, bcsub($held, '200', 4), AdjustmentReason::Expired, 'Past the date');
             }
 
             // Sacks, cartons and trays: purchase units with their own conversions.

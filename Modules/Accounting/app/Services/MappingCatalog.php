@@ -58,6 +58,7 @@ class MappingCatalog
             $rows[] = ['key' => AccountResolver::billKey($class->value), 'label' => $class->label(), 'group' => __('Vendor bills (services and expenses)'), 'category' => null];
         }
 
+        $rows[] = ['key' => 'stock:opening', 'label' => __('Opening stock balances (equity)'), 'group' => __('Stock'), 'category' => null];
         $rows[] = ['key' => 'stock:shrinkage', 'label' => __('Inventory shrinkage (count differences)'), 'group' => __('Stock'), 'category' => null];
 
         return $rows;

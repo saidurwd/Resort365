@@ -6,6 +6,7 @@ use Brick\Math\BigDecimal;
 use Modules\Inventory\Contracts\StockFacts;
 use Modules\Inventory\DTOs\StockAdjustmentFact;
 use Modules\Inventory\DTOs\StockIssueFact;
+use Modules\Inventory\DTOs\StockOpeningFact;
 use Modules\Inventory\Enums\MovementType;
 use Modules\Inventory\Models\StockCount;
 use Modules\Inventory\Models\StockCountLine;
@@ -15,6 +16,8 @@ use Modules\Inventory\Models\StockMovement;
 
 class StockFactsService implements StockFacts
 {
+    public function __construct(private readonly StockValuation $valuation) {}
+
     public function issue(int $issueId): ?StockIssueFact
     {
         $issue = StockIssue::query()->with('lines.item.category.parent')->find($issueId);
@@ -61,6 +64,35 @@ class StockFactsService implements StockFacts
         return new StockAdjustmentFact($sourceType, $sourceId, $first->property_id, (string) $reference, $first->movement_date->toDateString(), $byClass);
     }
 
+    public function opening(int $batchId): ?StockOpeningFact
+    {
+        $first = StockMovement::query()->with('item.category.parent')->where('movement_type', MovementType::Opening->value)->find($batchId);
+
+        if (! $first instanceof StockMovement) {
+            return null;
+        }
+
+        $byClass = [];
+        $next = $batchId;
+
+        foreach (StockMovement::query()->with('item.category.parent')->where('movement_type', MovementType::Opening->value)->where('store_id', $first->store_id)->where('movement_date', $first->movement_date->toDateString())->where('id', '>=', $batchId)->orderBy('id')->get() as $movement) {
+            if ($movement->id !== $next) {
+                break;
+            }
+
+            $class = $movement->item->category->stockClass()->value;
+            $byClass[$class] = (string) BigDecimal::of($byClass[$class] ?? '0')->plus($movement->total_cost)->toScale(2);
+            $next++;
+        }
+
+        return new StockOpeningFact($batchId, $first->property_id, $first->movement_date->toDateString(), $byClass);
+    }
+
+    public function valuation(int $propertyId, ?string $asOf = null): array
+    {
+        return ['stock' => $this->valuation->byClass($propertyId, $asOf), 'in_transit' => $this->valuation->inTransit($propertyId)];
+    }
+
     public function history(): array
     {
         $adjustments = StockMovement::query()->whereIn('movement_type', [MovementType::AdjustmentIn->value, MovementType::AdjustmentOut->value])
@@ -71,6 +103,20 @@ class StockFactsService implements StockFacts
             $adjustments[] = ['type' => 'stock_count', 'id' => (int) $id];
         }
 
-        return ['issues' => StockIssue::query()->orderBy('id')->pluck('id')->map(fn ($id): int => (int) $id)->all(), 'adjustments' => $adjustments];
+        $openings = [];
+        $previous = null;
+
+        foreach (StockMovement::query()->where('movement_type', MovementType::Opening->value)->orderBy('id')->get(['id', 'store_id', 'movement_date']) as $movement) {
+            $key = $movement->store_id.'|'.$movement->movement_date->toDateString();
+            $consecutive = $previous !== null && $previous['key'] === $key && $movement->id === $previous['id'] + 1;
+
+            if (! $consecutive) {
+                $openings[] = $movement->id;
+            }
+
+            $previous = ['key' => $key, 'id' => $movement->id];
+        }
+
+        return ['issues' => StockIssue::query()->orderBy('id')->pluck('id')->map(fn ($id): int => (int) $id)->all(), 'adjustments' => $adjustments, 'openings' => $openings];
     }
 }

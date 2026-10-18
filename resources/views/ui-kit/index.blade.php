@@ -28,6 +28,12 @@
     </section>
 
     <section class="ui-kit-section">
+        <h5 class="mb-3">{{ __('Report table') }}</h5>
+        <x-report-table name="ui-kit" :data="['title' => __('Stock valuation'), 'summary' => [['label' => __('Total value'), 'value' => '1,284,500.00']], 'columns' => [__('Item'), __('Quantity'), __('Value')],
+            'rows' => [['Basmati rice', '560', '93,700.00'], ['Wheat flour', '270', '15,660.00']], 'totals' => [__('Total'), '830', '109,360.00'], 'note' => __('Reports share this table, a filter form and a CSV button.')]" />
+    </section>
+
+    <section class="ui-kit-section">
         <h5 class="mb-3">{{ __('Status badges') }}</h5>
         <x-card>
             <div class="d-flex flex-wrap gap-2">

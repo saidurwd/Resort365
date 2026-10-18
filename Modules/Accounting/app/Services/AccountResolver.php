@@ -100,6 +100,12 @@ class AccountResolver
         return $this->resolve(self::stockKey('inventory', $class), 'inventory_'.$class, __('Inventory: :class', ['class' => $class]));
     }
 
+    /** The equity account opening stock balances are booked against. */
+    public function stockOpeningEquity(): int
+    {
+        return $this->resolve('stock:opening', 'owners_capital', __('Opening stock balances'));
+    }
+
     /** Where count losses and gains go. */
     public function stockShrinkage(): int
     {
@@ -197,6 +203,10 @@ class AccountResolver
 
         if (str_starts_with($key, 'bill:expense:')) {
             return self::BILL_EXPENSE_DEFAULTS[substr($key, 13)] ?? null;
+        }
+
+        if ($key === 'stock:opening') {
+            return 'owners_capital';
         }
 
         if ($key === 'stock:shrinkage') {

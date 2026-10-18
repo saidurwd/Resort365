@@ -9,6 +9,7 @@ use Modules\Inventory\Http\Controllers\ImportController;
 use Modules\Inventory\Http\Controllers\ItemController;
 use Modules\Inventory\Http\Controllers\MovementController;
 use Modules\Inventory\Http\Controllers\OpeningBalanceController;
+use Modules\Inventory\Http\Controllers\ReportController;
 use Modules\Inventory\Http\Controllers\RequisitionController;
 use Modules\Inventory\Http\Controllers\StockController;
 use Modules\Inventory\Http\Controllers\StoreController;
@@ -104,6 +105,12 @@ Route::prefix('inventory')->name('inventory.')->middleware(['auth', 'verified'])
         Route::put('/counts/{count}', [CountController::class, 'save'])->whereNumber('count')->name('counts.save');
         Route::post('/counts/{count}/complete', [CountController::class, 'complete'])->whereNumber('count')->name('counts.complete');
         Route::post('/counts/{count}/cancel', [CountController::class, 'cancel'])->whereNumber('count')->name('counts.cancel');
+    });
+
+    Route::middleware('can:inventory.report.view')->group(function (): void {
+        foreach (ReportController::REPORTS as $report) {
+            Route::get('/reports/'.$report, [ReportController::class, 'show'])->defaults('report', $report)->name('reports.'.$report);
+        }
     });
 
     Route::middleware('can:inventory.item.import')->group(function (): void {

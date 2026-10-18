@@ -13,6 +13,7 @@ use Modules\Billing\Events\RefundIssued;
 use Modules\FrontOffice\Events\NightAuditCompleted;
 use Modules\Inventory\Events\StockAdjusted;
 use Modules\Inventory\Events\StockIssued;
+use Modules\Inventory\Events\StockOpened;
 use Modules\Procurement\Events\GoodsReceived;
 use Modules\Procurement\Events\PurchaseReturned;
 use Modules\Procurement\Events\VendorBillApproved;
@@ -87,6 +88,11 @@ class PostLedgerEntries
     public function onStockIssued(StockIssued $event): void
     {
         $this->safely(fn (): ?JournalEntry => $this->posting->stockIssue($event->issueId));
+    }
+
+    public function onStockOpened(StockOpened $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->stockOpening($event->batchId));
     }
 
     public function onStockAdjusted(StockAdjusted $event): void

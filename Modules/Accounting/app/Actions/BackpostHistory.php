@@ -86,6 +86,10 @@ class BackpostHistory extends Action
             $run(__('Stock issue #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->stockIssue($id));
         }
 
+        foreach ($stock['openings'] as $id) {
+            $run(__('Opening stock #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->stockOpening($id));
+        }
+
         foreach ($stock['adjustments'] as $adjustment) {
             $run(__('Stock adjustment #:id', ['id' => $adjustment['id']]), fn (): ?JournalEntry => $this->posting->stockAdjustment($adjustment['type'], $adjustment['id']));
         }
