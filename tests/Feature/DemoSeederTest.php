@@ -23,10 +23,18 @@ use Modules\Guest\DTOs\GuestSummary;
 use Modules\Guest\Models\Company;
 use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
+use Modules\HR\Enums\AttendanceSource;
+use Modules\HR\Enums\AttendanceStatus;
 use Modules\HR\Enums\HistoryEvent;
+use Modules\HR\Models\Attendance;
+use Modules\HR\Models\AttendanceImport;
 use Modules\HR\Models\Designation;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\EmployeeHistory;
+use Modules\HR\Models\Holiday;
+use Modules\HR\Models\Roster;
+use Modules\HR\Models\Shift;
+use Modules\HR\Services\AttendanceReports;
 use Modules\IAM\Models\User;
 use Modules\Inventory\Enums\StockClass;
 use Modules\Inventory\Models\Item;
@@ -393,5 +401,25 @@ it('seeds about 60 employees in a reporting tree with a little history (Step 6.1
 
     app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
         expect(Employee::query()->count())->toBeBetween(5, 12)->and(Designation::query()->count())->toBeGreaterThan(3);
+    });
+});
+
+it('seeds shifts, rosters and a month of imported attendance that shows lateness and overtime (Step 6.2)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $lastMonth = now()->subMonthNoOverflow()->format('Y-m');
+        $property = Property::query()->where('code', 'CXB')->firstOrFail();
+        $report = app(AttendanceReports::class)->monthly($property->id, $lastMonth, null, now()->toDateString());
+        $imported = Attendance::query()->where('source', AttendanceSource::Import->value)->count();
+
+        expect(Shift::query()->pluck('code')->sort()->values()->all())->toBe(['EVE', 'GEN', 'MOR', 'NGT'])->and(Holiday::query()->count())->toBe(7)->and(Roster::query()->count())->toBeGreaterThan(3000)
+            ->and($imported)->toBeGreaterThan(1000)->and(Attendance::query()->where('source', AttendanceSource::Manual->value)->count())->toBe(3)
+            ->and((int) $report['totals'][5])->toBeGreaterThan(20)->and($report['totals'][8])->not->toBe('0:00')->and(Attendance::query()->where('status', AttendanceStatus::Incomplete->value)->exists())->toBeTrue()
+            ->and(Attendance::query()->where('status', AttendanceStatus::Holiday->value)->exists())->toBeTrue()->and(AttendanceImport::query()->count())->toBe(1);
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
+        expect(Shift::query()->count())->toBe(4)->and(Roster::query()->count())->toBeGreaterThan(100);
     });
 });

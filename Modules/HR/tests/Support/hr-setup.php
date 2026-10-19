@@ -1,8 +1,10 @@
 <?php
 
+use Modules\HR\Actions\AssignRoster;
 use Modules\HR\Actions\SaveEmployee;
 use Modules\HR\Models\Designation;
 use Modules\HR\Models\Employee;
+use Modules\HR\Models\Shift;
 use Modules\Property\Models\Department;
 use Modules\Property\Models\Property;
 
@@ -45,4 +47,27 @@ function hrFresh(Employee $employee): Employee
 function hrSecondProperty(): int
 {
     return booking(fn (): int => Property::query()->where('code', 'DHK')->value('id') ?? Property::factory()->create(['code' => 'DHK', 'name' => 'Sunrise Dhaka'])->id);
+}
+
+/**
+ * A shift at the test tenant.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function hrShift(string $code = 'DAY', string $start = '09:00', string $end = '17:00', array $overrides = []): Shift
+{
+    return booking(fn (): Shift => Shift::query()->where('code', $code)->first() ?? Shift::factory()->create(
+        ['code' => $code, 'name' => $code.' shift', 'starts_at' => $start.':00', 'ends_at' => $end.':00', ...$overrides],
+    ));
+}
+
+/**
+ * Rosters employees on a shift (null = day off) for the dates.
+ *
+ * @param  list<int>  $employeeIds
+ * @param  list<int>|null  $weekdays
+ */
+function hrRoster(array $employeeIds, string $from, string $to, ?int $shiftId, ?array $weekdays = null): int
+{
+    return booking(fn (): int => app(AssignRoster::class)->handle($employeeIds, $from, $to, $shiftId, $weekdays));
 }

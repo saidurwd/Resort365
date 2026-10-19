@@ -161,6 +161,8 @@ class DemoSeeder extends Seeder
         // Step 6.1: designations, grades and about 60 employees.
         DemoHR::seed($rodela, $resort, self::DOMAINS['rodela']);
         DemoHR::seed($greenValley, $valley, 'greenvalley.test', full: false);
+        DemoHR::attendance($rodela, $resort);
+        DemoHR::attendance($greenValley, $valley);
 
         // Step 4.1: chart of accounts, fiscal year and journals.
         DemoAccounting::seed($rodela, $resort);

@@ -4,26 +4,35 @@ namespace Database\Seeders;
 
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
+use Modules\HR\Actions\AssignRoster;
 use Modules\HR\Actions\ConfirmEmployee;
 use Modules\HR\Actions\ExitEmployee;
+use Modules\HR\Actions\ImportAttendance;
 use Modules\HR\Actions\LinkEmployeeUser;
 use Modules\HR\Actions\PromoteEmployee;
+use Modules\HR\Actions\RecordAttendance;
 use Modules\HR\Actions\RecordDisciplinary;
 use Modules\HR\Actions\RecordIncrement;
 use Modules\HR\Actions\SaveDesignation;
 use Modules\HR\Actions\SaveEmployee;
 use Modules\HR\Actions\SaveGrade;
+use Modules\HR\Actions\SaveHoliday;
+use Modules\HR\Actions\SaveShift;
 use Modules\HR\Actions\TransferEmployee;
+use Modules\HR\Enums\AttendanceStatus;
 use Modules\HR\Enums\DisciplinaryAction;
+use Modules\HR\Enums\EmployeeStatus;
 use Modules\HR\Enums\ExitReason;
 use Modules\HR\Models\Designation;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\Grade;
+use Modules\HR\Models\Shift;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\Property\Contracts\DepartmentDirectory;
 
 /**
- * HR demo (Step 6.1): designations and grades, then about 60 employees at Rodela across the 11 departments in a
+ * HR demo (Steps 6.1 and 6.2): designations and grades, then about 60 employees at Rodela across the 11 departments in a
  * reporting tree (the General Manager on top, department heads, staff), the demo users' own employee records linked to
  * their accounts, and a little history: a new hire on probation, a confirmation, a promotion, an increment, a written
  * warning, a move to another department and a resignation. Green Valley gets a small team.
@@ -144,6 +153,109 @@ final class DemoHR
 
             if ($full) {
                 self::history($byDesignation, $departments->all(), $made, $grades->all(), $propertyId, $heads);
+            }
+        });
+    }
+
+    /**
+     * Shifts, holidays, two months of rosters and a month of imported attendance (Step 6.2): the previous month's punches
+     * go through the real CSV import, with late arrivals, early leavers, overtime, missing punches, night shifts and the
+     * staff day, and a few days corrected by hand.
+     */
+    public static function attendance(Tenant $tenant, int $propertyId): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId): void {
+            if (Shift::query()->exists() || ! Employee::query()->exists()) {
+                return;
+            }
+
+            $shifts = [];
+
+            foreach ([['GEN', 'General', '09:00', '17:00', 'primary'], ['MOR', 'Morning', '06:00', '14:00', 'success'], ['EVE', 'Evening', '14:00', '22:00', 'warning'], ['NGT', 'Night', '22:00', '06:00', 'secondary']] as [$code, $name, $start, $end, $color]) {
+                $shifts[$code] = app(SaveShift::class)->handle(null, ['code' => $code, 'name' => $name, 'starts_at' => $start, 'ends_at' => $end, 'break_minutes' => 30, 'grace_minutes' => 10, 'overtime_after_minutes' => 15, 'color' => $color, 'is_active' => true]);
+            }
+
+            $lastMonth = CarbonImmutable::now()->subMonthNoOverflow()->startOfMonth();
+
+            foreach ([['Language Martyrs\' Day', '02-21'], ['Independence Day', '03-26'], ['Bengali New Year', '04-14'], ['May Day', '05-01'], ['Victory Day', '12-16'], ['Christmas Day', '12-25']] as [$name, $monthDay]) {
+                app(SaveHoliday::class)->handle(null, ['name' => $name, 'holiday_date' => $lastMonth->year.'-'.$monthDay, 'is_paid' => true, 'repeats_yearly' => true, 'property_id' => $propertyId]);
+            }
+
+            $staffDay = $lastMonth->addDays(11)->toDateString();
+            app(SaveHoliday::class)->handle(null, ['name' => 'Annual staff day', 'holiday_date' => $staffDay, 'is_paid' => true, 'repeats_yearly' => false, 'property_id' => $propertyId]);
+
+            // Rosters from the first of last month to the end of this month: a shift by department, one weekly day off each.
+            $employees = Employee::query()->where('status', '!=', EmployeeStatus::Exited->value)->orderBy('id')->get();
+            $departments = collect(app(DepartmentDirectory::class)->all(false))->pluck('code', 'id');
+            $from = $lastMonth->toDateString();
+            $to = CarbonImmutable::now()->endOfMonth()->toDateString();
+            $groups = [];
+
+            foreach ($employees->values() as $index => $employee) {
+                $code = $departments[$employee->department_id] ?? 'ADM';
+                $shift = match ($code) {
+                    'HK' => 'MOR', 'FBS', 'FBP' => $index % 2 === 0 ? 'MOR' : 'EVE', 'FO' => ['MOR', 'EVE', 'GEN'][$index % 3], 'SEC' => $index % 2 === 0 ? 'NGT' : 'MOR', default => 'GEN',
+                };
+                $groups[$shift.'|'.($index % 7)][] = $employee->id;
+            }
+
+            foreach ($groups as $key => $ids) {
+                [$shift, $off] = explode('|', $key);
+                app(AssignRoster::class)->handle($ids, $from, $to, $shifts[$shift]->id, array_values(array_diff(range(0, 6), [(int) $off])));
+                app(AssignRoster::class)->handle($ids, $from, $to, null, [(int) $off]);
+            }
+
+            // Last month's punches, as a biometric export: first and last punch of each rostered day.
+            $lines = ['Employee No,Date Time'];
+            $end = $lastMonth->endOfMonth();
+
+            foreach ($employees as $employee) {
+                $shift = $shifts[collect($groups)->filter(fn (array $ids): bool => in_array($employee->id, $ids, true))->keys()->map(fn (string $key): string => explode('|', $key)[0])->first() ?? 'GEN'];
+                $off = (int) explode('|', (string) collect($groups)->filter(fn (array $ids): bool => in_array($employee->id, $ids, true))->keys()->first())[1];
+
+                for ($day = $lastMonth; $day->lte($end); $day = $day->addDay()) {
+                    $date = $day->toDateString();
+                    $isStaffDay = $date === $staffDay;
+
+                    if ($day->dayOfWeek === $off || $date < $employee->joined_on->toDateString() || ($employee->exited_on !== null && $date > $employee->exited_on->toDateString())) {
+                        continue;
+                    }
+
+                    $roll = abs(crc32($employee->employee_no.$date)) % 100;
+                    $start = $shift->times()->startMinutes();
+                    $finish = $shift->times()->endMinutes();
+                    $in = $start - ($roll % 9);
+                    $out = $finish + ($roll % 11);
+
+                    if ($isStaffDay) {
+                        if ($roll % 3 !== 0) {
+                            continue;
+                        }
+                    } elseif ($roll < 6) {
+                        continue;
+                    } elseif ($roll < 22) {
+                        $in = $start + 12 + ($roll * 7) % 34;
+                    } elseif ($roll < 28) {
+                        $out = $finish - 15 - ($roll * 3) % 46;
+                    } elseif ($roll >= 86) {
+                        $out = $finish + 20 + ($roll * 5) % 100;
+                    }
+
+                    $lines[] = $employee->employee_no.','.$day->startOfDay()->addMinutes($in)->format('Y-m-d H:i');
+                    $lines[] = $employee->employee_no.','.$day->startOfDay()->addMinutes($roll === 6 ? $in : $out)->format('Y-m-d H:i');
+                }
+            }
+
+            app(ImportAttendance::class)->handle($propertyId, 'biometric-'.$lastMonth->format('Y-m').'.csv', implode("\n", $lines), null);
+
+            // A few days put right by hand.
+            $manual = Employee::query()->where('status', '!=', EmployeeStatus::Exited->value)->orderBy('id')->skip(3)->take(3)->get();
+
+            if ($manual->count() === 3) {
+                $day = $lastMonth->addDays(8)->toDateString();
+                app(RecordAttendance::class)->handle($manual[0], $day, '09:05', '17:10', null, 'Device was down; confirmed by the supervisor', null);
+                app(RecordAttendance::class)->handle($manual[1], $day, '09:00', '13:00', AttendanceStatus::HalfDay, 'Went home sick at lunch', null);
+                app(RecordAttendance::class)->handle($manual[2], $day, null, null, AttendanceStatus::Absent, 'No call, no show', null);
             }
         });
     }
