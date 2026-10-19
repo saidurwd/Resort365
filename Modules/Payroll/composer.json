@@ -1,0 +1,24 @@
+{
+    "name": "resort365/payroll",
+    "description": "Resort365 Payroll module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Payroll\\": "app/",
+            "Modules\\Payroll\\Database\\Factories\\": "database/factories/",
+            "Modules\\Payroll\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Payroll\\Tests\\": "tests/"
+        }
+    }
+}

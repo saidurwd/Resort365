@@ -164,6 +164,10 @@ class DemoSeeder extends Seeder
         DemoHR::attendance($rodela, $resort, self::DOMAINS['rodela']);
         DemoHR::attendance($greenValley, $valley);
 
+        // Step 6.4: the Bangladesh payroll starter pack and everyone's salary.
+        DemoPayroll::seed($rodela, $resort);
+        DemoPayroll::seed($greenValley, $valley);
+
         // Step 4.1: chart of accounts, fiscal year and journals.
         DemoAccounting::seed($rodela, $resort);
         DemoAccounting::seed($greenValley, $valley);

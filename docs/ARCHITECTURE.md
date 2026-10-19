@@ -842,6 +842,7 @@ flowchart LR
 - **Bangladesh starter pack** (initial market): seeded components and rules for income tax slabs (withholding from salary), provident fund, gratuity, and the two religious festival bonuses. All seeded values stay editable, because they change with each budget.
 - **Tips distribution:** tips collected by the restaurant (held in *Tips Payable*) are distributed with the payroll run, by the same rules as the service charge.
 - Bank transfer file export (CSV per bank format), payroll register, statutory reports.
+- *Implemented in Step 6.4 (Payroll module, sidebar Payroll): `salary_components`, `salary_structures` and `salary_structure_components` (a line is fixed, a percent of another component, a formula, or set per employee), effective-dated `employee_salaries` (basic, structure, amounts set for the employee, tax category and area; a new record closes the one before; started records are history), and `tax_tables` with `tax_slabs` (thresholds per taxpayer category, minimum tax per area, the exemption as a fraction up to a cap, bands above the tax-free amount). The calculation is pure (`FormulaEvaluator`, `SalaryCalculator`, `IncomeTaxCalculator`) with worked examples as unit tests. The Bangladesh starter pack (components, two structures, the 2025-26 income tax table) is seeded for every tenant and stays editable. **Not yet built:** the payroll run, payslips, loans and advances (Step 6.5), service charge and tips (Step 6.6); the investment tax rebate is not modelled.*
 
 ### 5.17 Reports & Analytics
 
@@ -1377,7 +1378,7 @@ Unique: `(outlet_id, bill_no)`
 | Procurement | `vendors`, `vendor_contacts`, `vendor_items`, `purchase_requisitions`(+lines), `rfqs`, `rfq_vendors`, `vendor_quotations`(+lines), `purchase_orders`(+lines), `goods_receipts`(+lines), `vendor_bills`(+lines), `vendor_payments`, `vendor_payment_allocations`, `purchase_returns`(+lines) |
 | Accounting | `accounts`, `fiscal_years`, `fiscal_periods`, `journal_entries`, `journal_lines`, `account_mappings`, `bank_accounts`, `bank_statements`, `bank_statement_lines`, `reconciliations`, `income_vouchers`, `expense_vouchers`, `budgets`, `budget_lines` |
 | HR | `designations`, `grades`, `employees`, `employee_histories` (documents are attachments), `shifts`, `rosters`, `attendances`, `holidays`, `leave_types`, `leave_policies`, `leave_balances`, `leave_requests` |
-| Payroll | `salary_components`, `salary_structures`, `salary_structure_components`, `employee_salaries`, `payroll_runs`, `payslips`, `payslip_lines`, `loans`, `loan_installments`, `service_charge_pools`, `service_charge_allocations`, `tax_slabs` |
+| Payroll | `salary_components`, `salary_structures`, `salary_structure_components`, `employee_salaries`, `payroll_runs`, `payslips`, `payslip_lines`, `loans`, `loan_installments`, `service_charge_pools`, `service_charge_allocations`, `tax_tables`, `tax_slabs` |
 
 ---
 

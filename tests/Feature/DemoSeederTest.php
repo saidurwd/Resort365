@@ -47,6 +47,11 @@ use Modules\Inventory\Models\StockRequisition;
 use Modules\Inventory\Models\StockTransfer;
 use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
+use Modules\Payroll\Models\EmployeeSalary;
+use Modules\Payroll\Models\SalaryComponent;
+use Modules\Payroll\Models\SalaryStructure;
+use Modules\Payroll\Models\TaxTable;
+use Modules\Payroll\Services\SalaryPreview;
 use Modules\Procurement\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
@@ -421,5 +426,26 @@ it('seeds shifts, rosters and a month of imported attendance that shows lateness
 
     app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
         expect(Shift::query()->count())->toBe(4)->and(Roster::query()->count())->toBeGreaterThan(100);
+    });
+});
+
+it('seeds the Bangladesh payroll starter pack and a salary for every employee (Step 6.4)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $today = now()->toDateString();
+        $working = Employee::query()->where('status', '!=', 'exited')->pluck('id');
+        $general = Employee::query()->whereHas('designation', fn ($query) => $query->where('name', 'General Manager'))->firstOrFail();
+        $pay = app(SalaryPreview::class)->forEmployee($general->id, $today);
+
+        expect(SalaryComponent::query()->count())->toBe(14)->and(SalaryStructure::query()->count())->toBe(2)->and(TaxTable::query()->count())->toBe(1)
+            ->and(EmployeeSalary::query()->whereNull('effective_to')->pluck('employee_id')->unique()->sort()->values()->all())->toBe($working->sort()->values()->all())
+            ->and(EmployeeSalary::query()->whereNotNull('effective_to')->count())->toBeGreaterThan(5)
+            // 150,000 + 75,000 (50%) + 15,000 (10%) + 5,000 conveyance set for the General Manager.
+            ->and($pay?->gross)->toBe('245000.00')->and((float) $pay?->tax)->toBeGreaterThan(0.0)->and((float) $pay?->net)->toBeLessThan(245000.0);
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
+        expect(EmployeeSalary::query()->distinct()->count('employee_id'))->toBe(Employee::query()->count());
     });
 });
