@@ -21,10 +21,13 @@ use Modules\HR\Database\Factories\RosterFactory;
  * @property int $employee_id
  * @property Carbon $work_date
  * @property int|null $shift_id
+ * @property int|null $leave_request_id
+ * @property int|null $replaced_shift_id
+ * @property bool $leave_created
  * @property-read Shift|null $shift
  */
 #[UseFactory(RosterFactory::class)]
-#[Fillable(['property_id', 'employee_id', 'work_date', 'shift_id'])]
+#[Fillable(['property_id', 'employee_id', 'work_date', 'shift_id', 'leave_request_id', 'replaced_shift_id', 'leave_created'])]
 class Roster extends Model
 {
     use BelongsToProperty;
@@ -38,7 +41,7 @@ class Roster extends Model
      */
     protected function casts(): array
     {
-        return ['work_date' => 'date'];
+        return ['work_date' => 'date', 'leave_created' => 'boolean'];
     }
 
     /**
@@ -47,6 +50,14 @@ class Roster extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class)->withTrashed();
+    }
+
+    /**
+     * @return BelongsTo<LeaveRequest, $this>
+     */
+    public function leaveRequest(): BelongsTo
+    {
+        return $this->belongsTo(LeaveRequest::class);
     }
 
     /**

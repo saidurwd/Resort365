@@ -158,7 +158,7 @@ it('reports a month per employee: lateness, early leave, overtime, absences and 
     $rahimRow = collect($report['rows'])->first(fn (array $row): bool => str_starts_with($row[0], 'EMP-0001'));
     $rahimFigures = array_slice($rahimRow ?? [], 2);
 
-    expect($rahimFigures)->toBe(['4', '4', '0', '1', '30', '30', '1:45', '30:45'])
+    expect($rahimFigures)->toBe(['4', '4', '0', '0', '1', '30', '30', '1:45', '30:45'])
         ->and($rows['EMP-0002'][2])->toBe('4')->and($rows['EMP-0002'][3])->toBe('1')->and($rows['EMP-0002'][4])->toBe('3')
-        ->and($report['totals'][5])->toBe('1')->and($report['totals'][4])->toBe('3')->and($report['summary'][2]['value'])->toBe('1:45')->and($report['title'])->toBe('Attendance for March 2026');
+        ->and($report['totals'][6])->toBe('1')->and($report['totals'][4])->toBe('3')->and($report['summary'][2]['value'])->toBe('1:45')->and($report['title'])->toBe('Attendance for March 2026');
 });

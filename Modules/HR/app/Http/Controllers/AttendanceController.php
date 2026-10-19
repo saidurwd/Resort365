@@ -39,7 +39,7 @@ class AttendanceController extends Controller
 
         return view('hr::attendance.index', [
             'date' => $date, 'department' => $department, 'employees' => $employees, 'records' => Attendance::query()->with('shift')->whereIn('employee_id', $ids)->whereDate('work_date', $date)->get()->keyBy('employee_id'),
-            'rosters' => $schedule->rosters($ids, $date, $date), 'holiday' => $schedule->holidays($propertyId, $date, $date)[$date] ?? null, 'departments' => collect($departments->all())->pluck('name', 'id')->all(),
+            'rosters' => $schedule->rosters($ids, $date, $date), 'leaves' => $schedule->leave($ids, $date, $date), 'holiday' => $schedule->holidays($propertyId, $date, $date)[$date] ?? null, 'departments' => collect($departments->all())->pluck('name', 'id')->all(),
             'canRecord' => $request->user()?->can('hr.attendance.record') ?? false, 'overrides' => [AttendanceStatus::Absent->value => AttendanceStatus::Absent->label(), AttendanceStatus::HalfDay->value => AttendanceStatus::HalfDay->label()],
             'subtitle' => $this->propertyName(),
         ]);

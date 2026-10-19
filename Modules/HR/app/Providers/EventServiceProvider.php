@@ -2,7 +2,9 @@
 
 namespace Modules\HR\Providers;
 
+use App\Support\Tenancy\Events\TenantCreated;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Modules\HR\Listeners\SeedLeaveTypesForNewTenant;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -11,14 +13,16 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<string, array<int, string>>
      */
-    protected $listen = [];
+    protected $listen = [
+        TenantCreated::class => [SeedLeaveTypesForNewTenant::class],
+    ];
 
     /**
      * Indicates if events should be discovered.
      *
      * @var bool
      */
-    protected static $shouldDiscoverEvents = true;
+    protected static $shouldDiscoverEvents = false;
 
     /**
      * Discover listeners in this module only (Laravel's default is the application's app/Listeners).

@@ -74,7 +74,8 @@
                                 <td class="text-start text-nowrap"><a href="{{ route('hr.employees.show', $row['employee']) }}">{{ $row['employee']->full_name }}</a><div class="small text-body-secondary">{{ $row['employee']->designation->name }}</div></td>
                                 @foreach ($row['cells'] as $date => $cell)
                                     <td @class(['p-1', 'table-primary' => isset($grid['holidays'][$date])]) data-cell="{{ $date }}">
-                                        @if ($cell['shift'])<span class="badge text-bg-{{ $cell['shift']->color }}" title="{{ $cell['shift']->name }} {{ $cell['shift']->window() }}">{{ $cell['shift']->code }}</span>
+                                        @if ($cell['leave'])<span class="badge text-bg-{{ $cell['leave']->color }}" title="{{ $cell['leave']->name }}" data-leave-cell>{{ $cell['leave']->code }}</span>
+                                        @elseif ($cell['shift'])<span class="badge text-bg-{{ $cell['shift']->color }}" title="{{ $cell['shift']->name }} {{ $cell['shift']->window() }}">{{ $cell['shift']->code }}</span>
                                         @elseif ($cell['planned'])<span class="small text-body-secondary">{{ __('OFF') }}</span>
                                         @else<span class="text-body-tertiary">·</span>@endif
                                     </td>

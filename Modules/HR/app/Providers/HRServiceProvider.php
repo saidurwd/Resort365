@@ -7,17 +7,26 @@ use App\Support\Authorization\PermissionDefinition;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
+use Modules\Core\Contracts\ApprovalRegistry;
 use Modules\Core\Contracts\DocumentNumbers;
+use Modules\Core\DTOs\ApprovalDocumentType;
+use Modules\Core\DTOs\ApprovalStepDefinition;
 use Modules\Core\DTOs\DocumentType;
 use Modules\Core\Enums\SequenceReset;
+use Modules\HR\Console\GrantLeaveCommand;
+use Modules\HR\Console\SeedLeaveTypesCommand;
 use Modules\HR\Contracts\EmployeeDirectory;
 use Modules\HR\Models\Attendance;
 use Modules\HR\Models\Designation;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\Grade;
 use Modules\HR\Models\Holiday;
+use Modules\HR\Models\LeaveBalance;
+use Modules\HR\Models\LeaveRequest;
+use Modules\HR\Models\LeaveType;
 use Modules\HR\Models\Roster;
 use Modules\HR\Models\Shift;
 use Modules\HR\Policies\AttendancePolicy;
@@ -25,9 +34,13 @@ use Modules\HR\Policies\DesignationPolicy;
 use Modules\HR\Policies\EmployeePolicy;
 use Modules\HR\Policies\GradePolicy;
 use Modules\HR\Policies\HolidayPolicy;
+use Modules\HR\Policies\LeaveBalancePolicy;
+use Modules\HR\Policies\LeaveRequestPolicy;
+use Modules\HR\Policies\LeaveTypePolicy;
 use Modules\HR\Policies\RosterPolicy;
 use Modules\HR\Policies\ShiftPolicy;
 use Modules\HR\Services\EmployeeDirectoryService;
+use Modules\HR\Services\LeaveApprovalHandler;
 use Modules\HR\Services\NationalIdHasher;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -53,6 +66,16 @@ class HRServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
+    /**
+     * Command classes to register.
+     *
+     * @var string[]
+     */
+    protected array $commands = [
+        GrantLeaveCommand::class,
+        SeedLeaveTypesCommand::class,
+    ];
+
     public function register(): void
     {
         parent::register();
@@ -65,7 +88,7 @@ class HRServiceProvider extends ModuleServiceProvider
     {
         parent::boot();
 
-        Relation::morphMap(['employee' => Employee::class]);
+        Relation::morphMap(['employee' => Employee::class, 'leave_request' => LeaveRequest::class]);
 
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(Designation::class, DesignationPolicy::class);
@@ -74,8 +97,19 @@ class HRServiceProvider extends ModuleServiceProvider
         Gate::policy(Holiday::class, HolidayPolicy::class);
         Gate::policy(Roster::class, RosterPolicy::class);
         Gate::policy(Attendance::class, AttendancePolicy::class);
+        Gate::policy(LeaveType::class, LeaveTypePolicy::class);
+        Gate::policy(LeaveRequest::class, LeaveRequestPolicy::class);
+        Gate::policy(LeaveBalance::class, LeaveBalancePolicy::class);
 
         $this->app->make(DocumentNumbers::class)->register(new DocumentType('employee', 'Employee number', 'EMP', '{PREFIX}-{SEQ:4}', SequenceReset::Never));
+        $this->app->make(DocumentNumbers::class)->register(new DocumentType('leave_request', 'Leave request', 'LV'));
+        $this->app->make(ApprovalRegistry::class)->register(new ApprovalDocumentType(
+            'leave_request', 'Leave request', 'An employee\'s request for leave, approved by HR; long leave also needs the General Manager. The amount is the number of days.',
+            [new ApprovalStepDefinition('HR approver', 'hr.leave.approve', '0.00'), new ApprovalStepDefinition('General Manager', 'hr.leave.approve-long', '10.00')],
+        ), LeaveApprovalHandler::class);
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('hr:grant-leave')->dailyAt('01:30')->withoutOverlapping();
+        });
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));
     }
@@ -99,6 +133,12 @@ class HRServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('hr.attendance.import', 'Import attendance from biometric CSV files', [...$managers, DefaultRole::PayrollOfficer]),
             new PermissionDefinition('hr.holiday.view', 'View holidays', [...$managers, DefaultRole::PayrollOfficer]),
             new PermissionDefinition('hr.holiday.manage', 'Change holidays', $managers),
+            new PermissionDefinition('hr.leave.request', 'Ask for your own leave', DefaultRole::cases()),
+            new PermissionDefinition('hr.leave.view', 'View everyone\'s leave requests, balances and the leave calendar', [...$managers, DefaultRole::PayrollOfficer]),
+            new PermissionDefinition('hr.leave.manage', 'Ask for leave for others, cancel leave and adjust balances', $managers),
+            new PermissionDefinition('hr.leave.approve', 'Approve leave requests', $managers),
+            new PermissionDefinition('hr.leave.approve-long', 'Approve long leave (ten days or more)', [DefaultRole::GeneralManager]),
+            new PermissionDefinition('hr.leave-type.manage', 'Change leave types and policies', $managers),
         ]);
     }
 
@@ -113,6 +153,14 @@ class HRServiceProvider extends ModuleServiceProvider
             permission: 'hr.attendance.view', module: 'hr', active: ['hr.attendance.index', 'hr.attendance.import', 'hr.attendance.store']));
         $menu->add(new MenuItem('hr.attendance-report', 'Attendance report', route: 'hr.attendance.report', parent: 'hr', order: 40,
             permission: 'hr.attendance.view', module: 'hr', active: 'hr.attendance.report'));
+        $menu->add(new MenuItem('hr.leave', 'Leave requests', route: 'hr.leave.index', parent: 'hr', order: 60,
+            permission: 'hr.leave.view', module: 'hr', active: ['hr.leave.index', 'hr.leave.show', 'hr.leave.create', 'hr.leave.store']));
+        $menu->add(new MenuItem('hr.leave-calendar', 'Leave calendar', route: 'hr.leave.calendar', parent: 'hr', order: 62,
+            permission: 'hr.leave.view', module: 'hr', active: 'hr.leave.calendar'));
+        $menu->add(new MenuItem('hr.leave-balances', 'Leave balances', route: 'hr.leave.balances', parent: 'hr', order: 64,
+            permission: 'hr.leave.view', module: 'hr', active: 'hr.leave.balances*'));
+        $menu->add(new MenuItem('hr.my-leave', 'My leave', route: 'hr.leave.mine', parent: 'hr', order: 66,
+            permission: 'hr.leave.request', module: 'hr', active: 'hr.leave.mine'));
         $menu->add(new MenuItem('hr.holidays', 'Holidays', route: 'hr.holidays.index', parent: 'hr', order: 50,
             permission: 'hr.holiday.view', module: 'hr', active: 'hr.holidays.*'));
 
@@ -121,6 +169,8 @@ class HRServiceProvider extends ModuleServiceProvider
             permission: 'hr.employee.view', module: 'hr', active: 'hr.designations.*'));
         $menu->add(new MenuItem('hr.shifts', 'Shifts', route: 'hr.shifts.index', parent: 'setup', order: 42,
             permission: 'hr.shift.view', module: 'hr', active: 'hr.shifts.*'));
+        $menu->add(new MenuItem('hr.leave-types', 'Leave types', route: 'hr.leave-types.index', parent: 'setup', order: 43,
+            permission: 'hr.leave.view', module: 'hr', active: 'hr.leave-types.*'));
         $menu->add(new MenuItem('hr.grades', 'Grades', route: 'hr.grades.index', parent: 'setup', order: 41,
             permission: 'hr.employee.view', module: 'hr', active: 'hr.grades.*'));
     }

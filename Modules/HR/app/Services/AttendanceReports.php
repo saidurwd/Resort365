@@ -21,8 +21,8 @@ class AttendanceReports
     ) {}
 
     /**
-     * Absences are the scheduled days (not holidays, up to today) with no attendance record, plus days marked absent.
-     * TODO(step-6.3): leave days will not count as absences.
+     * Absences are the scheduled days (not holidays, up to today) with no attendance record, plus days marked absent. A day
+     * of approved leave is no longer scheduled (the leave replaced its shift on the roster), so it is not an absence.
      *
      * @return array{title: string, columns: list<string>, rows: list<list<string>>, totals: list<string>|null, summary: list<array{label: string, value: string}>, note: string|null}
      */
@@ -40,7 +40,8 @@ class AttendanceReports
         $attendance = Attendance::query()->whereIn('employee_id', $ids)->whereBetween('work_date', [$from, $to])->get()->groupBy('employee_id');
         $rostered = Roster::query()->whereIn('employee_id', $ids)->whereBetween('work_date', [$from, $upTo])->whereNotNull('shift_id')->get()->groupBy('employee_id');
         $rows = [];
-        $sum = ['scheduled' => 0, 'present' => 0, 'absent' => 0, 'late_days' => 0, 'late' => 0, 'early' => 0, 'overtime' => 0, 'worked' => 0];
+        $leaveDays = Roster::query()->whereIn('employee_id', $ids)->whereBetween('work_date', [$from, $to])->whereNotNull('leave_request_id')->get()->countBy('employee_id');
+        $sum = ['scheduled' => 0, 'present' => 0, 'absent' => 0, 'leave' => 0, 'late_days' => 0, 'late' => 0, 'early' => 0, 'overtime' => 0, 'worked' => 0];
 
         foreach ($employees as $employee) {
             $records = $attendance->get($employee->id, collect());
@@ -49,7 +50,7 @@ class AttendanceReports
             $present = $records->filter(fn (Attendance $record): bool => ! in_array($record->status, [AttendanceStatus::Absent, AttendanceStatus::Leave], true) && ($record->clock_in !== null || $record->clock_out !== null))->count();
             $absent = $scheduled->filter(fn (string $date): bool => ! isset($recorded[$date]))->count() + $records->where('status', AttendanceStatus::Absent)->count();
             $figures = [
-                'scheduled' => $scheduled->count(), 'present' => $present, 'absent' => $absent, 'late_days' => $records->where('late_minutes', '>', 0)->count(), 'late' => (int) $records->sum('late_minutes'),
+                'scheduled' => $scheduled->count(), 'present' => $present, 'absent' => $absent, 'leave' => (int) $leaveDays->get($employee->id, 0), 'late_days' => $records->where('late_minutes', '>', 0)->count(), 'late' => (int) $records->sum('late_minutes'),
                 'early' => (int) $records->sum('early_leave_minutes'), 'overtime' => (int) $records->sum('overtime_minutes'), 'worked' => (int) $records->sum('worked_minutes'),
             ];
 
@@ -57,17 +58,17 @@ class AttendanceReports
                 $sum[$key] += $value;
             }
 
-            $rows[] = [$employee->employee_no.' · '.$employee->full_name, $names[$employee->department_id] ?? '—', (string) $figures['scheduled'], (string) $figures['present'], (string) $figures['absent'], (string) $figures['late_days'],
+            $rows[] = [$employee->employee_no.' · '.$employee->full_name, $names[$employee->department_id] ?? '—', (string) $figures['scheduled'], (string) $figures['present'], (string) $figures['absent'], (string) $figures['leave'], (string) $figures['late_days'],
                 (string) $figures['late'], (string) $figures['early'], $this->hours($figures['overtime']), $this->hours($figures['worked'])];
         }
 
         return [
             'title' => __('Attendance for :month', ['month' => $start->format('F Y')]),
-            'columns' => [__('Employee'), __('Department'), __('Scheduled days'), __('Present'), __('Absent'), __('Late days'), __('Late (min)'), __('Early leave (min)'), __('Overtime (h:mm)'), __('Worked (h:mm)')],
+            'columns' => [__('Employee'), __('Department'), __('Scheduled days'), __('Present'), __('Absent'), __('On leave'), __('Late days'), __('Late (min)'), __('Early leave (min)'), __('Overtime (h:mm)'), __('Worked (h:mm)')],
             'rows' => $rows,
-            'totals' => [__('Total'), '', (string) $sum['scheduled'], (string) $sum['present'], (string) $sum['absent'], (string) $sum['late_days'], (string) $sum['late'], (string) $sum['early'], $this->hours($sum['overtime']), $this->hours($sum['worked'])],
+            'totals' => [__('Total'), '', (string) $sum['scheduled'], (string) $sum['present'], (string) $sum['absent'], (string) $sum['leave'], (string) $sum['late_days'], (string) $sum['late'], (string) $sum['early'], $this->hours($sum['overtime']), $this->hours($sum['worked'])],
             'summary' => [['label' => __('Late days'), 'value' => (string) $sum['late_days']], ['label' => __('Late minutes'), 'value' => (string) $sum['late']], ['label' => __('Overtime'), 'value' => $this->hours($sum['overtime'])], ['label' => __('Absent days'), 'value' => (string) $sum['absent']]],
-            'note' => __('Late counts every minute from the start of the shift once the grace time is passed. Overtime is time after the end of the shift (and all time worked on holidays and days off). Absent is a scheduled day with no record.'),
+            'note' => __('Late counts every minute from the start of the shift once the grace time is passed. Overtime is time after the end of the shift (and all time worked on holidays and days off). Absent is a scheduled day with no record; days of approved leave are shown apart and are not absences.'),
         ];
     }
 

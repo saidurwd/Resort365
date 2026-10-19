@@ -11,7 +11,7 @@ use Modules\HR\Models\Roster;
 
 /**
  * Repeats one week of the roster over the following weeks (Step 6.2), for employees who have a roster in that week.
- * Days off are copied too; dates outside an employee's employment are skipped. At most 12 weeks.
+ * Days off are copied too (an approved leave is copied as the shift it replaced); dates outside an employee's employment and days of approved leave are skipped. At most 12 weeks.
  */
 class CopyRosterWeek extends Action
 {
@@ -40,17 +40,19 @@ class CopyRosterWeek extends Action
         $tenantId = $this->tenant->tenantOrFail(self::class)->id;
         $now = now();
         $rows = [];
+        $onLeave = Roster::query()->whereIn('employee_id', $source->pluck('employee_id')->unique()->all())->whereBetween('work_date', [$start->addDays(7)->toDateString(), $start->addWeeks($weeks + 1)->toDateString()])->whereNotNull('leave_request_id')->get()
+            ->mapWithKeys(fn (Roster $roster): array => [$roster->employee_id.'|'.$roster->work_date->toDateString() => true]);
 
         for ($week = 1; $week <= $weeks; $week++) {
             foreach ($source as $entry) {
                 $employee = $employees[$entry->employee_id] ?? null;
                 $date = $entry->work_date->addWeeks($week)->toDateString();
 
-                if ($employee === null || $date < $employee->joined_on->toDateString() || ($employee->exited_on !== null && $date > $employee->exited_on->toDateString())) {
+                if ($employee === null || isset($onLeave[$entry->employee_id.'|'.$date]) || $date < $employee->joined_on->toDateString() || ($employee->exited_on !== null && $date > $employee->exited_on->toDateString())) {
                     continue;
                 }
 
-                $rows[] = ['tenant_id' => $tenantId, 'property_id' => $employee->property_id, 'employee_id' => $employee->id, 'work_date' => $date, 'shift_id' => $entry->shift_id, 'created_at' => $now, 'updated_at' => $now];
+                $rows[] = ['tenant_id' => $tenantId, 'property_id' => $employee->property_id, 'employee_id' => $employee->id, 'work_date' => $date, 'shift_id' => $entry->leave_request_id !== null ? $entry->replaced_shift_id : $entry->shift_id, 'created_at' => $now, 'updated_at' => $now];
             }
         }
 

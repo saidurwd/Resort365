@@ -5,9 +5,11 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Modules\Core\Contracts\ApprovalEngine;
 use Modules\HR\Actions\AssignRoster;
 use Modules\HR\Actions\ConfirmEmployee;
 use Modules\HR\Actions\ExitEmployee;
+use Modules\HR\Actions\GrantLeave;
 use Modules\HR\Actions\ImportAttendance;
 use Modules\HR\Actions\LinkEmployeeUser;
 use Modules\HR\Actions\PromoteEmployee;
@@ -19,14 +21,20 @@ use Modules\HR\Actions\SaveEmployee;
 use Modules\HR\Actions\SaveGrade;
 use Modules\HR\Actions\SaveHoliday;
 use Modules\HR\Actions\SaveShift;
+use Modules\HR\Actions\SeedLeaveTypes;
+use Modules\HR\Actions\SubmitLeaveRequest;
 use Modules\HR\Actions\TransferEmployee;
 use Modules\HR\Enums\AttendanceStatus;
 use Modules\HR\Enums\DisciplinaryAction;
 use Modules\HR\Enums\EmployeeStatus;
 use Modules\HR\Enums\ExitReason;
+use Modules\HR\Exceptions\HrRuleViolated;
 use Modules\HR\Models\Designation;
 use Modules\HR\Models\Employee;
 use Modules\HR\Models\Grade;
+use Modules\HR\Models\LeaveRequest;
+use Modules\HR\Models\LeaveType;
+use Modules\HR\Models\Roster;
 use Modules\HR\Models\Shift;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\Property\Contracts\DepartmentDirectory;
@@ -162,9 +170,9 @@ final class DemoHR
      * go through the real CSV import, with late arrivals, early leavers, overtime, missing punches, night shifts and the
      * staff day, and a few days corrected by hand.
      */
-    public static function attendance(Tenant $tenant, int $propertyId): void
+    public static function attendance(Tenant $tenant, int $propertyId, ?string $domain = null): void
     {
-        app(TenantContext::class)->run($tenant, function () use ($propertyId): void {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId, $domain): void {
             if (Shift::query()->exists() || ! Employee::query()->exists()) {
                 return;
             }
@@ -205,6 +213,9 @@ final class DemoHR
                 app(AssignRoster::class)->handle($ids, $from, $to, null, [(int) $off]);
             }
 
+            self::leave($lastMonth, $domain);
+            $onLeave = Roster::query()->whereNotNull('leave_request_id')->get()->mapWithKeys(fn (Roster $roster): array => [$roster->employee_id.'|'.$roster->work_date->toDateString() => true]);
+
             // Last month's punches, as a biometric export: first and last punch of each rostered day.
             $lines = ['Employee No,Date Time'];
             $end = $lastMonth->endOfMonth();
@@ -217,7 +228,7 @@ final class DemoHR
                     $date = $day->toDateString();
                     $isStaffDay = $date === $staffDay;
 
-                    if ($day->dayOfWeek === $off || $date < $employee->joined_on->toDateString() || ($employee->exited_on !== null && $date > $employee->exited_on->toDateString())) {
+                    if (isset($onLeave[$employee->id.'|'.$date]) || $day->dayOfWeek === $off || $date < $employee->joined_on->toDateString() || ($employee->exited_on !== null && $date > $employee->exited_on->toDateString())) {
                         continue;
                     }
 
@@ -258,6 +269,61 @@ final class DemoHR
                 app(RecordAttendance::class)->handle($manual[2], $day, null, null, AttendanceStatus::Absent, 'No call, no show', null);
             }
         });
+    }
+
+    /**
+     * Leave types, this year's balances and a few requests (Step 6.3), made by the HR manager and approved by the General
+     * Manager like real ones: annual leave and sick leave taken just before today, annual leave next week, a casual leave and a
+     * ten-day annual leave waiting for approval, and a rejected one. Leave in the past is asked for within the 31 days allowed.
+     */
+    private static function leave(CarbonImmutable $lastMonth, ?string $domain): void
+    {
+        app(SeedLeaveTypes::class)->handle();
+        $today = CarbonImmutable::now();
+
+        if ($lastMonth->year < $today->year) {
+            app(GrantLeave::class)->handle($lastMonth->year, CarbonImmutable::create($lastMonth->year, 12, 31));
+        }
+
+        app(GrantLeave::class)->handle($today->year, $today);
+
+        $users = collect(app(UserDirectory::class)->all());
+        $hr = $users->firstWhere('email', 'hr@'.$domain)?->id;
+        $gm = $users->firstWhere('email', 'gm@'.$domain)?->id;
+        $employees = Employee::query()->where('status', '!=', EmployeeStatus::Exited->value)->whereDate('joined_on', '<=', $today->subMonths(13)->toDateString())->orderBy('id')->get()->values();
+
+        if ($domain === null || $hr === null || $gm === null || $employees->count() < 30) {
+            return;
+        }
+
+        $type = fn (string $code): LeaveType => LeaveType::query()->where('code', $code)->firstOrFail();
+        $day = fn (CarbonImmutable $date): string => $date->toDateString();
+        $earliest = $today->subDays(30);
+        $before = $lastMonth->endOfMonth()->subDays(4)->max($earliest);
+        $submit = function (int $who, string $code, CarbonImmutable $from, CarbonImmutable $to, string $reason) use ($employees, $type, $day, $hr): ?LeaveRequest {
+            try {
+                return app(SubmitLeaveRequest::class)->handle($employees[$who], $type($code), $day($from), $day($to), null, $reason, $hr);
+            } catch (HrRuleViolated) {
+                return null; // e.g. a request that crosses into a year with no balance yet
+            }
+        };
+        $engine = app(ApprovalEngine::class);
+
+        foreach ([[5, 'ANN', $before, $before->addDays(2), 'Family wedding'], [9, 'SICK', $before->addDays(1), $before->addDays(2), 'Fever'], [12, 'ANN', $today->addDays(7), $today->addDays(10), 'Visiting family in Sylhet']] as [$who, $code, $from, $to, $reason]) {
+            $leave = $submit($who, $code, $from, $to, $reason);
+
+            if ($leave instanceof LeaveRequest && $leave->approval_request_id !== null) {
+                $engine->approve($leave->approval_request_id, $gm);
+            }
+        }
+
+        $submit(17, 'CAS', $today->addDays(3), $today->addDays(4), 'Personal errand');
+        $submit(21, 'ANN', $today->addDays(30), $today->addDays(39), 'Hajj');
+        $rejected = $submit(26, 'CAS', $today->addDays(2), $today->addDays(3), 'Weekend trip');
+
+        if ($rejected instanceof LeaveRequest && $rejected->approval_request_id !== null) {
+            $engine->reject($rejected->approval_request_id, $gm, 'Fully booked that weekend');
+        }
     }
 
     /**

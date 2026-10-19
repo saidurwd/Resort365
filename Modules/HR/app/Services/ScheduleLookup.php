@@ -5,6 +5,7 @@ namespace Modules\HR\Services;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Modules\HR\Models\Holiday;
+use Modules\HR\Models\LeaveType;
 use Modules\HR\Models\Roster;
 use Modules\HR\Models\Shift;
 
@@ -25,6 +26,25 @@ class ScheduleLookup
 
         foreach (Roster::query()->with('shift')->whereIn('employee_id', $employeeIds)->whereBetween('work_date', [$from, $to])->get() as $row) {
             $map[$row->employee_id][$row->work_date->toDateString()] = $row->shift;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Approved leave on the roster between two dates.
+     *
+     * @param  list<int>  $employeeIds
+     * @return array<int, array<string, LeaveType>> employee id => date => leave type
+     */
+    public function leave(array $employeeIds, string $from, string $to): array
+    {
+        $map = [];
+
+        foreach (Roster::query()->with('leaveRequest.leaveType')->whereIn('employee_id', $employeeIds)->whereBetween('work_date', [$from, $to])->whereNotNull('leave_request_id')->get() as $row) {
+            if ($row->leaveRequest !== null) {
+                $map[$row->employee_id][$row->work_date->toDateString()] = $row->leaveRequest->leaveType;
+            }
         }
 
         return $map;

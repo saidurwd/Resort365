@@ -415,7 +415,7 @@ it('seeds shifts, rosters and a month of imported attendance that shows lateness
 
         expect(Shift::query()->pluck('code')->sort()->values()->all())->toBe(['EVE', 'GEN', 'MOR', 'NGT'])->and(Holiday::query()->count())->toBe(7)->and(Roster::query()->count())->toBeGreaterThan(3000)
             ->and($imported)->toBeGreaterThan(1000)->and(Attendance::query()->where('source', AttendanceSource::Manual->value)->count())->toBe(3)
-            ->and((int) $report['totals'][5])->toBeGreaterThan(20)->and($report['totals'][8])->not->toBe('0:00')->and(Attendance::query()->where('status', AttendanceStatus::Incomplete->value)->exists())->toBeTrue()
+            ->and((int) $report['totals'][6])->toBeGreaterThan(20)->and($report['totals'][9])->not->toBe('0:00')->and(Attendance::query()->where('status', AttendanceStatus::Incomplete->value)->exists())->toBeTrue()
             ->and(Attendance::query()->where('status', AttendanceStatus::Holiday->value)->exists())->toBeTrue()->and(AttendanceImport::query()->count())->toBe(1);
     });
 

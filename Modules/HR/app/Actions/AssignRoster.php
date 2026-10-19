@@ -13,7 +13,7 @@ use Modules\HR\Models\Shift;
 /**
  * Puts employees on a shift (or a day off, with no shift) for a range of dates, optionally only on some weekdays
  * (Step 6.2). An existing roster entry for the same day is replaced. Dates before an employee joined or after they left
- * are skipped. At most 93 days at a time.
+ * are skipped, and so are days of approved leave (cancel the leave to change them). At most 93 days at a time.
  */
 class AssignRoster extends Action
 {
@@ -54,12 +54,14 @@ class AssignRoster extends Action
         $tenantId = $this->tenant->tenantOrFail(self::class)->id;
         $now = now();
         $rows = [];
+        $onLeave = Roster::query()->whereIn('employee_id', $employees->pluck('id'))->whereBetween('work_date', [$from, $to])->whereNotNull('leave_request_id')->get()
+            ->mapWithKeys(fn (Roster $roster): array => [$roster->employee_id.'|'.$roster->work_date->toDateString() => true]);
 
         foreach ($employees as $employee) {
             for ($day = $start; $day->lte($end); $day = $day->addDay()) {
                 $date = $day->toDateString();
 
-                if (($weekdays !== null && ! in_array($day->dayOfWeek, $weekdays, true)) || $date < $employee->joined_on->toDateString() || ($employee->exited_on !== null && $date > $employee->exited_on->toDateString())) {
+                if (isset($onLeave[$employee->id.'|'.$date]) || ($weekdays !== null && ! in_array($day->dayOfWeek, $weekdays, true)) || $date < $employee->joined_on->toDateString() || ($employee->exited_on !== null && $date > $employee->exited_on->toDateString())) {
                     continue;
                 }
 
