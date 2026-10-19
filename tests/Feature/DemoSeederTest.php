@@ -23,6 +23,10 @@ use Modules\Guest\DTOs\GuestSummary;
 use Modules\Guest\Models\Company;
 use Modules\Guest\Models\Guest;
 use Modules\Guest\Models\TravelAgent;
+use Modules\HR\Enums\HistoryEvent;
+use Modules\HR\Models\Designation;
+use Modules\HR\Models\Employee;
+use Modules\HR\Models\EmployeeHistory;
 use Modules\IAM\Models\User;
 use Modules\Inventory\Enums\StockClass;
 use Modules\Inventory\Models\Item;
@@ -370,5 +374,24 @@ it('seeds stock that matches the ledger, with opening balances posted (Step 5.8)
 
         expect(JournalEntry::query()->where('source_type', 'stock_opening')->count())->toBeGreaterThan(0)
             ->and(abs((float) str_replace(',', '', $total[4])))->toBeLessThan(0.1)->and((float) str_replace(',', '', $total[1]))->toBeGreaterThan(0.0);
+    });
+});
+
+it('seeds about 60 employees in a reporting tree with a little history (Step 6.1)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $statuses = Employee::query()->get()->countBy(fn (Employee $employee): string => $employee->status->value);
+        $general = Employee::query()->whereNull('manager_id')->get();
+
+        expect(Employee::query()->count())->toBeBetween(55, 70)->and($statuses['exited'])->toBe(1)->and($statuses['on_probation'])->toBe(1)
+            ->and(Employee::query()->distinct()->count('department_id'))->toBe(11)->and($general)->toHaveCount(1)->and($general->first()->designation->name)->toBe('General Manager')
+            ->and(Employee::query()->whereNotNull('user_id')->count())->toBe(16)->and(Employee::query()->where('user_id', User::query()->where('email', 'hr@rodelaresort.com')->value('id'))->sole()->designation->name)->toBe('HR Manager')
+            ->and(EmployeeHistory::query()->pluck('event')->unique()->map(fn (HistoryEvent $event): string => $event->value)->sort()->values()->all())->toBe(['confirmation', 'disciplinary', 'exit', 'increment', 'joined', 'promotion', 'transfer'])
+            ->and(Employee::query()->whereNotNull('national_id_hash')->count())->toBe(Employee::query()->count());
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
+        expect(Employee::query()->count())->toBeBetween(5, 12)->and(Designation::query()->count())->toBeGreaterThan(3);
     });
 });

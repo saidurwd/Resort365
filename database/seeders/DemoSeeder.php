@@ -158,6 +158,10 @@ class DemoSeeder extends Seeder
         // Step 5.7: recipes, the stock the demo sales used, and wastage.
         DemoRecipes::seed($rodela, $resort);
 
+        // Step 6.1: designations, grades and about 60 employees.
+        DemoHR::seed($rodela, $resort, self::DOMAINS['rodela']);
+        DemoHR::seed($greenValley, $valley, 'greenvalley.test', full: false);
+
         // Step 4.1: chart of accounts, fiscal year and journals.
         DemoAccounting::seed($rodela, $resort);
         DemoAccounting::seed($greenValley, $valley);

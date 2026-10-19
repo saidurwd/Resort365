@@ -74,7 +74,9 @@ it('downloads a report as CSV, refuses unknown reports and keeps them to people 
 
     $csv = get(tenantUrl('sunrise', '/procurement/reports/open-orders?export=csv'));
     $csv->assertOk()->assertHeader('content-type', 'text/csv; charset=UTF-8');
-    expect($csv->streamedContent())->toContain('Fresh Farm')->not->toContain('<');
+    $content = $csv->streamedContent();
+    expect($content)->toContain('Fresh Farm');
+    expect($content)->not->toContain('<');
     get(tenantUrl('sunrise', '/procurement/reports/nonsense'))->assertNotFound();
 
     staffUser(DefaultRole::FrontDeskAgent);

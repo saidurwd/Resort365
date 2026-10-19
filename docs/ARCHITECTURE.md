@@ -826,6 +826,7 @@ flowchart LR
 - **Leave:** leave types (annual, sick, casual, unpaid, maternity), yearly entitlements, accrual, carry-forward, request → approval, balances, holiday calendar per property.
 - Lifecycle events: confirmation, transfer between properties, promotion, increment, disciplinary record, resignation/termination, final settlement.
 - Staff accommodation and meals (common in resorts), optional.
+- *Implemented in Step 6.1 (HR module, sidebar HR → Employees, Setup → Designations and Grades): `designations` (optionally tied to a department) and `grades` (code and level) are tenant-wide; `employees` are property-level (one property, moved by a transfer) with an `EMP-0001` number, encrypted `national_id`, `passport_no` and `bank_account_no` (a keyed hash of the national ID finds duplicates), a reporting manager, employment type, probation end, status (on probation, active, exited) and an optional linked IAM user. Departments stay in Property. **Deviation (R13):** documents (contract, certificates) and the photo are attachments of the employee, so there is no `employee_documents` table. Lifecycle events (joined, confirmation, transfer, promotion, increment, disciplinary, exit) change the employee and write an append-only `employee_histories` row with the before and after values; an increment is a record only until Payroll holds salaries (Step 6.4). Shifts, rosters, attendance, leave and accommodation come in 6.2 and 6.3.*
 
 ### 5.16 Payroll
 
@@ -1373,7 +1374,7 @@ Unique: `(outlet_id, bill_no)`
 | Inventory | `item_categories`, `units`, `items`, `item_unit_conversions`, `stores`, `stock_balances`, `stock_movements`, `stock_requisitions`(+lines), `stock_issues`(+lines), `stock_transfers`(+lines), `stock_counts`(+lines), `item_batches` |
 | Procurement | `vendors`, `vendor_contacts`, `vendor_items`, `purchase_requisitions`(+lines), `rfqs`, `rfq_vendors`, `vendor_quotations`(+lines), `purchase_orders`(+lines), `goods_receipts`(+lines), `vendor_bills`(+lines), `vendor_payments`, `vendor_payment_allocations`, `purchase_returns`(+lines) |
 | Accounting | `accounts`, `fiscal_years`, `fiscal_periods`, `journal_entries`, `journal_lines`, `account_mappings`, `bank_accounts`, `bank_statements`, `bank_statement_lines`, `reconciliations`, `income_vouchers`, `expense_vouchers`, `budgets`, `budget_lines` |
-| HR | `designations`, `grades`, `employees`, `employee_documents`, `employee_histories`, `shifts`, `rosters`, `attendances`, `holidays`, `leave_types`, `leave_policies`, `leave_balances`, `leave_requests` |
+| HR | `designations`, `grades`, `employees`, `employee_histories` (documents are attachments), `shifts`, `rosters`, `attendances`, `holidays`, `leave_types`, `leave_policies`, `leave_balances`, `leave_requests` |
 | Payroll | `salary_components`, `salary_structures`, `salary_structure_components`, `employee_salaries`, `payroll_runs`, `payslips`, `payslip_lines`, `loans`, `loan_installments`, `service_charge_pools`, `service_charge_allocations`, `tax_slabs` |
 
 ---

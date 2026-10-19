@@ -1,0 +1,24 @@
+{
+    "name": "resort365/hr",
+    "description": "Resort365 HR module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\HR\\": "app/",
+            "Modules\\HR\\Database\\Factories\\": "database/factories/",
+            "Modules\\HR\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\HR\\Tests\\": "tests/"
+        }
+    }
+}
