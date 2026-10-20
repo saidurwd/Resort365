@@ -9,6 +9,7 @@ use Modules\HR\Http\Controllers\EmployeeController;
 use Modules\HR\Http\Controllers\EmployeeLifecycleController;
 use Modules\HR\Http\Controllers\GradeController;
 use Modules\HR\Http\Controllers\HolidayController;
+use Modules\HR\Http\Controllers\HrReportController;
 use Modules\HR\Http\Controllers\LeaveBalanceController;
 use Modules\HR\Http\Controllers\LeaveCalendarController;
 use Modules\HR\Http\Controllers\LeaveRequestController;
@@ -75,6 +76,12 @@ Route::prefix('hr')->name('hr.')->middleware(['auth', 'verified'])->group(functi
     Route::middleware('can:hr.attendance.view')->group(function (): void {
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('/attendance/report', [AttendanceReportController::class, 'show'])->name('attendance.report');
+    });
+    Route::middleware('can:hr.report.view')->prefix('reports')->name('reports.')->group(function (): void {
+        Route::get('/', [HrReportController::class, 'index'])->name('index');
+        Route::get('/headcount', [HrReportController::class, 'headcount'])->name('headcount');
+        Route::get('/attendance-summary', [HrReportController::class, 'attendance'])->name('attendance');
+        Route::get('/leave-balances', [HrReportController::class, 'leave'])->name('leave');
     });
     Route::resource('leave-types', LeaveTypeController::class)->only($write)->middleware('can:hr.leave-type.manage');
     Route::get('/leave-types', [LeaveTypeController::class, 'index'])->middleware('can:hr.leave.view')->name('leave-types.index');

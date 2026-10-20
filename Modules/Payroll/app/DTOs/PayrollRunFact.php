@@ -7,7 +7,8 @@ use App\Support\DTOs\Data;
 /**
  * An approved payroll run as Accounting books it (Step 6.5). The expense is the pay the run cost, by department (net pay + tax
  * + provident fund + loan recoveries, so deductions that cut the cost, like absence, are already out); the employer's
- * provident fund and other costs are on top. Amounts are decimal strings.
+ * provident fund and other costs are on top. The shares of the service charge and tips pools paid in the run are not a cost:
+ * they clear the liabilities Accounting holds for them (Step 6.6), and are left out of the expense. Amounts are decimal strings.
  */
 final readonly class PayrollRunFact extends Data
 {
@@ -26,5 +27,7 @@ final readonly class PayrollRunFact extends Data
         public string $tax,
         public string $employeeProvidentFund,
         public string $loanRecovery,
+        public string $serviceChargeShare = '0.00',
+        public string $tipsShare = '0.00',
     ) {}
 }

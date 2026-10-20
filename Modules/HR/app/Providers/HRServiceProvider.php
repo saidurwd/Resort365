@@ -142,6 +142,7 @@ class HRServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('hr.leave.approve', 'Approve leave requests', $managers),
             new PermissionDefinition('hr.leave.approve-long', 'Approve long leave (ten days or more)', [DefaultRole::GeneralManager]),
             new PermissionDefinition('hr.leave-type.manage', 'Change leave types and policies', $managers),
+            new PermissionDefinition('hr.report.view', 'View the HR reports (headcount, attendance summary, leave balances)', $managers),
         ]);
     }
 
@@ -164,6 +165,8 @@ class HRServiceProvider extends ModuleServiceProvider
             permission: 'hr.leave.view', module: 'hr', active: 'hr.leave.balances*'));
         $menu->add(new MenuItem('hr.my-leave', 'My leave', route: 'hr.leave.mine', parent: 'hr', order: 66,
             permission: 'hr.leave.request', module: 'hr', active: 'hr.leave.mine'));
+        $menu->add(new MenuItem('hr.reports', 'Reports', route: 'hr.reports.index', parent: 'hr', order: 70,
+            permission: 'hr.report.view', module: 'hr', active: 'hr.reports.*'));
         $menu->add(new MenuItem('hr.holidays', 'Holidays', route: 'hr.holidays.index', parent: 'hr', order: 50,
             permission: 'hr.holiday.view', module: 'hr', active: 'hr.holidays.*'));
 

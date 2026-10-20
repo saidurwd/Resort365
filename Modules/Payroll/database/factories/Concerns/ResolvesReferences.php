@@ -34,6 +34,12 @@ trait ResolvesReferences
         return is_numeric($existing) ? (int) $existing : $this->insertEmployee($tenantId);
     }
 
+    /** A new employee every time, for records that may hold one employee only once. */
+    protected function newEmployeeId(): int
+    {
+        return $this->insertEmployee(app(TenantContext::class)->tenantOrFail(static::class)->id);
+    }
+
     private function insertProperty(int $tenantId): int
     {
         $now = now();

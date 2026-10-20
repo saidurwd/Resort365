@@ -42,21 +42,6 @@ beforeEach(function (): void {
     prPrepare();
 });
 
-function prSlip(PayrollRun $run, string $no): Payslip
-{
-    return booking(fn (): Payslip => Payslip::query()->with('lines')->where('payroll_run_id', $run->id)->where('employee_no', $no)->firstOrFail());
-}
-
-/**
- * A payslip's line amounts by code.
- *
- * @return array<string, string>
- */
-function prLines(Payslip $slip): array
-{
-    return $slip->lines->mapWithKeys(fn (PayslipLine $line): array => [$line->code => (string) $line->amount])->all();
-}
-
 it('opens a run for a property and month, numbered, once, and not for a month that has not begun', function (): void {
     $run = prRun('2026-03', calculate: false);
 

@@ -205,6 +205,8 @@ class PostingService
      * An approved payroll run (Step 6.5): Dr salaries and wages by department (what the pay cost) and the employer's provident
      * fund and other benefits / Cr salaries payable (net pay), income tax withheld, provident fund (both shares), the gratuity
      * provision and employee loans receivable (what was recovered). Dated the last day of the pay month.
+     * The shares of the service charge and tips pools paid in the run (Step 6.6) are not a cost: they debit Service charge
+     * payable and Tips payable, which clears the liabilities collected for staff.
      */
     public function payrollApproved(int $runId): ?JournalEntry
     {
@@ -227,6 +229,8 @@ class PostingService
         $lines[] = $this->line($this->accounts->fixed(PostingKey::PfPayable), '-'.BigDecimal::of($run->employeeProvidentFund)->plus($run->employerProvidentFund)->toScale(2), $run->propertyId);
         $lines[] = $this->line($this->accounts->fixed(PostingKey::GratuityPayable), '-'.$run->employerOther, $run->propertyId);
         $lines[] = $this->line($this->accounts->fixed(PostingKey::LoanReceivable), '-'.$run->loanRecovery, $run->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::ServiceChargePayable), $run->serviceChargeShare, $run->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::TipsPayable), $run->tipsShare, $run->propertyId);
 
         return $this->record('payroll_run', $runId, 'approved', $run->propertyId, $run->date, __('Payroll :no', ['no' => $run->runNo]), $run->runNo, $lines);
     }

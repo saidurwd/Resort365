@@ -46,6 +46,8 @@ use Modules\Payroll\Enums\LoanKind;
 use Modules\Payroll\Enums\PayMethod;
 use Modules\Payroll\Models\Loan;
 use Modules\Payroll\Models\PayrollRun;
+use Modules\Payroll\Models\Payslip;
+use Modules\Payroll\Models\PayslipLine;
 
 /** Starter pack and the approval workflows (the payroll_run workflow among them). */
 function prPrepare(): void
@@ -111,4 +113,43 @@ function prApprove(PayrollRun $run): PayrollRun
 function prLoan(Employee $employee, string $principal = '6000', int $installments = 3, LoanKind $kind = LoanKind::Loan, string $firstMonth = '2026-03-01', string $disbursed = '2026-02-20'): Loan
 {
     return booking(fn (): Loan => app(CreateLoan::class)->handle($employee->id, $kind, $principal, $installments, $firstMonth, $disbursed, PayMethod::Cash, 'Medical', 1));
+}
+
+use Modules\Payroll\Contracts\PoolCollections;
+use Modules\Payroll\Enums\PoolKind;
+
+/**
+ * Makes the ledger report what was collected for staff, by pool kind ("service_charge", "tips"), for the tests that do not post a ledger.
+ *
+ * @param  array<string, string>  $amounts
+ */
+function prCollect(array $amounts): void
+{
+    app()->instance(PoolCollections::class, new readonly class($amounts) implements PoolCollections
+    {
+        /**
+         * @param  array<string, string>  $amounts
+         */
+        public function __construct(private array $amounts) {}
+
+        public function collected(int $propertyId, string $from, string $to, PoolKind $kind): string
+        {
+            return $this->amounts[$kind->value] ?? '0.00';
+        }
+    });
+}
+
+function prSlip(PayrollRun $run, string $no): Payslip
+{
+    return booking(fn (): Payslip => Payslip::query()->with('lines')->where('payroll_run_id', $run->id)->where('employee_no', $no)->firstOrFail());
+}
+
+/**
+ * A payslip's line amounts by code.
+ *
+ * @return array<string, string>
+ */
+function prLines(Payslip $slip): array
+{
+    return $slip->lines->mapWithKeys(fn (PayslipLine $line): array => [$line->code => (string) $line->amount])->all();
 }

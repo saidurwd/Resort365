@@ -24,8 +24,10 @@ use Modules\Payroll\Models\PayrollRun;
 use Modules\Payroll\Models\Payslip;
 use Modules\Payroll\Models\PayslipLine;
 use Modules\Payroll\Models\TaxTable;
+use Modules\Payroll\Services\Calculation\EmployedDays;
 use Modules\Payroll\Services\Calculation\PayslipBuilder;
 use Modules\Payroll\Services\PayrollSettings;
+use Modules\Payroll\Services\PoolShares;
 use Modules\Payroll\Services\RunTotals;
 use Modules\Payroll\Services\SalaryPreview;
 use Modules\Payroll\Services\StructureLoader;
@@ -37,7 +39,8 @@ use Modules\Property\Contracts\PropertyDirectory;
  * Calculates a payroll run (Step 6.5): a payslip for every employee who worked at the property that month and has a salary,
  * from their salary structure, the month's attendance (overtime, absence, unpaid leave), the loan and advance installments
  * due, the part of the month they worked, and the annual components the run includes. Calculating again replaces the
- * payslips (adjustments included), until the run goes for approval. Employees with no salary are listed as warnings.
+ * payslips (adjustments included), until the run goes for approval. Employees with no salary are listed as warnings. The shares
+ * of the service charge and tips pools finalised for the month are added as earnings (Step 6.6).
  */
 class CalculatePayroll extends Action
 {
@@ -51,6 +54,7 @@ class CalculatePayroll extends Action
         private readonly RunTotals $totals,
         private readonly DepartmentDirectory $departments,
         private readonly PropertyDirectory $properties,
+        private readonly PoolShares $pools,
     ) {}
 
     /**
@@ -73,8 +77,10 @@ class CalculatePayroll extends Action
         $table = $this->taxTables->forDate($end->toDateString());
         $tax = $table instanceof TaxTable ? $this->taxTables->data($table) : null;
         $due = $this->dueInstallments(array_map(fn (PayrollEmployee $employee): int => $employee->id, $employees), $start);
+        $pools = $this->pools->forRun($run);
 
-        return $this->transaction(function () use ($run, $start, $end, $employees, $attendance, $rules, $names, $tax, $due): PayrollRun {
+        return $this->transaction(function () use ($run, $start, $end, $employees, $attendance, $rules, $names, $tax, $due, $pools): PayrollRun {
+            $this->pools->unlink($pools['pools']);
             PayslipLine::query()->whereIn('payslip_id', Payslip::query()->where('payroll_run_id', $run->id)->pluck('id'))->delete();
             Payslip::query()->where('payroll_run_id', $run->id)->delete();
             $warnings = [];
@@ -89,8 +95,14 @@ class CalculatePayroll extends Action
                     continue;
                 }
 
-                $data = $this->builder->build($this->input($salary, $employee, $attendance[$employee->id] ?? new AttendanceFacts(0, '0.0', '0.0', 0), $due[$employee->id] ?? ['loan' => '0', 'advance' => '0', 'ids' => []], $run, $start, $end, $tax, $rules));
-                $this->store($run, $salary, $employee, $names[$employee->departmentId] ?? null, $data, $attendance[$employee->id] ?? null, $start, $end, $due[$employee->id]['ids'] ?? []);
+                $share = $pools['shares'][$employee->id] ?? ['service' => '0', 'tips' => '0'];
+                $data = $this->builder->build($this->input($salary, $employee, $attendance[$employee->id] ?? new AttendanceFacts(0, '0.0', '0.0', 0), $due[$employee->id] ?? ['loan' => '0', 'advance' => '0', 'ids' => []], $run, $start, $end, $tax, $rules, $share));
+                $slip = $this->store($run, $salary, $employee, $names[$employee->departmentId] ?? null, $data, $attendance[$employee->id] ?? null, $start, $end, $due[$employee->id]['ids'] ?? []);
+                $this->pools->link($pools['pools'], $employee->id, $slip->id);
+            }
+
+            foreach ($this->pools->unpaid($pools['pools']) as $name) {
+                $warnings[] = __(':name has a share of the service charge or tips but no payslip, so it is not paid.', ['name' => $name]);
             }
 
             $run->forceFill(['status' => RunStatus::Calculated, 'calculated_at' => now(), 'warnings' => $warnings === [] ? null : $warnings])->save();
@@ -101,21 +113,22 @@ class CalculatePayroll extends Action
 
     /**
      * @param  array{loan: string, advance: string, ids: list<int>}  $due
+     * @param  array{service: string, tips: string}  $share
      */
-    private function input(EmployeeSalary $salary, PayrollEmployee $employee, AttendanceFacts $facts, array $due, PayrollRun $run, CarbonImmutable $start, CarbonImmutable $end, ?TaxTableData $tax, PayrollRules $rules): PayslipInput
+    private function input(EmployeeSalary $salary, PayrollEmployee $employee, AttendanceFacts $facts, array $due, PayrollRun $run, CarbonImmutable $start, CarbonImmutable $end, ?TaxTableData $tax, PayrollRules $rules, array $share): PayslipInput
     {
         $employed = $this->employedDays($employee, $start, $end);
 
         return new PayslipInput(
             $this->structures->lines($salary->structure), (string) $salary->basic, $tax, $salary->tax_category, $salary->tax_area, $salary->amounts ?? [], $run->include_annual ?? [],
-            (string) BigDecimal::of($employed)->dividedBy($start->daysInMonth, 4, RoundingMode::HalfUp), $facts->absentDays, $facts->unpaidLeaveDays, $facts->overtimeMinutes, $due['loan'], $due['advance'], $rules,
+            (string) BigDecimal::of($employed)->dividedBy($start->daysInMonth, 4, RoundingMode::HalfUp), $facts->absentDays, $facts->unpaidLeaveDays, $facts->overtimeMinutes, $due['loan'], $due['advance'], $rules, $share['service'], $share['tips'],
         );
     }
 
     /**
      * @param  list<int>  $installmentIds
      */
-    private function store(PayrollRun $run, EmployeeSalary $salary, PayrollEmployee $employee, ?string $department, PayslipData $data, ?AttendanceFacts $facts, CarbonImmutable $start, CarbonImmutable $end, array $installmentIds): void
+    private function store(PayrollRun $run, EmployeeSalary $salary, PayrollEmployee $employee, ?string $department, PayslipData $data, ?AttendanceFacts $facts, CarbonImmutable $start, CarbonImmutable $end, array $installmentIds): Payslip
     {
         $employed = $this->employedDays($employee, $start, $end);
         $slip = Payslip::query()->create([
@@ -132,15 +145,14 @@ class CalculatePayroll extends Action
         }
 
         $slip->lines()->create(['code' => 'TAX', 'name' => __('Income tax'), 'kind' => 'deduction', 'is_taxable' => false, 'amount' => $data->tax, 'source' => 'structure', 'sort_order' => 990]);
+
+        return $slip;
     }
 
     /** The days of the month the employee was employed (joined or left part-way through). */
     private function employedDays(PayrollEmployee $employee, CarbonImmutable $start, CarbonImmutable $end): int
     {
-        $from = max($employee->joinedOn, $start->toDateString());
-        $to = $employee->exitedOn !== null && $employee->exitedOn < $end->toDateString() ? $employee->exitedOn : $end->toDateString();
-
-        return max(0, (int) CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) + 1);
+        return EmployedDays::count($employee->joinedOn, $employee->exitedOn, $start, $end);
     }
 
     /**

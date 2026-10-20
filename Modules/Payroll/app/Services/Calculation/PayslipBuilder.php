@@ -19,6 +19,7 @@ use Modules\Payroll\Exceptions\PayrollRuleViolated;
  *
  * Starts from the salary structure (`SalaryCalculator`), adding what the month brought:
  * - overtime: hours × (basic ÷ hours a month) × the multiplier. It is taxable, so the withheld tax follows it;
+ * - the month's share of the service charge and tips pools (Step 6.6), as taxable earnings like overtime;
  * - the loan and advance installments due, as deductions;
  * - the annual components chosen for this run (festival bonuses), paid once in full. The yearly tax already counts them,
  *   so paying one adds no tax;
@@ -27,7 +28,7 @@ use Modules\Payroll\Exceptions\PayrollRuleViolated;
  */
 final readonly class PayslipBuilder
 {
-    private const array VARIABLE = ['OT', 'LOAN', 'ADVANCE', 'ABSENCE'];
+    private const array VARIABLE = ['OT', 'SCSHARE', 'TIPSHARE', 'LOAN', 'ADVANCE', 'ABSENCE'];
 
     public function __construct(private SalaryCalculator $calculator = new SalaryCalculator) {}
 
@@ -40,7 +41,7 @@ final readonly class PayslipBuilder
         $lines = $input->lines;
         $overtime = $this->overtime($input);
 
-        foreach ([['OT', 'Overtime', ComponentKind::Earning, true, $overtime], ['LOAN', 'Loan instalment', ComponentKind::Deduction, false, $input->loanDue], ['ADVANCE', 'Salary advance', ComponentKind::Deduction, false, $input->advanceDue]] as [$code, $name, $kind, $taxable, $amount]) {
+        foreach ([['OT', 'Overtime', ComponentKind::Earning, true, $overtime], ['SCSHARE', 'Service charge share', ComponentKind::Earning, true, $input->serviceShare], ['TIPSHARE', 'Tips share', ComponentKind::Earning, true, $input->tipsShare], ['LOAN', 'Loan instalment', ComponentKind::Deduction, false, $input->loanDue], ['ADVANCE', 'Salary advance', ComponentKind::Deduction, false, $input->advanceDue]] as [$code, $name, $kind, $taxable, $amount]) {
             if (BigDecimal::of($amount)->isPositive() && ! in_array($code, $has, true)) {
                 $lines[] = new StructureLine($code, $name, $kind, $taxable, ComponentFrequency::Monthly, 1, CalcType::Fixed, $amount);
             }

@@ -49,7 +49,7 @@ it('gives a tenant the Bangladesh starter pack, once', function (): void {
     $structure = booking(fn (): SalaryStructure => SalaryStructure::query()->with('lines.component')->where('code', 'STD')->firstOrFail());
     $table = booking(fn (): TaxTable => TaxTable::query()->with('slabs')->sole());
 
-    expect(array_keys($components))->toBe(['BASIC', 'HRENT', 'MEDICAL', 'CONV', 'FBONUS', 'OT', 'SCSHARE', 'PF_EMP', 'TAX', 'LOAN', 'ADVANCE', 'ABSENCE', 'PF_ER', 'GRAT'])
+    expect(array_keys($components))->toBe(['BASIC', 'HRENT', 'MEDICAL', 'CONV', 'FBONUS', 'OT', 'SCSHARE', 'TIPSHARE', 'PF_EMP', 'TAX', 'LOAN', 'ADVANCE', 'ABSENCE', 'PF_ER', 'GRAT'])
         ->and(pyComponent('FBONUS')->frequency)->toBe(ComponentFrequency::Annual)->and(pyComponent('FBONUS')->annual_times)->toBe(2)->and(pyComponent('TAX')->is_system)->toBeTrue()
         ->and($structure->lines->pluck('component.code')->all())->toBe(['BASIC', 'HRENT', 'MEDICAL', 'CONV', 'FBONUS', 'PF_EMP', 'TAX', 'PF_ER', 'GRAT'])
         ->and($table->tax_year)->toBe('2025-26')->and($table->slabs->pluck('rate')->map(fn ($rate): string => (string) $rate)->all())->toBe(['5.00', '10.00', '15.00', '20.00', '25.00'])->and($table->slabs->last()->width)->toBeNull()
@@ -58,7 +58,7 @@ it('gives a tenant the Bangladesh starter pack, once', function (): void {
 
     $other = Tenant::factory()->create(['slug' => 'other']);
     app(SeedPayrollForNewTenant::class)->handle(new TenantCreated($other));
-    expect(app(TenantContext::class)->run($other, fn (): int => SalaryComponent::query()->count()))->toBe(14);
+    expect(app(TenantContext::class)->run($other, fn (): int => SalaryComponent::query()->count()))->toBe(15);
 });
 
 it('saves a component, refusing a bad or duplicate code and a change to a system component\'s code', function (): void {

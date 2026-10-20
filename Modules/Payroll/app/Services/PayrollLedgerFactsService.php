@@ -28,15 +28,19 @@ class PayrollLedgerFactsService implements PayrollLedgerFacts
         }
 
         $byDepartment = [];
-        $sum = ['pfEmployee' => BigDecimal::zero(), 'pfEmployer' => BigDecimal::zero(), 'other' => BigDecimal::zero(), 'loans' => BigDecimal::zero(), 'tax' => BigDecimal::zero(), 'net' => BigDecimal::zero()];
+        $sum = ['pfEmployee' => BigDecimal::zero(), 'pfEmployer' => BigDecimal::zero(), 'other' => BigDecimal::zero(), 'loans' => BigDecimal::zero(), 'tax' => BigDecimal::zero(), 'net' => BigDecimal::zero(), 'service' => BigDecimal::zero(), 'tips' => BigDecimal::zero()];
 
         foreach ($run->payslips as $slip) {
             $amounts = $slip->lines->groupBy('code')->map(fn ($lines) => $lines->reduce(fn (BigDecimal $carry, $line): BigDecimal => $carry->plus((string) $line->amount), BigDecimal::zero()));
             $loans = ($amounts['LOAN'] ?? BigDecimal::zero())->plus($amounts['ADVANCE'] ?? BigDecimal::zero());
             $pfEmployee = $amounts['PF_EMP'] ?? BigDecimal::zero();
             $employerOther = $slip->lines->filter(fn ($line): bool => $line->kind === ComponentKind::Employer && $line->code !== 'PF_ER')->reduce(fn (BigDecimal $carry, $line): BigDecimal => $carry->plus((string) $line->amount), BigDecimal::zero());
+            $service = $amounts['SCSHARE'] ?? BigDecimal::zero();
+            $tips = $amounts['TIPSHARE'] ?? BigDecimal::zero();
             $key = (string) ($slip->department_id ?? 0);
-            $byDepartment[$key] = ($byDepartment[$key] ?? BigDecimal::zero())->plus((string) $slip->net)->plus((string) $slip->tax)->plus($pfEmployee)->plus($loans);
+            $byDepartment[$key] = ($byDepartment[$key] ?? BigDecimal::zero())->plus((string) $slip->net)->plus((string) $slip->tax)->plus($pfEmployee)->plus($loans)->minus($service)->minus($tips);
+            $sum['service'] = $sum['service']->plus($service);
+            $sum['tips'] = $sum['tips']->plus($tips);
             $sum['pfEmployee'] = $sum['pfEmployee']->plus($pfEmployee);
             $sum['pfEmployer'] = $sum['pfEmployer']->plus($amounts['PF_ER'] ?? BigDecimal::zero());
             $sum['other'] = $sum['other']->plus($employerOther);
@@ -53,7 +57,7 @@ class PayrollLedgerFactsService implements PayrollLedgerFacts
 
         return new PayrollRunFact(
             $run->id, $run->run_no, $run->property_id, $run->period->endOfMonth()->toDateString(), $expense, (string) $sum['pfEmployer']->toScale(2), (string) $sum['other']->toScale(2), (string) $sum['net']->toScale(2),
-            (string) $sum['tax']->toScale(2), (string) $sum['pfEmployee']->toScale(2), (string) $sum['loans']->toScale(2),
+            (string) $sum['tax']->toScale(2), (string) $sum['pfEmployee']->toScale(2), (string) $sum['loans']->toScale(2), (string) $sum['service']->toScale(2), (string) $sum['tips']->toScale(2),
         );
     }
 

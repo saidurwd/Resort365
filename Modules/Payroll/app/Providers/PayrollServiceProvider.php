@@ -19,12 +19,14 @@ use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
 use Modules\Payroll\Console\SeedBangladeshCommand;
 use Modules\Payroll\Contracts\PayrollLedgerFacts;
+use Modules\Payroll\Contracts\PoolCollections;
 use Modules\Payroll\Models\EmployeeSalary;
 use Modules\Payroll\Models\Loan;
 use Modules\Payroll\Models\PayrollRun;
 use Modules\Payroll\Models\Payslip;
 use Modules\Payroll\Models\SalaryComponent;
 use Modules\Payroll\Models\SalaryStructure;
+use Modules\Payroll\Models\ServiceChargePool;
 use Modules\Payroll\Models\TaxTable;
 use Modules\Payroll\Policies\EmployeeSalaryPolicy;
 use Modules\Payroll\Policies\LoanPolicy;
@@ -32,7 +34,9 @@ use Modules\Payroll\Policies\PayrollRunPolicy;
 use Modules\Payroll\Policies\PayslipPolicy;
 use Modules\Payroll\Policies\SalaryComponentPolicy;
 use Modules\Payroll\Policies\SalaryStructurePolicy;
+use Modules\Payroll\Policies\ServiceChargePoolPolicy;
 use Modules\Payroll\Policies\TaxTablePolicy;
+use Modules\Payroll\Services\NoPoolCollections;
 use Modules\Payroll\Services\PayrollApprovalHandler;
 use Modules\Payroll\Services\PayrollLedgerFactsService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -73,6 +77,8 @@ class PayrollServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->singleton(PayrollLedgerFacts::class, PayrollLedgerFactsService::class);
+        // Accounting reads what was collected from the ledger; without it nothing is (Step 6.6).
+        $this->app->singletonIf(PoolCollections::class, NoPoolCollections::class);
     }
 
     public function boot(): void
@@ -86,6 +92,7 @@ class PayrollServiceProvider extends ModuleServiceProvider
         Gate::policy(PayrollRun::class, PayrollRunPolicy::class);
         Gate::policy(Payslip::class, PayslipPolicy::class);
         Gate::policy(Loan::class, LoanPolicy::class);
+        Gate::policy(ServiceChargePool::class, ServiceChargePoolPolicy::class);
 
         $numbers = $this->app->make(DocumentNumbers::class);
         $numbers->register(new DocumentType('payroll_run', 'Payroll run', 'PRUN'));
@@ -99,6 +106,10 @@ class PayrollServiceProvider extends ModuleServiceProvider
         $settings->define(new SettingDefinition('payroll.overtime_multiplier', 'Overtime pay multiplier', SettingType::Decimal, '2', SettingScope::Property, 'Payroll', help: 'Overtime is paid at this many times the hourly basic rate (the Labour Act says twice).'));
         $settings->define(new SettingDefinition('payroll.overtime_hours_per_month', 'Working hours in a month', SettingType::Decimal, '208', SettingScope::Property, 'Payroll', help: 'The basic salary is divided by this to get the hourly rate.'));
         $settings->define(new SettingDefinition('payroll.salary_days_basis', 'Days a monthly salary is divided by', SettingType::Integer, 30, SettingScope::Property, 'Payroll', help: 'A day of absence or unpaid leave costs the regular gross divided by this.'));
+
+        $settings->define(new SettingDefinition('payroll.service_charge_staff_percent', 'Share of the service charge for staff (%)', SettingType::Decimal, '100', SettingScope::Property, 'Payroll', help: 'The part of the service charge collected in a month that is shared with staff through payroll.'));
+        $settings->define(new SettingDefinition('payroll.tips_staff_percent', 'Share of the tips for staff (%)', SettingType::Decimal, '100', SettingScope::Property, 'Payroll', help: 'The part of the tips collected in a month that is shared with staff through payroll.'));
+        $settings->define(new SettingDefinition('payroll.pool_rule', 'How service charge and tips are shared', SettingType::Select, 'points', SettingScope::Property, 'Payroll', help: 'The usual rule when a pool is worked out: equal shares, by points or by days worked.', options: ['equal' => 'Equal shares', 'points' => 'By points', 'days_worked' => 'By days worked']));
 
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));
@@ -126,6 +137,9 @@ class PayrollServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('payroll.payslip.view', 'View and download payslips', [...$payroll, DefaultRole::Accountant]),
             new PermissionDefinition('payroll.payslip.email', 'Email payslips to employees', $payroll),
             new PermissionDefinition('payroll.loan.view', 'View loans and salary advances', [...$payroll, DefaultRole::HrManager, DefaultRole::Accountant]),
+            new PermissionDefinition('payroll.pool.view', 'View service charge and tips pools and who shares', [...$payroll, DefaultRole::HrManager, DefaultRole::Accountant]),
+            new PermissionDefinition('payroll.pool.manage', 'Work out pools, send them to payroll and set who shares', $payroll),
+            new PermissionDefinition('payroll.report.view', 'View the payroll reports', [...$payroll, DefaultRole::HrManager, DefaultRole::Accountant]),
             new PermissionDefinition('payroll.loan.manage', 'Give loans and advances, move and write off installments', $payroll),
         ]);
     }
@@ -137,6 +151,10 @@ class PayrollServiceProvider extends ModuleServiceProvider
             permission: 'payroll.run.view', module: 'payroll', active: ['payroll.runs.*', 'payroll.payslips.*']));
         $menu->add(new MenuItem('payroll.loans', 'Loans and advances', route: 'payroll.loans.index', parent: 'payroll', order: 15,
             permission: 'payroll.loan.view', module: 'payroll', active: 'payroll.loans.*'));
+        $menu->add(new MenuItem('payroll.pools', 'Service charge and tips', route: 'payroll.pools.index', parent: 'payroll', order: 17,
+            permission: 'payroll.pool.view', module: 'payroll', active: 'payroll.pools.*'));
+        $menu->add(new MenuItem('payroll.reports', 'Reports', route: 'payroll.reports.index', parent: 'payroll', order: 50,
+            permission: 'payroll.report.view', module: 'payroll', active: 'payroll.reports.*'));
         $menu->add(new MenuItem('payroll.salaries', 'Salaries', route: 'payroll.salaries.index', parent: 'payroll', order: 10,
             permission: 'payroll.salary.view', module: 'payroll', active: 'payroll.salaries.*'));
         $menu->add(new MenuItem('payroll.structures', 'Salary structures', route: 'payroll.structures.index', parent: 'payroll', order: 20,

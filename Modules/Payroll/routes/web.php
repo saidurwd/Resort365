@@ -3,8 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Payroll\Http\Controllers\EmployeeSalaryController;
 use Modules\Payroll\Http\Controllers\LoanController;
+use Modules\Payroll\Http\Controllers\PayrollReportController;
 use Modules\Payroll\Http\Controllers\PayrollRunController;
 use Modules\Payroll\Http\Controllers\PayslipController;
+use Modules\Payroll\Http\Controllers\PoolController;
 use Modules\Payroll\Http\Controllers\SalaryComponentController;
 use Modules\Payroll\Http\Controllers\SalaryStructureController;
 use Modules\Payroll\Http\Controllers\TaxTableController;
@@ -62,6 +64,27 @@ Route::prefix('payroll')->name('payroll.')->middleware(['auth', 'verified'])->gr
     Route::middleware('can:payroll.payslip.view')->group(function (): void {
         Route::get('/payslips/{payslip}', [PayslipController::class, 'show'])->name('payslips.show');
         Route::get('/payslips/{payslip}/pdf', [PayslipController::class, 'pdf'])->name('payslips.pdf');
+    });
+
+    Route::middleware('can:payroll.pool.manage')->group(function (): void {
+        Route::get('/pools/create', [PoolController::class, 'create'])->name('pools.create');
+        Route::post('/pools', [PoolController::class, 'store'])->name('pools.store');
+        Route::post('/pools/participants', [PoolController::class, 'saveParticipants'])->name('pools.participants.save');
+        Route::post('/pools/{pool}/recalculate', [PoolController::class, 'recalculate'])->name('pools.recalculate');
+        Route::post('/pools/{pool}/finalise', [PoolController::class, 'finalise'])->name('pools.finalise');
+        Route::post('/pools/{pool}/reopen', [PoolController::class, 'reopen'])->name('pools.reopen');
+        Route::delete('/pools/{pool}', [PoolController::class, 'destroy'])->name('pools.destroy');
+    });
+    Route::middleware('can:payroll.pool.view')->group(function (): void {
+        Route::get('/pools', [PoolController::class, 'index'])->name('pools.index');
+        Route::get('/pools/participants', [PoolController::class, 'participants'])->name('pools.participants');
+        Route::get('/pools/{pool}', [PoolController::class, 'show'])->name('pools.show');
+    });
+    Route::middleware('can:payroll.report.view')->prefix('reports')->name('reports.')->group(function (): void {
+        Route::get('/', [PayrollReportController::class, 'index'])->name('index');
+        Route::get('/cost', [PayrollReportController::class, 'cost'])->name('cost');
+        Route::get('/festival-bonuses', [PayrollReportController::class, 'festival'])->name('festival');
+        Route::get('/service-charge-and-tips', [PayrollReportController::class, 'pools'])->name('pools');
     });
 
     Route::middleware('can:payroll.loan.manage')->group(function (): void {

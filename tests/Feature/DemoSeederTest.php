@@ -53,8 +53,11 @@ use Modules\Payroll\Models\EmployeeSalary;
 use Modules\Payroll\Models\Loan;
 use Modules\Payroll\Models\PayrollRun;
 use Modules\Payroll\Models\Payslip;
+use Modules\Payroll\Models\PayslipLine;
 use Modules\Payroll\Models\SalaryComponent;
 use Modules\Payroll\Models\SalaryStructure;
+use Modules\Payroll\Models\ServiceChargeAllocation;
+use Modules\Payroll\Models\ServiceChargePool;
 use Modules\Payroll\Models\TaxTable;
 use Modules\Payroll\Services\SalaryPreview;
 use Modules\Procurement\Models\GoodsReceipt;
@@ -443,7 +446,7 @@ it('seeds the Bangladesh payroll starter pack and a salary for every employee (S
         $general = Employee::query()->whereHas('designation', fn ($query) => $query->where('name', 'General Manager'))->firstOrFail();
         $pay = app(SalaryPreview::class)->forEmployee($general->id, $today);
 
-        expect(SalaryComponent::query()->count())->toBe(14)->and(SalaryStructure::query()->count())->toBe(2)->and(TaxTable::query()->count())->toBe(1)
+        expect(SalaryComponent::query()->count())->toBe(15)->and(SalaryStructure::query()->count())->toBe(2)->and(TaxTable::query()->count())->toBe(1)
             ->and(EmployeeSalary::query()->whereNull('effective_to')->pluck('employee_id')->unique()->sort()->values()->all())->toBe($working->sort()->values()->all())
             ->and(EmployeeSalary::query()->whereNotNull('effective_to')->count())->toBeGreaterThan(5)
             // 150,000 + 75,000 (50%) + 15,000 (10%) + 5,000 conveyance set for the General Manager.
@@ -467,10 +470,27 @@ it('seeds last month\'s payroll through approval, payment and the ledger, two st
         expect($run->status)->toBe(RunStatus::Paid)->and($run->employees_count)->toBe(Employee::query()->where('status', '!=', 'exited')->count())->and((float) $run->net_total)->toBeGreaterThan(0.0)
             ->and(Payslip::query()->where('payroll_run_id', $run->id)->count())->toBe($run->employees_count)
             ->and($entries)->toBe(['approved', 'paid'])->and((float) $payable)->toBe(0.0)
-            ->and(Loan::query()->count())->toBe(2)->and(PayrollRun::query()->whereDate('period', $last->addMonth()->toDateString())->firstOrFail()->status)->toBe(RunStatus::Draft);
+            ->and(Loan::query()->count())->toBe(2)->and(PayrollRun::query()->whereDate('period', $last->addMonth()->toDateString())->firstOrFail()->status)->toBe(RunStatus::Calculated);
     });
 
     app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
         expect(PayrollRun::query()->count())->toBe(2);
+    });
+});
+
+it('seeds the month\'s service charge and tips pools, sent to payroll and paid out through the approved run (Step 6.6)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $thisMonth = PayrollRun::query()->whereDate('period', now()->startOfMonth()->toDateString())->firstOrFail();
+        $pools = ServiceChargePool::query()->get();
+        $finalised = ServiceChargePool::query()->where('status', 'finalised')->whereDate('period', now()->startOfMonth()->toDateString())->pluck('id');
+        $shared = (float) PayslipLine::query()->whereIn('code', ['SCSHARE', 'TIPSHARE'])->whereIn('payslip_id', Payslip::query()->where('payroll_run_id', $thisMonth->id)->pluck('id'))->sum('amount');
+        $paidOut = (float) JournalLine::query()->whereHas('account', fn ($query) => $query->where('system_key', 'service_charge_payable'))->whereHas('entry', fn ($query) => $query->where('source_type', 'payroll_run'))->sum('debit');
+        $distributed = (float) ServiceChargeAllocation::query()->whereHas('pool', fn ($query) => $query->where('status', 'distributed')->where('kind', 'service_charge'))->sum('amount');
+
+        expect($pools)->toHaveCount(4)->and((float) $pools->sum('collected'))->toBeGreaterThan(0.0)
+            ->and($shared)->toBe((float) ServiceChargeAllocation::query()->whereIn('service_charge_pool_id', $finalised)->sum('amount'))
+            ->and($paidOut)->toBe($distributed);
     });
 });

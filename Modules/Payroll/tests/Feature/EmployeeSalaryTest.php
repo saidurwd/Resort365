@@ -120,5 +120,5 @@ it('stays correct when a structure line is changed: the new structure is used fr
     ])->all());
     booking(fn () => app(SaveSalaryStructure::class)->handle($structure, ['code' => 'STD', 'name' => $structure->name, 'lines' => $lines]));
 
-    expect(booking(fn () => app(SalaryPreview::class)->forEmployee($employee->id, '2026-03-01'))?->gross)->toBe('45000.00')->and(booking(fn (): int => SalaryComponent::query()->count()))->toBe(14);
+    expect(booking(fn () => app(SalaryPreview::class)->forEmployee($employee->id, '2026-03-01'))?->gross)->toBe('45000.00')->and(booking(fn (): int => SalaryComponent::query()->count()))->toBe(15);
 });

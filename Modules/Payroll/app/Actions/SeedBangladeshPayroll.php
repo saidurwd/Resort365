@@ -38,6 +38,7 @@ class SeedBangladeshPayroll extends Action
         'FBONUS' => ['Festival bonus', ComponentKind::Earning, true, ComponentFrequency::Annual, 2, false, 50],
         'OT' => ['Overtime', ComponentKind::Earning, true, ComponentFrequency::Monthly, 1, true, 60],
         'SCSHARE' => ['Service charge share', ComponentKind::Earning, true, ComponentFrequency::Monthly, 1, true, 70],
+        'TIPSHARE' => ['Tips share', ComponentKind::Earning, true, ComponentFrequency::Monthly, 1, true, 75],
         'PF_EMP' => ['Provident fund (employee)', ComponentKind::Deduction, false, ComponentFrequency::Monthly, 1, false, 110],
         'TAX' => ['Income tax', ComponentKind::Deduction, false, ComponentFrequency::Monthly, 1, true, 120],
         'LOAN' => ['Loan instalment', ComponentKind::Deduction, false, ComponentFrequency::Monthly, 1, true, 130],

@@ -22,12 +22,14 @@ use Modules\Accounting\Policies\AccountPolicy;
 use Modules\Accounting\Policies\BankingPolicy;
 use Modules\Accounting\Policies\JournalEntryPolicy;
 use Modules\Accounting\Policies\VoucherPolicy;
+use Modules\Accounting\Services\LedgerPoolCollections;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
+use Modules\Payroll\Contracts\PoolCollections;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class AccountingServiceProvider extends ModuleServiceProvider
@@ -61,6 +63,14 @@ class AccountingServiceProvider extends ModuleServiceProvider
         SeedChartCommand::class,
         BackpostCommand::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        // Payroll asks what was collected for staff; the ledger knows (Step 6.6).
+        $this->app->singleton(PoolCollections::class, LedgerPoolCollections::class);
+    }
 
     public function boot(): void
     {
