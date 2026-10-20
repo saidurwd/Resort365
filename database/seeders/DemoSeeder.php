@@ -172,6 +172,10 @@ class DemoSeeder extends Seeder
         DemoAccounting::seed($rodela, $resort);
         DemoAccounting::seed($greenValley, $valley);
 
+        // Step 6.5: last month's payroll calculated, approved, paid and posted; two staff loans; this month's run opened.
+        DemoPayroll::runs($rodela, $resort, self::DOMAINS['rodela']);
+        DemoPayroll::runs($greenValley, $valley, 'greenvalley.test');
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

@@ -5,18 +5,31 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use Modules\Core\Contracts\ApprovalEngine;
 use Modules\HR\Contracts\EmployeeDirectory;
 use Modules\HR\DTOs\EmployeeSummary;
+use Modules\IAM\Models\User;
+use Modules\Payroll\Actions\CalculatePayroll;
+use Modules\Payroll\Actions\CreateLoan;
+use Modules\Payroll\Actions\CreatePayrollRun;
+use Modules\Payroll\Actions\PayPayrollRun;
 use Modules\Payroll\Actions\SeedBangladeshPayroll;
 use Modules\Payroll\Actions\SetEmployeeSalary;
+use Modules\Payroll\Actions\SubmitPayrollRun;
+use Modules\Payroll\Enums\LoanKind;
+use Modules\Payroll\Enums\PayMethod;
+use Modules\Payroll\Enums\RunStatus;
 use Modules\Payroll\Models\EmployeeSalary;
+use Modules\Payroll\Models\PayrollRun;
 use Modules\Payroll\Models\SalaryStructure;
 
 /**
  * Payroll demo (Step 6.4): the Bangladesh starter pack and a salary for every employee on the standard structure (the
  * casual one for laundry attendants and guards), the basic by designation, a conveyance allowance set for the managers, a
  * 10% raise from the start of the year for every seventh employee (so their history shows two records), and a few women and
- * senior taxpayers and one person with a disability, who have higher tax-free amounts.
+ * senior taxpayers and one person with a disability, who have higher tax-free amounts. Step 6.5 (`runs`): two staff members
+ * with a loan and a salary advance, last month's payroll calculated from the imported attendance, approved by the accountant
+ * (and the General Manager, for a large total), paid and posted, and this month's run opened as a draft.
  */
 final class DemoPayroll
 {
@@ -61,6 +74,43 @@ final class DemoPayroll
                     app(SetEmployeeSalary::class)->handle($employee->id, [...$data, 'effective_from' => $startOfYear, 'basic' => round($basic * 1.1, -2), 'notes' => 'Annual increment'], null);
                 }
             }
+        });
+    }
+
+    /**
+     * Last month's payroll through to payment, two staff loans, and this month's empty run. Run after Accounting, so the
+     * entries are posted as the run is approved and paid.
+     */
+    public static function runs(Tenant $tenant, int $propertyId, string $domain): void
+    {
+        app(TenantContext::class)->run($tenant, function () use ($propertyId, $domain): void {
+            if (PayrollRun::query()->exists() || ! EmployeeSalary::query()->exists()) {
+                return;
+            }
+
+            $user = fn (string $mailbox): int => (int) User::query()->where('email', $mailbox.'@'.$domain)->value('id');
+            $today = CarbonImmutable::today();
+            $last = $today->subMonthNoOverflow()->startOfMonth();
+            $employees = app(EmployeeDirectory::class)->forProperty($propertyId);
+
+            if (count($employees) > 12) {
+                app(CreateLoan::class)->handle($employees[8]->id, LoanKind::Loan, '60000', 12, $last->format('Y-m'), $last->toDateString(), PayMethod::BankTransfer, 'Medical expenses', $user('payroll'));
+                app(CreateLoan::class)->handle($employees[11]->id, LoanKind::Advance, '9000', 3, $last->format('Y-m'), $last->toDateString(), PayMethod::Cash, 'Salary advance', $user('payroll'));
+            }
+
+            $run = app(CreatePayrollRun::class)->handle($propertyId, $last->format('Y-m'), [], null, $user('payroll'));
+            $run = app(CalculatePayroll::class)->handle($run);
+            $run = app(SubmitPayrollRun::class)->handle($run, $user('payroll'));
+
+            foreach (['accountant', 'gm'] as $approver) {
+                if (PayrollRun::query()->findOrFail($run->id)->status === RunStatus::Pending) {
+                    app(ApprovalEngine::class)->approve((int) $run->approval_request_id, $user($approver));
+                }
+            }
+
+            app(PayPayrollRun::class)->handle(PayrollRun::query()->findOrFail($run->id), PayMethod::BankTransfer, $today->toDateString(), 'BEFTN-'.$last->format('Ym'), $user('accountant'));
+
+            app(CreatePayrollRun::class)->handle($propertyId, $today->format('Y-m'), [], null, $user('payroll'));
         });
     }
 }

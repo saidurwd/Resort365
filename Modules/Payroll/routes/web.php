@@ -2,6 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Payroll\Http\Controllers\EmployeeSalaryController;
+use Modules\Payroll\Http\Controllers\LoanController;
+use Modules\Payroll\Http\Controllers\PayrollRunController;
+use Modules\Payroll\Http\Controllers\PayslipController;
 use Modules\Payroll\Http\Controllers\SalaryComponentController;
 use Modules\Payroll\Http\Controllers\SalaryStructureController;
 use Modules\Payroll\Http\Controllers\TaxTableController;
@@ -36,5 +39,39 @@ Route::prefix('payroll')->name('payroll.')->middleware(['auth', 'verified'])->gr
     Route::middleware('can:payroll.salary.view')->group(function (): void {
         Route::get('/salaries', [EmployeeSalaryController::class, 'index'])->name('salaries.index');
         Route::get('/salaries/{employee}', [EmployeeSalaryController::class, 'show'])->whereNumber('employee')->name('salaries.show');
+    });
+    Route::middleware('can:payroll.run.create')->group(function (): void {
+        Route::get('/runs/create', [PayrollRunController::class, 'create'])->name('runs.create');
+        Route::post('/runs', [PayrollRunController::class, 'store'])->name('runs.store');
+        Route::post('/runs/{run}/calculate', [PayrollRunController::class, 'calculate'])->name('runs.calculate');
+        Route::post('/runs/{run}/submit', [PayrollRunController::class, 'submit'])->name('runs.submit');
+        Route::delete('/runs/{run}', [PayrollRunController::class, 'destroy'])->name('runs.destroy');
+        Route::post('/payslips/{payslip}/adjustments', [PayslipController::class, 'adjust'])->name('payslips.adjust');
+        Route::delete('/payslips/{payslip}/adjustments/{line}', [PayslipController::class, 'removeAdjustment'])->name('payslips.adjustments.destroy');
+    });
+    Route::post('/runs/{run}/pay', [PayrollRunController::class, 'pay'])->middleware('can:payroll.run.pay')->name('runs.pay');
+    Route::post('/runs/{run}/email', [PayrollRunController::class, 'email'])->middleware('can:payroll.payslip.email')->name('runs.email');
+    Route::middleware('can:payroll.run.export')->group(function (): void {
+        Route::get('/runs/{run}/register', [PayrollRunController::class, 'register'])->name('runs.register');
+        Route::get('/runs/{run}/bank-file', [PayrollRunController::class, 'bankFile'])->name('runs.bank-file');
+    });
+    Route::middleware('can:payroll.run.view')->group(function (): void {
+        Route::get('/runs', [PayrollRunController::class, 'index'])->name('runs.index');
+        Route::get('/runs/{run}', [PayrollRunController::class, 'show'])->name('runs.show');
+    });
+    Route::middleware('can:payroll.payslip.view')->group(function (): void {
+        Route::get('/payslips/{payslip}', [PayslipController::class, 'show'])->name('payslips.show');
+        Route::get('/payslips/{payslip}/pdf', [PayslipController::class, 'pdf'])->name('payslips.pdf');
+    });
+
+    Route::middleware('can:payroll.loan.manage')->group(function (): void {
+        Route::get('/loans/create', [LoanController::class, 'create'])->name('loans.create');
+        Route::post('/loans', [LoanController::class, 'store'])->name('loans.store');
+        Route::post('/loans/{loan}/installments/{installment}/skip', [LoanController::class, 'skip'])->name('loans.skip');
+        Route::post('/loans/{loan}/installments/{installment}/waive', [LoanController::class, 'waive'])->name('loans.waive');
+    });
+    Route::middleware('can:payroll.loan.view')->group(function (): void {
+        Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
+        Route::get('/loans/{loan}', [LoanController::class, 'show'])->name('loans.show');
     });
 });

@@ -1,5 +1,8 @@
 <?php
 
+use Modules\Payroll\DTOs\PayrollRules;
+use Modules\Payroll\DTOs\PayslipData;
+use Modules\Payroll\DTOs\PayslipInput;
 use Modules\Payroll\DTOs\SalaryBreakdown;
 use Modules\Payroll\DTOs\StructureLine;
 use Modules\Payroll\DTOs\TaxTableData;
@@ -50,6 +53,36 @@ function pxAmounts(SalaryBreakdown $breakdown): array
     $found = [];
 
     foreach ($breakdown->lines as $line) {
+        $found[$line->code] = $line->amount;
+    }
+
+    return $found;
+}
+
+/**
+ * A payslip input for the starter structure with the usual defaults: a whole month, nothing unusual.
+ *
+ * @param  array<string, mixed>  $overrides  PayslipInput properties
+ */
+function pxInput(string $basic = '25000', array $overrides = []): PayslipInput
+{
+    return new PayslipInput(...[
+        'lines' => pxStarterLines(), 'basic' => $basic, 'tax' => pxTaxTable(), 'taxCategory' => 'general', 'taxArea' => 'metro', 'employeeAmounts' => [], 'includeAnnual' => [], 'fraction' => '1',
+        'absentDays' => '0', 'unpaidLeaveDays' => '0', 'overtimeMinutes' => 0, 'loanDue' => '0', 'advanceDue' => '0', 'rules' => new PayrollRules,
+        ...$overrides,
+    ]);
+}
+
+/**
+ * A payslip's amounts by component code.
+ *
+ * @return array<string, string>
+ */
+function pxPayslip(PayslipData $data): array
+{
+    $found = [];
+
+    foreach ($data->lines as $line) {
         $found[$line->code] = $line->amount;
     }
 

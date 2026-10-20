@@ -8,6 +8,7 @@ use Modules\Accounting\Models\JournalEntry;
 use Modules\Accounting\Services\PostingService;
 use Modules\Billing\Contracts\LedgerFacts;
 use Modules\Inventory\Contracts\StockFacts;
+use Modules\Payroll\Contracts\PayrollLedgerFacts;
 use Modules\Procurement\Contracts\ProcurementFacts;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Reservation\Contracts\ReservationLookup;
@@ -30,6 +31,7 @@ class BackpostHistory extends Action
         private readonly StockFacts $stock,
         private readonly ProcurementFacts $procurement,
         private readonly ConsumptionFacts $consumption,
+        private readonly PayrollLedgerFacts $payroll,
     ) {}
 
     /**
@@ -110,6 +112,24 @@ class BackpostHistory extends Action
 
         foreach ($purchasing['returns'] as $id) {
             $run(__('Purchase return #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->purchaseReturn($id));
+        }
+
+        $staff = $this->payroll->history();
+
+        foreach ($staff['loans'] as $id) {
+            $run(__('Staff loan #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->loanDisbursed($id));
+        }
+
+        foreach ($staff['approved'] as $id) {
+            $run(__('Payroll run #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->payrollApproved($id));
+        }
+
+        foreach ($staff['paid'] as $id) {
+            $run(__('Payroll payment #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->payrollPaid($id));
+        }
+
+        foreach ($staff['waivers'] as $id) {
+            $run(__('Staff loan write-off #:id', ['id' => $id]), fn (): ?JournalEntry => $this->posting->loanWaived($id));
         }
 
         $recipes = $this->consumption->history();

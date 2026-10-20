@@ -14,6 +14,10 @@ use Modules\FrontOffice\Events\NightAuditCompleted;
 use Modules\Inventory\Events\StockAdjusted;
 use Modules\Inventory\Events\StockIssued;
 use Modules\Inventory\Events\StockOpened;
+use Modules\Payroll\Events\LoanDisbursed;
+use Modules\Payroll\Events\LoanInstallmentWaived;
+use Modules\Payroll\Events\PayrollApproved;
+use Modules\Payroll\Events\PayrollPaid;
 use Modules\Procurement\Events\GoodsReceived;
 use Modules\Procurement\Events\PurchaseReturned;
 use Modules\Procurement\Events\VendorBillApproved;
@@ -113,6 +117,26 @@ class PostLedgerEntries
     public function onVendorPaymentMade(VendorPaymentMade $event): void
     {
         $this->safely(fn (): ?JournalEntry => $this->posting->vendorPayment($event->paymentId));
+    }
+
+    public function onPayrollApproved(PayrollApproved $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->payrollApproved($event->runId));
+    }
+
+    public function onPayrollPaid(PayrollPaid $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->payrollPaid($event->runId));
+    }
+
+    public function onLoanDisbursed(LoanDisbursed $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->loanDisbursed($event->loanId));
+    }
+
+    public function onLoanInstallmentWaived(LoanInstallmentWaived $event): void
+    {
+        $this->safely(fn (): ?JournalEntry => $this->posting->loanWaived($event->installmentId));
     }
 
     public function onPurchaseReturned(PurchaseReturned $event): void

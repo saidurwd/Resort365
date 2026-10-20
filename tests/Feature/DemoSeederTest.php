@@ -9,6 +9,7 @@ use Database\Seeders\DemoRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Accounting\DTOs\ReportFilter;
 use Modules\Accounting\Models\JournalEntry;
+use Modules\Accounting\Models\JournalLine;
 use Modules\Accounting\Services\ReportService;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\CityLedgerEntry;
@@ -47,7 +48,11 @@ use Modules\Inventory\Models\StockRequisition;
 use Modules\Inventory\Models\StockTransfer;
 use Modules\Inventory\Models\Store;
 use Modules\Inventory\Models\Unit;
+use Modules\Payroll\Enums\RunStatus;
 use Modules\Payroll\Models\EmployeeSalary;
+use Modules\Payroll\Models\Loan;
+use Modules\Payroll\Models\PayrollRun;
+use Modules\Payroll\Models\Payslip;
 use Modules\Payroll\Models\SalaryComponent;
 use Modules\Payroll\Models\SalaryStructure;
 use Modules\Payroll\Models\TaxTable;
@@ -447,5 +452,25 @@ it('seeds the Bangladesh payroll starter pack and a salary for every employee (S
 
     app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
         expect(EmployeeSalary::query()->distinct()->count('employee_id'))->toBe(Employee::query()->count());
+    });
+});
+
+it('seeds last month\'s payroll through approval, payment and the ledger, two staff loans and this month\'s draft (Step 6.5)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $last = now()->subMonthNoOverflow()->startOfMonth();
+        $run = PayrollRun::query()->whereDate('period', $last->toDateString())->firstOrFail();
+        $entries = JournalEntry::query()->where('source_type', 'payroll_run')->where('source_id', $run->id)->pluck('source_event')->sort()->values()->all();
+        $payable = JournalLine::query()->whereHas('account', fn ($query) => $query->where('system_key', 'salaries_payable'))->selectRaw('SUM(credit) - SUM(debit) as owed')->value('owed');
+
+        expect($run->status)->toBe(RunStatus::Paid)->and($run->employees_count)->toBe(Employee::query()->where('status', '!=', 'exited')->count())->and((float) $run->net_total)->toBeGreaterThan(0.0)
+            ->and(Payslip::query()->where('payroll_run_id', $run->id)->count())->toBe($run->employees_count)
+            ->and($entries)->toBe(['approved', 'paid'])->and((float) $payable)->toBe(0.0)
+            ->and(Loan::query()->count())->toBe(2)->and(PayrollRun::query()->whereDate('period', $last->addMonth()->toDateString())->firstOrFail()->status)->toBe(RunStatus::Draft);
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
+        expect(PayrollRun::query()->count())->toBe(2);
     });
 });

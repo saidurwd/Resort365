@@ -15,6 +15,10 @@ use Modules\FrontOffice\Events\NightAuditCompleted;
 use Modules\Inventory\Events\StockAdjusted;
 use Modules\Inventory\Events\StockIssued;
 use Modules\Inventory\Events\StockOpened;
+use Modules\Payroll\Events\LoanDisbursed;
+use Modules\Payroll\Events\LoanInstallmentWaived;
+use Modules\Payroll\Events\PayrollApproved;
+use Modules\Payroll\Events\PayrollPaid;
 use Modules\Procurement\Events\GoodsReceived;
 use Modules\Procurement\Events\PurchaseReturned;
 use Modules\Procurement\Events\VendorBillApproved;
@@ -55,6 +59,10 @@ class EventServiceProvider extends ServiceProvider
         GoodsReceived::class => [PostLedgerEntries::class.'@onGoodsReceived'],
         VendorBillApproved::class => [PostLedgerEntries::class.'@onVendorBillApproved'],
         VendorPaymentMade::class => [PostLedgerEntries::class.'@onVendorPaymentMade'],
+        PayrollApproved::class => [PostLedgerEntries::class.'@onPayrollApproved'],
+        PayrollPaid::class => [PostLedgerEntries::class.'@onPayrollPaid'],
+        LoanDisbursed::class => [PostLedgerEntries::class.'@onLoanDisbursed'],
+        LoanInstallmentWaived::class => [PostLedgerEntries::class.'@onLoanInstallmentWaived'],
         PurchaseReturned::class => [PostLedgerEntries::class.'@onPurchaseReturned'],
     ];
 

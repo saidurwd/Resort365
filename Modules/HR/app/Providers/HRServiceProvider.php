@@ -19,6 +19,7 @@ use Modules\Core\Enums\SequenceReset;
 use Modules\HR\Console\GrantLeaveCommand;
 use Modules\HR\Console\SeedLeaveTypesCommand;
 use Modules\HR\Contracts\EmployeeDirectory;
+use Modules\HR\Contracts\PayrollFacts;
 use Modules\HR\Models\Attendance;
 use Modules\HR\Models\Designation;
 use Modules\HR\Models\Employee;
@@ -42,6 +43,7 @@ use Modules\HR\Policies\ShiftPolicy;
 use Modules\HR\Services\EmployeeDirectoryService;
 use Modules\HR\Services\LeaveApprovalHandler;
 use Modules\HR\Services\NationalIdHasher;
+use Modules\HR\Services\PayrollFactsService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class HRServiceProvider extends ModuleServiceProvider
@@ -81,6 +83,7 @@ class HRServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->singleton(EmployeeDirectory::class, EmployeeDirectoryService::class);
+        $this->app->singleton(PayrollFacts::class, PayrollFactsService::class);
         $this->app->singleton(NationalIdHasher::class, fn (): NationalIdHasher => new NationalIdHasher('employee-id|'.config('app.key')));
     }
 

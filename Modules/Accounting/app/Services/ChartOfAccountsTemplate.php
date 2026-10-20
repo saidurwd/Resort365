@@ -67,6 +67,7 @@ class ChartOfAccountsTemplate
             '2410' => ['Salaries payable', $L, '2400', false, 'salaries_payable', null],
             '2420' => ['Income tax withheld payable', $L, '2400', false, 'tax_payable', null],
             '2430' => ['Provident fund payable', $L, '2400', false, 'pf_payable', null],
+            '2440' => ['Gratuity provision', $L, '2400', false, 'gratuity_payable', null],
             '2500' => ['Loans and borrowings', $L, '2000', true, null, null],
             '2510' => ['Bank loans', $L, '2500', false, null, null],
 
@@ -115,7 +116,7 @@ class ChartOfAccountsTemplate
             '6000' => ['Undistributed operating expenses', $X, null, true, null, null],
             '6100' => ['Administrative and general', $X, '6000', true, null, 'admin'],
             '6110' => ['Salaries and wages', $X, '6100', false, 'salaries_expense', 'admin'],
-            '6120' => ['Employee benefits and provident fund', $X, '6100', false, null, 'admin'],
+            '6120' => ['Employee benefits and provident fund', $X, '6100', false, 'benefits_expense', 'admin'],
             '6130' => ['Office and communication', $X, '6100', false, 'office_expense', 'admin'],
             '6140' => ['Professional fees', $X, '6100', false, null, 'admin'],
             '6150' => ['Bank and card charges', $X, '6100', false, 'bank_charges', 'admin'],

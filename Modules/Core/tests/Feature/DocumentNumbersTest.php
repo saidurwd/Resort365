@@ -62,7 +62,7 @@ it('creates every sequence for a new tenant, and a missing one on first use', fu
 
     app(TenantContext::class)->run($tenant, function (): void {
         expect(DocumentSequence::query()->whereNull('property_id')->pluck('document_type')->sort()->values()->all())
-            ->toBe(['credit_note', 'debit_note', 'employee', 'expense_voucher', 'folio', 'fund_transfer', 'goods_receipt', 'income_voucher', 'invoice', 'item', 'journal', 'leave_request', 'payment', 'purchase_order', 'purchase_requisition', 'purchase_return', 'quote', 'reservation', 'rfq', 'stock_count', 'stock_issue', 'stock_transfer', 'store_requisition', 'vendor', 'vendor_bill', 'vendor_payment', 'wastage']);
+            ->toBe(['credit_note', 'debit_note', 'employee', 'expense_voucher', 'folio', 'fund_transfer', 'goods_receipt', 'income_voucher', 'invoice', 'item', 'journal', 'leave_request', 'loan', 'payment', 'payroll_run', 'purchase_order', 'purchase_requisition', 'purchase_return', 'quote', 'reservation', 'rfq', 'stock_count', 'stock_issue', 'stock_transfer', 'store_requisition', 'vendor', 'vendor_bill', 'vendor_payment', 'wastage']);
 
         DocumentSequence::query()->where('document_type', 'journal')->delete();
     });

@@ -25,6 +25,10 @@ use Modules\Inventory\Contracts\StockFacts;
 use Modules\Inventory\DTOs\StockAdjustmentFact;
 use Modules\Inventory\DTOs\StockIssueFact;
 use Modules\Inventory\DTOs\StockOpeningFact;
+use Modules\Payroll\Contracts\PayrollLedgerFacts;
+use Modules\Payroll\DTOs\LoanFact;
+use Modules\Payroll\DTOs\PayrollPaymentFact;
+use Modules\Payroll\DTOs\PayrollRunFact;
 use Modules\Procurement\Contracts\ProcurementFacts;
 use Modules\Procurement\DTOs\ReceiptFact;
 use Modules\Procurement\DTOs\ReturnFact;
@@ -64,6 +68,7 @@ class PostingService
         private readonly StockFacts $stock,
         private readonly ProcurementFacts $procurement,
         private readonly ConsumptionFacts $consumption,
+        private readonly PayrollLedgerFacts $payroll,
     ) {}
 
     /**
@@ -193,6 +198,87 @@ class PostingService
         return $this->record('vendor_payment', $paymentId, 'paid', $payment->propertyId, $payment->date, __('Vendor payment :no', ['no' => $payment->paymentNo]), $payment->paymentNo, [
             $this->line($this->accounts->fixed(PostingKey::AccountsPayable), $payment->amount, $payment->propertyId, ['vendor', $payment->vendorId]),
             $this->line($this->accounts->vendorMethod($payment->method), '-'.$payment->amount, $payment->propertyId),
+        ]);
+    }
+
+    /**
+     * An approved payroll run (Step 6.5): Dr salaries and wages by department (what the pay cost) and the employer's provident
+     * fund and other benefits / Cr salaries payable (net pay), income tax withheld, provident fund (both shares), the gratuity
+     * provision and employee loans receivable (what was recovered). Dated the last day of the pay month.
+     */
+    public function payrollApproved(int $runId): ?JournalEntry
+    {
+        $run = $this->payroll->run($runId);
+
+        if (! $run instanceof PayrollRunFact) {
+            return null;
+        }
+
+        $lines = [];
+
+        foreach ($run->expenseByDepartment as $department) {
+            $lines[] = [...$this->line($this->accounts->fixed(PostingKey::SalariesExpense), $department['amount'], $run->propertyId), 'department_id' => $department['department_id']];
+        }
+
+        $benefits = (string) BigDecimal::of($run->employerProvidentFund)->plus($run->employerOther)->toScale(2);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::BenefitsExpense), $benefits, $run->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::SalariesPayable), '-'.$run->net, $run->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::TaxPayable), '-'.$run->tax, $run->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::PfPayable), '-'.BigDecimal::of($run->employeeProvidentFund)->plus($run->employerProvidentFund)->toScale(2), $run->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::GratuityPayable), '-'.$run->employerOther, $run->propertyId);
+        $lines[] = $this->line($this->accounts->fixed(PostingKey::LoanReceivable), '-'.$run->loanRecovery, $run->propertyId);
+
+        return $this->record('payroll_run', $runId, 'approved', $run->propertyId, $run->date, __('Payroll :no', ['no' => $run->runNo]), $run->runNo, $lines);
+    }
+
+    /**
+     * A payroll run paid (Step 6.5): Dr salaries payable / Cr cash or the bank.
+     */
+    public function payrollPaid(int $runId): ?JournalEntry
+    {
+        $payment = $this->payroll->payment($runId);
+
+        if (! $payment instanceof PayrollPaymentFact) {
+            return null;
+        }
+
+        return $this->record('payroll_run', $runId, 'paid', $payment->propertyId, $payment->date, __('Salaries paid :no', ['no' => $payment->runNo]), $payment->reference ?? $payment->runNo, [
+            $this->line($this->accounts->fixed(PostingKey::SalariesPayable), $payment->amount, $payment->propertyId),
+            $this->line($this->accounts->vendorMethod($payment->method), '-'.$payment->amount, $payment->propertyId),
+        ]);
+    }
+
+    /**
+     * A loan or salary advance paid to an employee (Step 6.5): Dr employee loans receivable / Cr cash or the bank.
+     */
+    public function loanDisbursed(int $loanId): ?JournalEntry
+    {
+        $loan = $this->payroll->loan($loanId);
+
+        if (! $loan instanceof LoanFact) {
+            return null;
+        }
+
+        return $this->record('payroll_loan', $loanId, 'disbursed', $loan->propertyId, $loan->date, __('Staff loan :no', ['no' => $loan->loanNo]), $loan->loanNo, [
+            $this->line($this->accounts->fixed(PostingKey::LoanReceivable), $loan->amount, $loan->propertyId),
+            $this->line($this->accounts->vendorMethod($loan->method), '-'.$loan->amount, $loan->propertyId),
+        ]);
+    }
+
+    /**
+     * An installment of a staff loan written off (Step 6.5): Dr employee benefits expense / Cr employee loans receivable.
+     */
+    public function loanWaived(int $installmentId): ?JournalEntry
+    {
+        $waiver = $this->payroll->waiver($installmentId);
+
+        if (! $waiver instanceof LoanFact) {
+            return null;
+        }
+
+        return $this->record('payroll_installment', $installmentId, 'waived', $waiver->propertyId, $waiver->date, __('Staff loan :no written off', ['no' => $waiver->loanNo]), $waiver->loanNo, [
+            $this->line($this->accounts->fixed(PostingKey::BenefitsExpense), $waiver->amount, $waiver->propertyId),
+            $this->line($this->accounts->fixed(PostingKey::LoanReceivable), '-'.$waiver->amount, $waiver->propertyId),
         ]);
     }
 

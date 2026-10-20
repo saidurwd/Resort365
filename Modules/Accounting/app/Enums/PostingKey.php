@@ -27,6 +27,13 @@ enum PostingKey: string implements HasLabelAndColor
     case Grni = 'grni';
     case AccountsPayable = 'accounts_payable';
     case PriceVariance = 'purchase_price_variance';
+    case SalariesExpense = 'salaries_expense';
+    case BenefitsExpense = 'benefits_expense';
+    case SalariesPayable = 'salaries_payable';
+    case TaxPayable = 'tax_payable';
+    case PfPayable = 'pf_payable';
+    case GratuityPayable = 'gratuity_payable';
+    case LoanReceivable = 'loan_receivable';
 
     public function label(): string
     {
@@ -44,6 +51,13 @@ enum PostingKey: string implements HasLabelAndColor
             self::Grni => __('Goods received not invoiced (GRNI)'),
             self::AccountsPayable => __('Accounts payable (vendors)'),
             self::PriceVariance => __('Purchase price variance'),
+            self::SalariesExpense => __('Salaries and wages (expense)'),
+            self::BenefitsExpense => __('Employee benefits and provident fund (expense)'),
+            self::SalariesPayable => __('Salaries payable'),
+            self::TaxPayable => __('Income tax withheld from salaries (payable)'),
+            self::PfPayable => __('Provident fund payable'),
+            self::GratuityPayable => __('Gratuity provision (payable)'),
+            self::LoanReceivable => __('Employee loans and advances (receivable)'),
         };
     }
 
