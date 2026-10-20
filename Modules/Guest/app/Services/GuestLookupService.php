@@ -55,6 +55,12 @@ class GuestLookupService implements GuestLookup
         return $names;
     }
 
+    public function nationalities(array $guestIds): array
+    {
+        return Guest::withTrashed()->whereIn('id', array_unique($guestIds))->get(['id', 'nationality_code'])
+            ->mapWithKeys(fn (Guest $guest): array => [$guest->id => $guest->nationality_code])->all();
+    }
+
     public function isBlacklisted(int $guestId): bool
     {
         $guest = $this->find($guestId);
@@ -66,6 +72,11 @@ class GuestLookupService implements GuestLookup
     {
         return Company::query()->where('is_active', true)->where('name', 'like', $this->prefix($term))->orderBy('name')->limit($limit)->get()
             ->map(fn (Company $company): CompanySummary => $this->company($company))->values()->all();
+    }
+
+    public function companyNames(array $companyIds): array
+    {
+        return Company::query()->whereIn('id', array_unique($companyIds))->pluck('name', 'id')->map(fn (mixed $name): string => (string) $name)->all();
     }
 
     public function findCompany(int $companyId): ?CompanySummary

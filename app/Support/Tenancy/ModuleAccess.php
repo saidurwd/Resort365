@@ -13,7 +13,7 @@ class ModuleAccess
     /**
      * Modules every tenant always has.
      */
-    public const array ALWAYS_ENABLED = ['core', 'iam', 'platform'];
+    public const array ALWAYS_ENABLED = ['core', 'iam', 'platform', 'reports'];
 
     /**
      * @var array<int, array<string, bool>> tenant id => module => enabled (per request)

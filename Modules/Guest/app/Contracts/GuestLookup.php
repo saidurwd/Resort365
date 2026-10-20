@@ -34,6 +34,14 @@ interface GuestLookup
      */
     public function names(array $guestIds): array;
 
+    /**
+     * The nationality (ISO country code) of several guests at once, keyed by the ids asked for; a guest with none is null (Step 7.1).
+     *
+     * @param  list<int>  $guestIds
+     * @return array<int, string|null>
+     */
+    public function nationalities(array $guestIds): array;
+
     public function isBlacklisted(int $guestId): bool;
 
     /**
@@ -42,6 +50,14 @@ interface GuestLookup
      * @return list<GuestSummary>
      */
     public function findDuplicates(?string $phone, ?string $email): array;
+
+    /**
+     * Names of several companies at once, keyed by the ids asked for (Step 7.1).
+     *
+     * @param  list<int>  $companyIds
+     * @return array<int, string>
+     */
+    public function companyNames(array $companyIds): array;
 
     /**
      * Active companies whose name starts with the term.

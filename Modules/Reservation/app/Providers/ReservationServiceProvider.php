@@ -19,6 +19,7 @@ use Modules\Core\Enums\SettingType;
 use Modules\Property\Contracts\RoomUsage;
 use Modules\Rates\Contracts\RatePlanUsage;
 use Modules\Reservation\Console\ExpireHoldsCommand;
+use Modules\Reservation\Contracts\ReservationAnalytics;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\Contracts\ReservationTabs;
 use Modules\Reservation\Contracts\RoomBlocks;
@@ -38,6 +39,7 @@ use Modules\Reservation\Policies\QuotePolicy;
 use Modules\Reservation\Policies\ReservationPolicy;
 use Modules\Reservation\Services\BookedRatePlanUsage;
 use Modules\Reservation\Services\LockedRoomUsage;
+use Modules\Reservation\Services\ReservationAnalyticsService;
 use Modules\Reservation\Services\ReservationLookupService;
 use Modules\Reservation\Services\ReservationTabRegistry;
 use Modules\Reservation\Services\RoomBlocksService;
@@ -84,6 +86,7 @@ class ReservationServiceProvider extends ModuleServiceProvider
         // Replaces Rates' default: plans that upcoming bookings use cannot be deleted.
         $this->app->singleton(RatePlanUsage::class, BookedRatePlanUsage::class);
         $this->app->bind(ReservationLookup::class, ReservationLookupService::class);
+        $this->app->bind(ReservationAnalytics::class, ReservationAnalyticsService::class);
         $this->app->bind(StayOperations::class, StayOperationsService::class);
         $this->app->bind(RoomBlocks::class, RoomBlocksService::class);
         $this->app->singleton(ReservationTabs::class, ReservationTabRegistry::class);

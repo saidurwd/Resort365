@@ -214,7 +214,8 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
     seed(DatabaseSeeder::class);
 
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
-        $bookings = Reservation::query()->with('items')->orderBy('check_in')->orderBy('id')->get();
+        // The year of past bookings the reports use (codes RSV-H…, Step 7.1) is history, with no locks or folios.
+        $bookings = Reservation::query()->with('items')->where('code', 'not like', 'RSV-H%')->orderBy('check_in')->orderBy('id')->get();
 
         // In house in 402 (2 nights, leaving today), arriving today in 201 (2 nights) and 703 (the night audit's no-show,
         // 1 night), room 601 (overdue hold, 1 night), room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights).
@@ -239,7 +240,7 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
     });
 
     ExpireTentativeHolds::dispatchSync();
-    app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->orderBy('check_in')->orderBy('id')->pluck('status')->map->value->all())
+    app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->where('code', 'not like', 'RSV-H%')->orderBy('check_in')->orderBy('id')->pluck('status')->map->value->all())
         ->toBe(['checked_in', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative', 'cancelled']));
 });
 

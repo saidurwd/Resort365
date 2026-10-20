@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Modules\Accounting\Console\BackpostCommand;
 use Modules\Accounting\Console\SeedChartCommand;
+use Modules\Accounting\Contracts\CashPosition;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\BankAccount;
 use Modules\Accounting\Models\FiscalPeriod;
@@ -22,6 +23,7 @@ use Modules\Accounting\Policies\AccountPolicy;
 use Modules\Accounting\Policies\BankingPolicy;
 use Modules\Accounting\Policies\JournalEntryPolicy;
 use Modules\Accounting\Policies\VoucherPolicy;
+use Modules\Accounting\Services\CashPositionService;
 use Modules\Accounting\Services\LedgerPoolCollections;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\Settings;
@@ -70,6 +72,7 @@ class AccountingServiceProvider extends ModuleServiceProvider
 
         // Payroll asks what was collected for staff; the ledger knows (Step 6.6).
         $this->app->singleton(PoolCollections::class, LedgerPoolCollections::class);
+        $this->app->bind(CashPosition::class, CashPositionService::class);
     }
 
     public function boot(): void

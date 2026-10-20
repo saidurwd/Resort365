@@ -319,6 +319,10 @@ flowchart LR
     HR --> Core
     Payroll --> HR
     Reports --> Core
+    Reports -. read only .-> FrontOffice
+    Reports -. read only .-> Reservation
+    Reports -. read only .-> Guest
+    Reports -. read only .-> Accounting
 ```
 
 Property also depends on IAM's `UserDirectory` contract (to assign users to properties); IAM does not depend on Property.
@@ -858,6 +862,8 @@ flowchart LR
 | HR / Payroll | Headcount, attendance summary, leave balances, payroll cost by department |
 
 All reports: filter by property (or all properties for consolidation), date range, export to Excel/PDF. Heavy reports run as queued jobs, and the user is notified when the file is ready.
+
+*Implemented in Step 7.1 (Reports module): the management dashboard (the tenant's home page: latest audited day, month and year to date, a 30-day trend, 12 months of revenue, the front desk's day and the cash position; each part by permission), the report framework (registry, filters with a consolidated option for properties that share a currency, one table shape for screen, CSV, Excel and PDF; Excel and PDF are queued, kept a week in `report_exports` and announced by a notification) and the rooms reports (forecast, booking pace, sources, cancellations and no-shows, length of stay) and guest reports (nationality mix, repeat guests, top guests and companies). Reports uses other modules only through read-only contracts (FrontOffice `StatisticsLookup`, Reservation `ReservationAnalytics`, Guest `GuestLookup`, Accounting `CashPosition`), so the dependency table in §4.3 gains those arrows. **Not built:** booking pace compared with the same days last year (there are no snapshots of the bookings on the books), scheduled or emailed reports, saved filters. The finance, restaurant, inventory, procurement and HR reports stay in their modules; the hub links to them.*
 
 ---
 

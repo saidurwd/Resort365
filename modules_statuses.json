@@ -14,5 +14,6 @@
     "Inventory": true,
     "Procurement": true,
     "HR": true,
-    "Payroll": true
+    "Payroll": true,
+    "Reports": true
 }

@@ -18,11 +18,13 @@ use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
 use Modules\FrontOffice\Console\NightAuditCommand;
 use Modules\FrontOffice\Contracts\NightAuditBlockers;
+use Modules\FrontOffice\Contracts\StatisticsLookup;
 use Modules\FrontOffice\Jobs\RunDueNightAudits;
 use Modules\FrontOffice\Models\DailyStatistic;
 use Modules\FrontOffice\Models\NightAudit;
 use Modules\FrontOffice\Policies\NightAuditPolicy;
 use Modules\FrontOffice\Services\FrontDeskTab;
+use Modules\FrontOffice\Services\StatisticsLookupService;
 use Modules\Reservation\Contracts\ReservationTabs;
 use Modules\Reservation\DTOs\ReservationTab;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -63,6 +65,7 @@ class FrontOfficeServiceProvider extends ModuleServiceProvider
         parent::register();
 
         $this->app->singleton(NightAuditBlockers::class);
+        $this->app->bind(StatisticsLookup::class, StatisticsLookupService::class);
     }
 
     public function boot(): void

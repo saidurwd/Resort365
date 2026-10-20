@@ -176,6 +176,10 @@ class DemoSeeder extends Seeder
         DemoPayroll::runs($rodela, $resort, self::DOMAINS['rodela']);
         DemoPayroll::runs($greenValley, $valley, 'greenvalley.test');
 
+        // Step 7.1: a year of night audit statistics and past bookings for the dashboard and the reports.
+        DemoReports::seed($rodela, $resort);
+        DemoReports::seed($greenValley, $valley);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],
