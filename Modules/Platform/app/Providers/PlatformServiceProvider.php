@@ -5,7 +5,14 @@ namespace Modules\Platform\Providers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Modules\Core\Contracts\Announcements;
+use Modules\Core\Contracts\Impersonation;
+use Modules\Core\Contracts\PlanLimits;
 use Modules\Platform\Console\CreatePlatformAdminCommand;
+use Modules\Platform\Console\SeedPlansCommand;
+use Modules\Platform\Services\PlatformAnnouncements;
+use Modules\Platform\Services\PlatformImpersonation;
+use Modules\Platform\Services\TenantPlanLimits;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class PlatformServiceProvider extends ModuleServiceProvider
@@ -27,6 +34,7 @@ class PlatformServiceProvider extends ModuleServiceProvider
      */
     protected array $commands = [
         CreatePlatformAdminCommand::class,
+        SeedPlansCommand::class,
     ];
 
     /**
@@ -38,6 +46,17 @@ class PlatformServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        // Plans give Core's contracts their answers (Step 7.3): limits, announcements and platform admins signing in as a user.
+        $this->app->singleton(TenantPlanLimits::class);
+        $this->app->singleton(PlanLimits::class, fn ($app): TenantPlanLimits => $app->make(TenantPlanLimits::class));
+        $this->app->singleton(Announcements::class, PlatformAnnouncements::class);
+        $this->app->singleton(Impersonation::class, PlatformImpersonation::class);
+    }
 
     public function boot(): void
     {

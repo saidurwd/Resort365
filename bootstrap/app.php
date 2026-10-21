@@ -4,12 +4,14 @@ use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\IdentifyTenant;
 use App\Http\Middleware\SetCurrentProperty;
+use App\Support\Tenancy\PlanLimitReached;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -46,6 +48,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.console') : route('dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // A plan limit is a friendly refusal, on the page the person was on (Step 7.3).
+        $exceptions->render(function (PlanLimitReached $exception, Request $request): ?Response {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => $exception->getMessage(), 'limit' => $exception->limit], 422);
+            }
+
+            return $request->hasSession() ? back()->withInput()->with('error', $exception->getMessage()) : null;
+        });
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
         );

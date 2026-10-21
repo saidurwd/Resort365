@@ -1,0 +1,40 @@
+<?php
+
+namespace Modules\Platform\Actions;
+
+use App\Enums\TenantStatus;
+use App\Models\Tenant;
+use App\Support\Actions\Action;
+use Modules\Platform\Exceptions\PlatformRuleViolated;
+use Modules\Platform\Models\PlatformAdmin;
+use Modules\Platform\Services\PlatformAudit;
+
+/**
+ * Suspends a tenant (Step 7.3): its people see the suspended page and cannot work until it is reactivated. The reason is kept in the
+ * console's audit log.
+ */
+class SuspendTenant extends Action
+{
+    public function __construct(private readonly PlatformAudit $audit) {}
+
+    /**
+     * @throws PlatformRuleViolated
+     */
+    public function handle(Tenant $tenant, string $reason, ?PlatformAdmin $admin = null): Tenant
+    {
+        if (trim($reason) === '') {
+            throw new PlatformRuleViolated(__('Say why the tenant is suspended.'));
+        }
+
+        if ($tenant->status !== TenantStatus::Active && $tenant->status !== TenantStatus::Trial) {
+            throw new PlatformRuleViolated(__(':tenant is :status, so it cannot be suspended.', ['tenant' => $tenant->name, 'status' => mb_strtolower($tenant->status->label())]));
+        }
+
+        return $this->transaction(function () use ($tenant, $reason, $admin): Tenant {
+            $tenant->forceFill(['status' => TenantStatus::Suspended, 'suspended_at' => now()])->save();
+            $this->audit->log($admin, 'tenant.suspended', __(':tenant suspended', ['tenant' => $tenant->name]), $tenant->id, ['reason' => trim($reason)]);
+
+            return $tenant;
+        });
+    }
+}

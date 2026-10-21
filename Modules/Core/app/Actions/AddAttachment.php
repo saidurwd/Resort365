@@ -7,6 +7,8 @@ use App\Support\Attachments\Attachments;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
+use Modules\Core\Contracts\PlanLimits;
+use Modules\Core\Contracts\UsageMeters;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileUnacceptableForCollection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -17,11 +19,19 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class AddAttachment extends Action
 {
+    public function __construct(
+        private readonly PlanLimits $limits,
+        private readonly UsageMeters $usage,
+    ) {}
+
     /**
      * @throws ValidationException when the file's content is not an allowed type
      */
     public function handle(HasMedia $subject, UploadedFile $file, ?Model $uploader, string $collection = Attachments::COLLECTION): Media
     {
+        // The file must fit the plan's storage (Step 7.3).
+        $this->limits->ensureWithin('storage_gb', $this->usage->measure('storage') + $file->getSize() / 1024 ** 3);
+
         try {
             $media = $subject->addMedia($file)
                 ->usingName(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))

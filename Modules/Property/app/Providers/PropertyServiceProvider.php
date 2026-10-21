@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\Contracts\UsageMeters;
 use Modules\Property\Contracts\BusinessDates;
 use Modules\Property\Contracts\DepartmentDirectory;
 use Modules\Property\Contracts\InventoryCatalog;
@@ -82,6 +83,11 @@ class PropertyServiceProvider extends ModuleServiceProvider
     public function boot(): void
     {
         parent::boot();
+
+        // What plans limit (Step 7.3).
+        $meters = $this->app->make(UsageMeters::class);
+        $meters->register('properties', 'Properties', 'count', fn (): int => Property::query()->count());
+        $meters->register('rooms', 'Rooms', 'count', fn (): int => Room::query()->count());
 
         Relation::morphMap([
             'property' => Property::class,

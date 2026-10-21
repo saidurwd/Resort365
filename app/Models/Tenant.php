@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $email
  * @property TenantStatus $status
+ * @property int|null $plan_id
  * @property Carbon|null $trial_ends_at
  * @property Carbon|null $suspended_at
  */
@@ -27,6 +28,7 @@ use Illuminate\Support\Carbon;
     'name',
     'email',
     'status',
+    'plan_id',
     'trial_ends_at',
     'suspended_at',
 ])]

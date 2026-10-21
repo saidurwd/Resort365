@@ -21,6 +21,7 @@ use Laravel\Fortify\Fortify;
 use Laravel\Fortify\LoginRateLimiter;
 use Modules\Core\Contracts\ApprovalParticipants;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\Contracts\UsageMeters;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingType;
 use Modules\IAM\Actions\AuthenticateUser;
@@ -31,6 +32,8 @@ use Modules\IAM\Console\SyncPermissionsCommand;
 use Modules\IAM\Contracts\PosPins;
 use Modules\IAM\Contracts\RoleDirectory;
 use Modules\IAM\Contracts\UserDirectory;
+use Modules\IAM\Enums\UserStatus;
+use Modules\IAM\Http\Controllers\ImpersonationController;
 use Modules\IAM\Http\Middleware\EnsureTwoFactorEnabled;
 use Modules\IAM\Http\Middleware\EnsureUserIsActive;
 use Modules\IAM\Http\Middleware\SetUserLocale;
@@ -44,6 +47,7 @@ use Modules\IAM\Services\RoleDirectoryService;
 use Modules\IAM\Services\UserDirectoryService;
 use Modules\IAM\Support\TenantLoginRateLimiter;
 use Nwidart\Modules\Support\ModuleServiceProvider;
+use Spatie\Activitylog\Models\Activity;
 
 class IAMServiceProvider extends ModuleServiceProvider
 {
@@ -93,6 +97,19 @@ class IAMServiceProvider extends ModuleServiceProvider
     public function boot(): void
     {
         parent::boot();
+
+        // What a platform admin does while signed in as someone is tagged with the admin in the audit trail (Step 7.3).
+        $activityModel = config('activitylog.activity_model', Activity::class);
+        $activityModel::creating(function (Activity $activity): void {
+            $state = request()->hasSession() ? request()->session()->get(ImpersonationController::SESSION_KEY) : null;
+
+            if (is_array($state)) {
+                $activity->properties = $activity->properties->put('impersonated_by', ['id' => $state['admin_id'], 'name' => $state['admin_name']]);
+            }
+        });
+
+        // What plans limit (Step 7.3): people who may sign in or are invited.
+        $this->app->make(UsageMeters::class)->register('users', 'Users', 'count', fn (): int => User::query()->whereIn('status', [UserStatus::Invited->value, UserStatus::Active->value])->count());
 
         $this->configureFortify();
         $this->configureRateLimiting();

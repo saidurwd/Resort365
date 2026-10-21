@@ -7,6 +7,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Core\Contracts\Settings;
+use Modules\IAM\Http\Controllers\ImpersonationController;
 use Modules\IAM\Models\User;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -39,7 +40,9 @@ class EnsureTwoFactorEnabled
     {
         $user = Auth::guard('web')->user();
 
+        // A platform admin signed in as someone cannot set up that person's 2FA (Step 7.3).
         if (! $user instanceof User
+            || $request->session()->has(ImpersonationController::SESSION_KEY)
             || $user->hasTwoFactorEnabled()
             || $request->routeIs(...self::EXEMPT)
             || ! $this->settings->get('iam.require_two_factor')

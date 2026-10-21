@@ -7,18 +7,23 @@ use App\Support\Authorization\PermissionDefinition;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Modules\Core\Console\SeedApprovalsCommand;
+use Modules\Core\Contracts\Announcements;
 use Modules\Core\Contracts\ApprovalEngine;
 use Modules\Core\Contracts\ApprovalRegistry;
 use Modules\Core\Contracts\AuditTrail;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\ExchangeRates;
 use Modules\Core\Contracts\NotificationTemplates;
+use Modules\Core\Contracts\PlanLimits;
 use Modules\Core\Contracts\ReferenceData;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Contracts\TaxEngine;
+use Modules\Core\Contracts\UsageMeters;
 use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\NotificationTemplateDefinition;
 use Modules\Core\DTOs\SettingDefinition;
@@ -31,10 +36,13 @@ use Modules\Core\Services\ApprovalRegistryService;
 use Modules\Core\Services\AuditTrailService;
 use Modules\Core\Services\DocumentNumberService;
 use Modules\Core\Services\ExchangeRateService;
+use Modules\Core\Services\NoAnnouncements;
 use Modules\Core\Services\NotificationTemplateService;
 use Modules\Core\Services\ReferenceDataService;
 use Modules\Core\Services\SettingsService;
 use Modules\Core\Services\TaxEngineService;
+use Modules\Core\Services\UnlimitedPlanLimits;
+use Modules\Core\Services\UsageMeterRegistry;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class CoreServiceProvider extends ModuleServiceProvider
@@ -77,6 +85,10 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->app->singleton(DocumentNumbers::class, DocumentNumberService::class);
         $this->app->singleton(NotificationTemplates::class, NotificationTemplateService::class);
         $this->app->singleton(AuditTrail::class, AuditTrailService::class);
+        // Plans: no plan means no limits and no announcements; Platform replaces these (Step 7.3).
+        $this->app->singletonIf(PlanLimits::class, UnlimitedPlanLimits::class);
+        $this->app->singleton(UsageMeters::class, UsageMeterRegistry::class);
+        $this->app->singletonIf(Announcements::class, NoAnnouncements::class);
         $this->app->singleton(ExchangeRates::class, ExchangeRateService::class);
         $this->app->singleton(ReferenceData::class, ReferenceDataService::class);
         $this->app->singleton(TaxEngine::class, TaxEngineService::class);
@@ -87,6 +99,9 @@ class CoreServiceProvider extends ModuleServiceProvider
     public function boot(): void
     {
         parent::boot();
+
+        // Files kept for the tenant, in gigabytes (Step 7.3).
+        $this->app->make(UsageMeters::class)->register('storage', 'Storage', 'GB', fn (): float => round((float) DB::table('media')->where('tenant_id', $this->app->make(TenantContext::class)->tenantOrFail(self::class)->id)->sum('size') / 1024 ** 3, 4));
 
         $this->registerSettings($this->app->make(Settings::class));
         $this->registerDocumentTypes($this->app->make(DocumentNumbers::class));

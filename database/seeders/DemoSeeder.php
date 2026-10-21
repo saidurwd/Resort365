@@ -185,6 +185,9 @@ class DemoSeeder extends Seeder
         DemoBudgets::seed($rodela, $resort);
         DemoBudgets::seed($greenValley, $valley);
 
+        // Step 7.3: plans (Rodela on Enterprise, Green Valley on Professional) and one announcement.
+        DemoPlatform::seed();
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

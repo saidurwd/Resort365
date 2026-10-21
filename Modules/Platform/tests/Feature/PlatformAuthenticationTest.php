@@ -30,7 +30,7 @@ it('signs a platform admin in on the central domain', function (): void {
 
     assertAuthenticatedAs(platformAdmin(), 'platform');
     assertGuest('web');
-    get(centralUrl('/platform'))->assertOk()->assertSee('admin@resort365.test');
+    get(centralUrl('/platform'))->assertOk()->assertSee('Platform Admin');
 
     expect(platformAdmin()->fresh()?->last_login_at)->not->toBeNull();
 });

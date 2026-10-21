@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\IAM\Http\Controllers\ImpersonationController;
 use Modules\IAM\Http\Controllers\InvitationController;
 use Modules\IAM\Http\Controllers\ProfileController;
 use Modules\IAM\Http\Controllers\RoleController;
@@ -19,6 +20,10 @@ use Modules\IAM\Http\Controllers\UserController;
 */
 
 Route::prefix('iam')->name('iam.')->group(function (): void {
+    // A platform admin signs in as a user (Step 7.3): a one-time link from the console, and the way out.
+    Route::get('/impersonate/{token}', [ImpersonationController::class, 'enter'])->middleware('throttle:10,1')->name('impersonation.enter');
+    Route::post('/impersonation/leave', [ImpersonationController::class, 'leave'])->middleware('auth')->name('impersonation.leave');
+
     Route::middleware(['guest', 'signed', 'throttle:6,1'])->group(function (): void {
         Route::get('/invitations/{user}', [InvitationController::class, 'show'])->name('invitations.show');
         Route::post('/invitations/{user}', [InvitationController::class, 'store'])->name('invitations.store');

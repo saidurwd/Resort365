@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Tenant;
+use App\Support\Tenancy\ModuleAccess;
 use App\Support\Tenancy\PropertyAccess;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -19,6 +20,7 @@ use Modules\Billing\Models\ExtraService;
 use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Payment;
+use Modules\Core\Contracts\PlanLimits;
 use Modules\Core\Contracts\TaxEngine;
 use Modules\Core\Models\TaxCategory;
 use Modules\Guest\Contracts\GuestLookup;
@@ -62,6 +64,8 @@ use Modules\Payroll\Models\ServiceChargeAllocation;
 use Modules\Payroll\Models\ServiceChargePool;
 use Modules\Payroll\Models\TaxTable;
 use Modules\Payroll\Services\SalaryPreview;
+use Modules\Platform\Models\Announcement;
+use Modules\Platform\Models\Plan;
 use Modules\Procurement\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
@@ -520,5 +524,18 @@ it('seeds twelve weeks of restaurant history that puts dishes in every menu engi
 
     app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
         expect(Budget::query()->count())->toBe(1)->and(PosOrder::query()->where('order_no', 'like', 'H%')->count())->toBe(0);
+    });
+});
+
+it('puts Rodela on Enterprise and Green Valley on Professional, with one announcement for everyone (Step 7.3)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    $plans = Plan::query()->pluck('code', 'id');
+
+    expect($plans->values()->sort()->values()->all())->toBe(['enterprise', 'professional', 'starter'])
+        ->and($plans[tenant('rodela')->plan_id])->toBe('enterprise')->and($plans[tenant('greenvalley')->plan_id])->toBe('professional')
+        ->and(Announcement::query()->count())->toBe(1);
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        expect(app(ModuleAccess::class)->enabled('restaurant'))->toBeTrue()->and(app(PlanLimits::class)->limit('max_rooms'))->toBeNull();
     });
 });

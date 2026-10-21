@@ -4,23 +4,29 @@ namespace Modules\Property\Actions;
 
 use App\Support\Actions\Action;
 use Illuminate\Support\Arr;
+use Modules\Core\Contracts\PlanLimits;
 use Modules\Property\Models\Cottage;
 use Modules\Property\Models\Room;
 use Modules\Property\Services\RoomNumberSequence;
 
 /**
  * The quick "add cottage with N rooms" form (validated by CreateCottageRequest): creates the
- * cottage and its rooms, numbered on from the first room number, in one transaction.
+ * cottage and its rooms, numbered on from the first room number, in one transaction. The rooms must fit the plan (Step 7.3).
  */
 class CreateCottageWithRooms extends Action
 {
-    public function __construct(private readonly RoomNumberSequence $numbers) {}
+    public function __construct(
+        private readonly RoomNumberSequence $numbers,
+        private readonly PlanLimits $limits,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data  cottage fields plus room_count, room_type_id, first_room_number, floor
      */
     public function handle(array $data): Cottage
     {
+        $this->limits->ensureWithin('max_rooms', Room::query()->count() + (int) $data['room_count']);
+
         return $this->transaction(function () use ($data): Cottage {
             $cottage = Cottage::query()->create(Arr::except($data, ['room_count', 'room_type_id', 'first_room_number', 'floor']));
 

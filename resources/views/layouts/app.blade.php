@@ -20,6 +20,8 @@
     @include('layouts.partials.head', ['title' => $title])
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+    <x-impersonation-banner />
+    <x-announcements />
     <div class="app-wrapper">
         @include('layouts.partials.navbar')
         @include('layouts.partials.sidebar')

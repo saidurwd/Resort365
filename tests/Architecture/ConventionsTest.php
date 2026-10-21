@@ -9,7 +9,11 @@ use Modules\Core\Models\Country;
 use Modules\Core\Models\Currency;
 use Modules\Core\Models\Timezone;
 use Modules\IAM\Models\Permission;
+use Modules\Platform\Models\Announcement;
+use Modules\Platform\Models\ImpersonationSession;
+use Modules\Platform\Models\Plan;
 use Modules\Platform\Models\PlatformAdmin;
+use Modules\Platform\Models\PlatformAuditEntry;
 
 require_once __DIR__.'/helpers.php';
 
@@ -22,6 +26,10 @@ $centralModels = [
     Timezone::class,
     Permission::class,
     PlatformAdmin::class,
+    Plan::class,
+    Announcement::class,
+    PlatformAuditEntry::class,
+    ImpersonationSession::class,
 ];
 
 foreach (moduleNames() as $module) {
