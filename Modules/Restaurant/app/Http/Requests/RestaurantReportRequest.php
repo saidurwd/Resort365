@@ -28,6 +28,8 @@ class RestaurantReportRequest extends FormRequest
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'outlet' => ['nullable', 'integer', TenantRule::exists('outlets')],
             'by' => ['nullable', Rule::in(RestaurantReports::SALES_BY)],
+            'grain' => ['nullable', Rule::in(['day', 'week', 'month'])],
+            'category' => ['nullable', 'integer', TenantRule::exists('menu_categories')],
             'export' => ['nullable', Rule::in(['csv'])],
         ];
     }

@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Modules\Accounting\Http\Controllers\AccountController;
 use Modules\Accounting\Http\Controllers\AccountMappingController;
 use Modules\Accounting\Http\Controllers\BankAccountController;
+use Modules\Accounting\Http\Controllers\BudgetController;
+use Modules\Accounting\Http\Controllers\BudgetReportController;
 use Modules\Accounting\Http\Controllers\ChequeController;
 use Modules\Accounting\Http\Controllers\FiscalPeriodController;
 use Modules\Accounting\Http\Controllers\JournalEntryController;
@@ -29,6 +31,22 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
         Route::post('/accounts', [AccountController::class, 'store'])->name('accounts.store');
         Route::put('/accounts/{account}', [AccountController::class, 'update'])->whereNumber('account')->name('accounts.update');
         Route::delete('/accounts/{account}', [AccountController::class, 'destroy'])->whereNumber('account')->name('accounts.destroy');
+    });
+
+    Route::prefix('budgets')->name('budgets.')->controller(BudgetController::class)->group(function (): void {
+        Route::middleware('can:accounting.budget.manage')->group(function (): void {
+            Route::get('/new', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::put('/{budget}', 'update')->whereNumber('budget')->name('update');
+            Route::put('/{budget}/lines', 'saveLines')->whereNumber('budget')->name('lines');
+            Route::post('/{budget}/copy', 'copy')->whereNumber('budget')->name('copy');
+            Route::delete('/{budget}', 'destroy')->whereNumber('budget')->name('destroy');
+        });
+        Route::middleware('can:accounting.budget.view')->group(function (): void {
+            Route::get('/', 'index')->name('index');
+            Route::get('/{budget}', 'show')->whereNumber('budget')->name('show');
+            Route::get('/{budget}/report', [BudgetReportController::class, 'show'])->whereNumber('budget')->name('report');
+        });
     });
 
     Route::get('/mappings', [AccountMappingController::class, 'index'])->middleware('can:accounting.account.view')->name('mappings.index');

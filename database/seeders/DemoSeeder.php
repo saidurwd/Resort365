@@ -180,6 +180,11 @@ class DemoSeeder extends Seeder
         DemoReports::seed($rodela, $resort);
         DemoReports::seed($greenValley, $valley);
 
+        // Step 7.2: twelve weeks of restaurant bills for menu engineering and trends, and the year's budget.
+        DemoFnbHistory::seed($rodela, $resort);
+        DemoBudgets::seed($rodela, $resort);
+        DemoBudgets::seed($greenValley, $valley);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

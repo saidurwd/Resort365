@@ -8,6 +8,8 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Accounting\DTOs\ReportFilter;
+use Modules\Accounting\Models\Account;
+use Modules\Accounting\Models\Budget;
 use Modules\Accounting\Models\JournalEntry;
 use Modules\Accounting\Models\JournalLine;
 use Modules\Accounting\Services\ReportService;
@@ -108,6 +110,8 @@ use Modules\Restaurant\Models\Recipe;
 use Modules\Restaurant\Models\SaleConsumption;
 use Modules\Restaurant\Models\TableReservation;
 use Modules\Restaurant\Models\WastageEntry;
+use Modules\Restaurant\Services\Reports\FnbTrends;
+use Modules\Restaurant\Services\Reports\MenuEngineeringReport;
 
 use function Pest\Laravel\seed;
 
@@ -309,7 +313,7 @@ it('seeds an open order at table T4 with mains and drinks sent and desserts held
             ->and(PosOrder::query()->where('order_type', 'location_delivery')->sole()->delivery_location)->toBe('Pool deck, bed 4')
             ->and(PosOrder::query()->where('order_type', 'staff_meal')->sole()->guest_name)->toBe('Kitchen team')
             ->and(TableReservation::query()->count())->toBe(3)
-            ->and(PosBill::query()->whereHas('outlet', fn ($query) => $query->where('code', 'PB'))->where('status', 'settled')->count())->toBe(3)
+            ->and(PosBill::query()->whereHas('outlet', fn ($query) => $query->where('code', 'PB'))->whereDoesntHave('order', fn ($query) => $query->where('order_no', 'like', 'H%'))->where('status', 'settled')->count())->toBe(3)
             ->and(PosOrderLine::query()->where('status', 'voided')->count())->toBe(1);
     });
 });
@@ -493,5 +497,28 @@ it('seeds the month\'s service charge and tips pools, sent to payroll and paid o
         expect($pools)->toHaveCount(4)->and((float) $pools->sum('collected'))->toBeGreaterThan(0.0)
             ->and($shared)->toBe((float) ServiceChargeAllocation::query()->whereIn('service_charge_pool_id', $finalised)->sum('amount'))
             ->and($paidOut)->toBe($distributed);
+    });
+});
+
+it('seeds twelve weeks of restaurant history that puts dishes in every menu engineering class, and a budget for the year (Step 7.2)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    app(TenantContext::class)->run(tenant('rodela'), function (): void {
+        $outlet = Outlet::query()->where('code', 'MR')->firstOrFail();
+        $property = Property::query()->firstOrFail();
+        $to = $property->business_date->subDay()->toDateString();
+        $from = $property->business_date->subDays(84)->toDateString();
+        $built = app(MenuEngineeringReport::class)->build($property->id, $from, $to, [$outlet->id], null);
+        $classes = collect($built['table']['rows'])->pluck(8)->unique()->sort()->values()->all();
+        $trends = app(FnbTrends::class)->build($property->id, $from, $to, [$outlet->id], 'week');
+        $budget = Budget::query()->with('lines')->sole();
+
+        expect($classes)->toBe(['Dog', 'Plowhorse', 'Puzzle', 'Star'])->and(count($built['table']['rows']))->toBeGreaterThan(10)->and($built['unknown'])->not->toBeEmpty()
+            ->and(count($trends['table']['rows']))->toBeGreaterThanOrEqual(12)->toBeLessThanOrEqual(13)->and((float) str_replace(',', '', $trends['table']['totals'][1]))->toBeGreaterThan(100000.0)
+            ->and($budget->property_id)->toBe($property->id)->and($budget->lines)->toHaveCount(15)->and((float) $budget->lines->where('account_id', Account::query()->where('system_key', 'room_revenue')->value('id'))->sole()->month_12)->toBe(1_680_000.0);
+    });
+
+    app(TenantContext::class)->run(tenant('greenvalley'), function (): void {
+        expect(Budget::query()->count())->toBe(1)->and(PosOrder::query()->where('order_no', 'like', 'H%')->count())->toBe(0);
     });
 });

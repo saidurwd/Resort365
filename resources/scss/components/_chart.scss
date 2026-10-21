@@ -1,0 +1,9 @@
+// A chart box on a page (Step 7.1, 7.2): Chart.js needs a box with a height.
+.chart-box {
+  position: relative;
+  height: 320px;
+}
+
+.chart-box-sm {
+  height: 260px;
+}

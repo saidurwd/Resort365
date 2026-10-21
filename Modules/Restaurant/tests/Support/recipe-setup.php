@@ -99,3 +99,22 @@ function rcSell(array $setup, MenuItem $dish, int $quantity, string $table = 'T1
 
     return $bill;
 }
+
+/**
+ * A dish at the Main Restaurant with a one-ingredient recipe: `$quantity` kg of an ingredient bought at `$unitCost` a kg, so a
+ * portion costs quantity × unit cost.
+ *
+ * @param  array<string, mixed>  $setup
+ */
+function rcDish(array $setup, Store $store, string $code, string $name, string $price, string $ingredient, string $unitCost, string $quantity): MenuItem
+{
+    $item = rcItem($ingredient, $unitCost, '1000', $store);
+
+    return booking(function () use ($setup, $code, $name, $price, $item, $quantity): MenuItem {
+        $dish = MenuItem::factory()->create(['code' => $code, 'name' => ['en' => $name], 'course' => 'main']);
+        OutletMenuItem::factory()->create(['outlet_id' => $setup['terminal']->outlet_id, 'menu_item_id' => $dish->id, 'price' => $price, 'kitchen_station_id' => $setup['stations']['Hot kitchen']]);
+        app(SaveRecipe::class)->handle(new NewRecipe(bookingIds()['property'], RecipeKind::Dish, [['item_id' => $item->id, 'quantity' => $quantity]], menuItemId: $dish->id));
+
+        return $dish;
+    });
+}

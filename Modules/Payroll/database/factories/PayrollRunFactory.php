@@ -21,6 +21,6 @@ class PayrollRunFactory extends Factory
      */
     public function definition(): array
     {
-        return ['property_id' => $this->propertyId(), 'run_no' => 'PRUN-'.fake()->unique()->numerify('####-#####'), 'period' => fake()->unique()->dateTimeBetween('-9 years', '-1 year')->format('Y-m-01'), 'status' => RunStatus::Draft];
+        return ['property_id' => $this->propertyId(), 'run_no' => 'PRUN-'.fake()->unique()->numerify('####-#####'), 'period' => now()->startOfMonth()->subMonths(fake()->unique()->numberBetween(13, 5000))->toDateString(), 'status' => RunStatus::Draft];
     }
 }

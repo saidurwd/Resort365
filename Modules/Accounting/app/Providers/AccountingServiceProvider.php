@@ -14,6 +14,7 @@ use Modules\Accounting\Console\SeedChartCommand;
 use Modules\Accounting\Contracts\CashPosition;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\BankAccount;
+use Modules\Accounting\Models\Budget;
 use Modules\Accounting\Models\FiscalPeriod;
 use Modules\Accounting\Models\FiscalYear;
 use Modules\Accounting\Models\JournalEntry;
@@ -21,6 +22,7 @@ use Modules\Accounting\Models\JournalLine;
 use Modules\Accounting\Models\Voucher;
 use Modules\Accounting\Policies\AccountPolicy;
 use Modules\Accounting\Policies\BankingPolicy;
+use Modules\Accounting\Policies\BudgetPolicy;
 use Modules\Accounting\Policies\JournalEntryPolicy;
 use Modules\Accounting\Policies\VoucherPolicy;
 use Modules\Accounting\Services\CashPositionService;
@@ -87,10 +89,12 @@ class AccountingServiceProvider extends ModuleServiceProvider
             'journal_line' => JournalLine::class,
             'voucher' => Voucher::class,
             'bank_account' => BankAccount::class,
+            'budget' => Budget::class,
         ]);
         Gate::policy(Account::class, AccountPolicy::class);
         Gate::policy(JournalEntry::class, JournalEntryPolicy::class);
         Gate::policy(Voucher::class, VoucherPolicy::class);
+        Gate::policy(Budget::class, BudgetPolicy::class);
         Gate::policy(BankAccount::class, BankingPolicy::class);
         $this->registerDocumentTypes();
 
@@ -114,6 +118,8 @@ class AccountingServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('accounting.bank.reconcile', 'Match bank statement lines and complete reconciliations', [$accountant]),
             new PermissionDefinition('accounting.report.view', 'View the financial reports', [$gm, $accountant]),
             new PermissionDefinition('accounting.report.export', 'Export the financial reports to Excel, CSV and PDF', [$gm, $accountant]),
+            new PermissionDefinition('accounting.budget.view', 'View budgets and the budget against actual', [$gm, $accountant]),
+            new PermissionDefinition('accounting.budget.manage', 'Make and change budgets', [$accountant]),
             new PermissionDefinition('accounting.voucher.view', 'View income and expense vouchers', [$gm, $accountant]),
             new PermissionDefinition('accounting.voucher.create', 'Record income and expense vouchers', [$accountant]),
             new PermissionDefinition('accounting.voucher.void', 'Void posted vouchers', [$accountant]),
@@ -137,6 +143,8 @@ class AccountingServiceProvider extends ModuleServiceProvider
             permission: 'accounting.bank.view', module: 'accounting', active: 'accounting.cheques.*'));
         $menu->add(new MenuItem('accounting.reconciliation', 'Reconciliation', route: 'accounting.reconciliation.index', parent: 'accounting', order: 43,
             permission: 'accounting.bank.view', module: 'accounting', active: 'accounting.reconciliation.*'));
+        $menu->add(new MenuItem('accounting.budgets', 'Budgets', route: 'accounting.budgets.index', parent: 'accounting', order: 45,
+            permission: 'accounting.budget.view', module: 'accounting', active: 'accounting.budgets.*'));
         $menu->add(new MenuItem('accounting.reports', 'Financial reports', route: 'accounting.reports.index', parent: 'accounting', order: 50,
             permission: 'accounting.report.view', module: 'accounting', active: 'accounting.reports.*'));
         $menu->add(new MenuItem('accounting.periods', 'Fiscal periods', route: 'accounting.periods.index', parent: 'accounting', order: 30,

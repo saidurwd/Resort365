@@ -83,7 +83,7 @@
         <div class="row">
             <div class="col-lg-6">
                 <x-card :title="__('Last 30 days: occupancy and room revenue')" icon="bi-graph-up">
-                    <div style="height: 260px" x-data="chart(@js(['type' => 'bar', 'data' => ['labels' => $stats['trend']['labels'], 'datasets' => [
+                    <div class="chart-box chart-box-sm" x-data="chart(@js(['type' => 'bar', 'data' => ['labels' => $stats['trend']['labels'], 'datasets' => [
                         ['type' => 'line', 'label' => __('Occupancy %'), 'data' => $stats['trend']['occupancy'], 'yAxisID' => 'y1', 'borderColor' => '#198754', 'tension' => 0.25],
                         ['type' => 'bar', 'label' => __('Room revenue'), 'data' => $stats['trend']['revenue'], 'backgroundColor' => 'rgba(13,110,253,.35)'],
                     ]], 'options' => ['scales' => ['y1' => ['position' => 'right', 'min' => 0, 'max' => 100, 'grid' => ['drawOnChartArea' => false]]]]]))" data-chart="trend"><canvas x-ref="canvas"></canvas></div>
@@ -91,7 +91,7 @@
             </div>
             <div class="col-lg-6">
                 <x-card :title="__('Last 12 months: room and F&B revenue')" icon="bi-bar-chart">
-                    <div style="height: 260px" x-data="chart(@js(['type' => 'bar', 'data' => ['labels' => $stats['months']['labels'], 'datasets' => array_values(array_filter([
+                    <div class="chart-box chart-box-sm" x-data="chart(@js(['type' => 'bar', 'data' => ['labels' => $stats['months']['labels'], 'datasets' => array_values(array_filter([
                         ['label' => __('Rooms'), 'data' => $stats['months']['rooms'], 'backgroundColor' => 'rgba(13,110,253,.55)'],
                         $fnb ? ['label' => __('F&B'), 'data' => $stats['months']['fnb'], 'backgroundColor' => 'rgba(255,193,7,.65)'] : null,
                     ]))], 'options' => ['scales' => ['x' => ['stacked' => true], 'y' => ['stacked' => true]]]]))" data-chart="months"><canvas x-ref="canvas"></canvas></div>

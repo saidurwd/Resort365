@@ -15,6 +15,7 @@ import { posFloor, posReady } from './ui/pos-live';
 import { posBill } from './ui/pos-bill';
 import { kdsBoard } from './ui/kds';
 import { journalLines } from './ui/journal';
+import { budgetGrid } from './ui/budget';
 import { chart } from './ui/chart';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
@@ -33,6 +34,7 @@ Alpine.data('posReady', posReady);
 Alpine.data('kdsBoard', kdsBoard);
 Alpine.data('journalLines', journalLines);
 Alpine.data('chart', chart);
+Alpine.data('budgetGrid', budgetGrid);
 Alpine.data('posBill', posBill);
 Alpine.start();
 
