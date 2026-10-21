@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $plan_id
  * @property Carbon|null $trial_ends_at
  * @property Carbon|null $suspended_at
+ * @property string|null $suspended_for why: `unpaid` (an overdue platform invoice) or `admin`
+ * @property Carbon|null $cancelled_at
  */
 #[UseFactory(TenantFactory::class)]
 #[Fillable([
@@ -31,6 +33,8 @@ use Illuminate\Support\Carbon;
     'plan_id',
     'trial_ends_at',
     'suspended_at',
+    'suspended_for',
+    'cancelled_at',
 ])]
 class Tenant extends Model
 {
@@ -46,6 +50,7 @@ class Tenant extends Model
             'status' => TenantStatus::class,
             'trial_ends_at' => 'datetime',
             'suspended_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 

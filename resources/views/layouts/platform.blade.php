@@ -45,6 +45,7 @@
                         @foreach ([
                             ['platform.console', 'bi-speedometer2', __('Overview'), 'platform.console'],
                             ['platform.tenants.index', 'bi-buildings', __('Tenants'), 'platform.tenants.*'],
+                            ['platform.invoices.index', 'bi-receipt', __('Invoices'), 'platform.invoices.*'],
                             ['platform.plans.index', 'bi-box-seam', __('Plans'), 'platform.plans.*'],
                             ['platform.announcements.index', 'bi-megaphone', __('Announcements'), 'platform.announcements.*'],
                             ['platform.audit.index', 'bi-journal-text', __('Audit log'), 'platform.audit.*'],

@@ -11,7 +11,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Creates a tenant (central record). TODO(step-7.4): full onboarding (plan, owner user, setup wizard, defaults).
+ * Creates a tenant (central record) and lets the modules seed its defaults (roles, chart of accounts, sequences…). Self-service sign-up
+ * (Step 7.4) adds the plan, the owner and the trial through Platform's RegisterTenant.
  */
 class CreateTenant extends Action
 {
@@ -31,7 +32,7 @@ class CreateTenant extends Action
             'name' => $data['name'],
             'email' => $data['email'],
             'status' => $status,
-            'trial_ends_at' => $status === TenantStatus::Trial ? now()->addDays(14) : null,
+            'trial_ends_at' => $status === TenantStatus::Trial ? now()->addDays((int) config('tenancy.trial_days')) : null,
         ]);
 
         // Modules seed their per-tenant defaults (e.g. IAM's default roles).

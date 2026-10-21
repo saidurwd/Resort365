@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Rates\Http\Controllers\CancellationPolicyController;
 use Modules\Rates\Http\Controllers\DepositPolicyController;
+use Modules\Rates\Http\Controllers\OnboardingController;
 use Modules\Rates\Http\Controllers\PolicyController;
 use Modules\Rates\Http\Controllers\PromotionController;
 use Modules\Rates\Http\Controllers\RateGridController;
@@ -21,6 +22,11 @@ use Modules\Rates\Http\Controllers\SeasonController;
 */
 
 Route::prefix('rates')->name('rates.')->middleware(['auth', 'verified'])->group(function (): void {
+    Route::middleware(['can:core.onboarding.manage', 'can:rates.rate-plan.manage', 'can:rates.rate.manage'])->group(function (): void {
+        Route::get('/onboarding/prices', [OnboardingController::class, 'edit'])->name('onboarding.prices');
+        Route::post('/onboarding/prices', [OnboardingController::class, 'store'])->name('onboarding.prices.store');
+    });
+
     Route::get('/grid', [RateGridController::class, 'index'])->middleware('can:rates.rate.view')->name('grid');
     Route::middleware('can:rates.rate.manage')->group(function (): void {
         Route::post('/rate-plans/{rate_plan}/overrides', [RateGridController::class, 'overrides'])->name('grid.overrides');

@@ -8,18 +8,22 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\View\View;
+use Modules\Core\Contracts\TenantDataExports;
 use Modules\IAM\Contracts\UserDirectory;
 use Modules\IAM\DTOs\UserSummary;
 use Modules\Platform\Actions\ChangeTenantPlan;
 use Modules\Platform\Actions\ReactivateTenant;
 use Modules\Platform\Actions\StartImpersonation;
 use Modules\Platform\Actions\SuspendTenant;
+use Modules\Platform\Enums\BillingPeriod;
 use Modules\Platform\Exceptions\PlatformRuleViolated;
 use Modules\Platform\Http\Requests\ChangePlanRequest;
 use Modules\Platform\Http\Requests\ReasonRequest;
 use Modules\Platform\Models\ImpersonationSession;
 use Modules\Platform\Models\Plan;
 use Modules\Platform\Models\PlatformAuditEntry;
+use Modules\Platform\Models\PlatformInvoice;
+use Modules\Platform\Models\Subscription;
 use Modules\Platform\Services\UsageCollector;
 
 /**
@@ -40,7 +44,7 @@ class TenantController extends Controller
         ]);
     }
 
-    public function show(Tenant $tenant, UsageCollector $usage, TenantContext $context, UserDirectory $users): View
+    public function show(Tenant $tenant, UsageCollector $usage, TenantContext $context, UserDirectory $users, TenantDataExports $exports): View
     {
         $plan = $tenant->plan_id !== null ? Plan::query()->find($tenant->plan_id) : null;
 
@@ -49,6 +53,10 @@ class TenantController extends Controller
             'people' => $tenant->status->canAccess() ? $context->run($tenant, fn (): array => collect($users->all())->filter(fn (UserSummary $user): bool => $user->status === 'active')->values()->all()) : [],
             'audit' => PlatformAuditEntry::query()->where('tenant_id', $tenant->id)->latest('id')->limit(15)->get(),
             'sessions' => ImpersonationSession::query()->with('admin')->where('tenant_id', $tenant->id)->latest('id')->limit(10)->get(),
+            'subscription' => Subscription::query()->with('plan')->where('tenant_id', $tenant->id)->latest('id')->first(),
+            'invoices' => PlatformInvoice::query()->where('tenant_id', $tenant->id)->orderByDesc('issued_on')->orderByDesc('id')->limit(12)->get(),
+            'exports' => $context->run($tenant, fn (): array => $exports->recent(3)),
+            'periods' => BillingPeriod::options(),
         ]);
     }
 

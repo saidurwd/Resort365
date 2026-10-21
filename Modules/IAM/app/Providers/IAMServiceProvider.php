@@ -20,8 +20,10 @@ use Illuminate\Support\Facades\View;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\LoginRateLimiter;
 use Modules\Core\Contracts\ApprovalParticipants;
+use Modules\Core\Contracts\Onboarding;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Contracts\UsageMeters;
+use Modules\Core\DTOs\OnboardingStep;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingType;
 use Modules\IAM\Actions\AuthenticateUser;
@@ -29,6 +31,7 @@ use Modules\IAM\Actions\Fortify\ResetUserPassword;
 use Modules\IAM\Actions\Fortify\UpdateUserPassword;
 use Modules\IAM\Actions\Fortify\UpdateUserProfileInformation;
 use Modules\IAM\Console\SyncPermissionsCommand;
+use Modules\IAM\Contracts\OwnerAccounts;
 use Modules\IAM\Contracts\PosPins;
 use Modules\IAM\Contracts\RoleDirectory;
 use Modules\IAM\Contracts\UserDirectory;
@@ -42,6 +45,7 @@ use Modules\IAM\Models\User;
 use Modules\IAM\Policies\RolePolicy;
 use Modules\IAM\Policies\UserPolicy;
 use Modules\IAM\Services\ApprovalParticipantsService;
+use Modules\IAM\Services\OwnerAccountsService;
 use Modules\IAM\Services\PosPinsService;
 use Modules\IAM\Services\RoleDirectoryService;
 use Modules\IAM\Services\UserDirectoryService;
@@ -92,6 +96,7 @@ class IAMServiceProvider extends ModuleServiceProvider
         $this->app->bind(ApprovalParticipants::class, ApprovalParticipantsService::class);
         $this->app->singleton(PosPins::class, PosPinsService::class);
         $this->app->singleton(RoleDirectory::class, RoleDirectoryService::class);
+        $this->app->bind(OwnerAccounts::class, OwnerAccountsService::class);
     }
 
     public function boot(): void
@@ -110,6 +115,8 @@ class IAMServiceProvider extends ModuleServiceProvider
 
         // What plans limit (Step 7.3): people who may sign in or are invited.
         $this->app->make(UsageMeters::class)->register('users', 'Users', 'count', fn (): int => User::query()->whereIn('status', [UserStatus::Invited->value, UserStatus::Active->value])->count());
+        $this->app->make(Onboarding::class)->register(new OnboardingStep('team', 'Your team', 'Invite the people who will use the system and give each a role.', 50,
+            'iam.users.index', fn (): bool => User::query()->count() > 1, 'iam'));
 
         $this->configureFortify();
         $this->configureRateLimiting();

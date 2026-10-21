@@ -22,6 +22,7 @@
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
     <x-impersonation-banner />
     <x-announcements />
+    <x-subscription-banner />
     <div class="app-wrapper">
         @include('layouts.partials.navbar')
         @include('layouts.partials.sidebar')

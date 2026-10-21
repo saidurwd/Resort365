@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\TenantStatus;
 use App\Models\Tenant;
 use App\Support\Tenancy\ModuleAccess;
 use App\Support\Tenancy\PropertyAccess;
@@ -21,6 +22,7 @@ use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Payment;
 use Modules\Core\Contracts\PlanLimits;
+use Modules\Core\Contracts\SubscriptionAccount;
 use Modules\Core\Contracts\TaxEngine;
 use Modules\Core\Models\TaxCategory;
 use Modules\Guest\Contracts\GuestLookup;
@@ -64,8 +66,13 @@ use Modules\Payroll\Models\ServiceChargeAllocation;
 use Modules\Payroll\Models\ServiceChargePool;
 use Modules\Payroll\Models\TaxTable;
 use Modules\Payroll\Services\SalaryPreview;
+use Modules\Platform\Enums\BillingPeriod;
+use Modules\Platform\Enums\PlatformInvoiceStatus;
+use Modules\Platform\Enums\SubscriptionStatus;
 use Modules\Platform\Models\Announcement;
 use Modules\Platform\Models\Plan;
+use Modules\Platform\Models\PlatformInvoice;
+use Modules\Platform\Models\Subscription;
 use Modules\Procurement\Models\GoodsReceipt;
 use Modules\Procurement\Models\PurchaseOrder;
 use Modules\Procurement\Models\PurchaseRequisition;
@@ -538,4 +545,16 @@ it('puts Rodela on Enterprise and Green Valley on Professional, with one announc
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
         expect(app(ModuleAccess::class)->enabled('restaurant'))->toBeTrue()->and(app(PlanLimits::class)->limit('max_rooms'))->toBeNull();
     });
+});
+
+it('gives Rodela a paid yearly subscription and Green Valley a trial in its last days (Step 7.4)', function (): void {
+    seed(DatabaseSeeder::class);
+
+    $rodela = Subscription::currentFor(tenant('rodela')->id);
+    $valley = Subscription::currentFor(tenant('greenvalley')->id);
+
+    expect($rodela?->status)->toBe(SubscriptionStatus::Active)->and($rodela?->billing_period)->toBe(BillingPeriod::Yearly)
+        ->and(PlatformInvoice::query()->where('tenant_id', tenant('rodela')->id)->sole()->status)->toBe(PlatformInvoiceStatus::Paid)
+        ->and($valley?->status)->toBe(SubscriptionStatus::Trialing)->and(tenant('greenvalley')->status)->toBe(TenantStatus::Trial)
+        ->and(app(TenantContext::class)->run(tenant('greenvalley'), fn () => app(SubscriptionAccount::class)->current()?->remindTrial))->toBeTrue();
 });

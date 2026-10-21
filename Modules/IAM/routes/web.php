@@ -6,6 +6,7 @@ use Modules\IAM\Http\Controllers\InvitationController;
 use Modules\IAM\Http\Controllers\ProfileController;
 use Modules\IAM\Http\Controllers\RoleController;
 use Modules\IAM\Http\Controllers\UserController;
+use Modules\IAM\Http\Controllers\WelcomeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +24,9 @@ Route::prefix('iam')->name('iam.')->group(function (): void {
     // A platform admin signs in as a user (Step 7.3): a one-time link from the console, and the way out.
     Route::get('/impersonate/{token}', [ImpersonationController::class, 'enter'])->middleware('throttle:10,1')->name('impersonation.enter');
     Route::post('/impersonation/leave', [ImpersonationController::class, 'leave'])->middleware('auth')->name('impersonation.leave');
+
+    // The owner of a company that has just signed up (Step 7.4): a one-time link from the sign-up page.
+    Route::get('/welcome/{token}', WelcomeController::class)->middleware('throttle:10,1')->name('welcome');
 
     Route::middleware(['guest', 'signed', 'throttle:6,1'])->group(function (): void {
         Route::get('/invitations/{user}', [InvitationController::class, 'show'])->name('invitations.show');

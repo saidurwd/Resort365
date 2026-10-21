@@ -26,7 +26,7 @@ class ReactivateTenant extends Action
         }
 
         return $this->transaction(function () use ($tenant, $admin): Tenant {
-            $tenant->forceFill(['status' => $tenant->trial_ends_at?->isFuture() ? TenantStatus::Trial : TenantStatus::Active, 'suspended_at' => null])->save();
+            $tenant->forceFill(['status' => $tenant->trial_ends_at?->isFuture() ? TenantStatus::Trial : TenantStatus::Active, 'suspended_at' => null, 'suspended_for' => null])->save();
             $this->audit->log($admin, 'tenant.reactivated', __(':tenant reactivated', ['tenant' => $tenant->name]), $tenant->id);
 
             return $tenant;

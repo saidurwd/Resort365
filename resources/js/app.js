@@ -17,6 +17,7 @@ import { kdsBoard } from './ui/kds';
 import { journalLines } from './ui/journal';
 import { budgetGrid } from './ui/budget';
 import { chart } from './ui/chart';
+import { subdomainCheck } from './ui/signup';
 
 // AdminLTE and inline markup rely on Bootstrap's global (e.g. `bootstrap.Modal`).
 window.bootstrap = bootstrap;
@@ -36,6 +37,7 @@ Alpine.data('journalLines', journalLines);
 Alpine.data('chart', chart);
 Alpine.data('budgetGrid', budgetGrid);
 Alpine.data('posBill', posBill);
+Alpine.data('subdomainCheck', subdomainCheck);
 Alpine.start();
 
 /**

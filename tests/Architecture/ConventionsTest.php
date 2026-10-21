@@ -14,6 +14,9 @@ use Modules\Platform\Models\ImpersonationSession;
 use Modules\Platform\Models\Plan;
 use Modules\Platform\Models\PlatformAdmin;
 use Modules\Platform\Models\PlatformAuditEntry;
+use Modules\Platform\Models\PlatformInvoice;
+use Modules\Platform\Models\PlatformPayment;
+use Modules\Platform\Models\Subscription;
 
 require_once __DIR__.'/helpers.php';
 
@@ -28,6 +31,9 @@ $centralModels = [
     PlatformAdmin::class,
     Plan::class,
     Announcement::class,
+    Subscription::class,
+    PlatformInvoice::class,
+    PlatformPayment::class,
     PlatformAuditEntry::class,
     ImpersonationSession::class,
 ];

@@ -122,3 +122,13 @@
 .limit-input {
     max-width: 8rem;
 }
+
+// Sign-up (Step 7.4): the guest layout's box, wide enough for the plans.
+.login-box.signup-box {
+    width: min(100% - 2rem, 44rem);
+}
+
+// The subdomain field: the central domain follows the name.
+.subdomain-input {
+    min-width: 8rem;
+}

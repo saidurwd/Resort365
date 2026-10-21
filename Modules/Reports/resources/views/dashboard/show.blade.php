@@ -10,6 +10,8 @@
         </x-slot:actions>
     @endif
 
+    <x-onboarding-banner />
+
     @if ($stats === null && $desk === null && $cash === null)
         <x-card>
             <x-empty-state icon="bi-speedometer2" :title="__('Welcome to :name', ['name' => $tenant->name])" :message="__('You are signed in as :name. Use the menu on the left to get to your work.', ['name' => auth()->user()?->getAttribute('name')])">

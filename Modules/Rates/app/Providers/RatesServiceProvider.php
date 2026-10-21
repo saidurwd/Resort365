@@ -9,7 +9,9 @@ use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
+use Modules\Core\Contracts\Onboarding;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\DTOs\OnboardingStep;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
@@ -94,6 +96,8 @@ class RatesServiceProvider extends ModuleServiceProvider
         $this->app->make(Settings::class)->define(new SettingDefinition('rates.weekend_days', 'Weekend days', SettingType::Text, '5,6', SettingScope::Property, 'Rates',
             help: 'Days that use weekend rates: 1 = Monday … 7 = Sunday, separated by commas. Bangladesh: 5,6 (Friday and Saturday).',
             rules: ['regex:/^[1-7](,[1-7])*$/']));
+        $this->app->make(Onboarding::class)->register(new OnboardingStep('prices', 'Prices', 'A price per night for each kind of room, with a deposit and a cancellation policy.', 40,
+            'rates.onboarding.prices', fn (): bool => RatePlan::query()->exists(), 'rates'));
     }
 
     private function registerPermissions(PermissionRegistry $permissions): void

@@ -5,6 +5,7 @@ use Modules\Property\Http\Controllers\AmenityController;
 use Modules\Property\Http\Controllers\CottageController;
 use Modules\Property\Http\Controllers\CottageTypeController;
 use Modules\Property\Http\Controllers\DepartmentController;
+use Modules\Property\Http\Controllers\OnboardingController;
 use Modules\Property\Http\Controllers\PropertyAccessController;
 use Modules\Property\Http\Controllers\PropertyController;
 use Modules\Property\Http\Controllers\RoomController;
@@ -23,6 +24,17 @@ use Modules\Property\Http\Controllers\SwitchPropertyController;
 */
 
 Route::prefix('property')->name('property.')->middleware(['auth', 'verified'])->group(function (): void {
+    Route::middleware('can:core.onboarding.manage')->group(function (): void {
+        Route::middleware('can:property.property.create')->group(function (): void {
+            Route::get('/onboarding/property', [OnboardingController::class, 'property'])->name('onboarding.property');
+            Route::post('/onboarding/property', [OnboardingController::class, 'storeProperty'])->name('onboarding.property.store');
+        });
+        Route::middleware(['can:property.room.manage', 'can:property.cottage.manage'])->group(function (): void {
+            Route::get('/onboarding/rooms', [OnboardingController::class, 'rooms'])->name('onboarding.rooms');
+            Route::post('/onboarding/rooms', [OnboardingController::class, 'storeRooms'])->name('onboarding.rooms.store');
+        });
+    });
+
     Route::post('/switch/{property}', SwitchPropertyController::class)->name('switch');
 
     Route::get('/properties', [PropertyController::class, 'index'])->middleware('can:property.property.view')->name('properties.index');

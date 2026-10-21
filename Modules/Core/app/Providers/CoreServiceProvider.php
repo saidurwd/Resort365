@@ -8,9 +8,11 @@ use App\Support\Authorization\PermissionRegistry;
 use App\Support\Menu\MenuItem;
 use App\Support\Menu\MenuRegistry;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
+use Modules\Core\Console\PurgeDataExportsCommand;
 use Modules\Core\Console\SeedApprovalsCommand;
 use Modules\Core\Contracts\Announcements;
 use Modules\Core\Contracts\ApprovalEngine;
@@ -19,17 +21,22 @@ use Modules\Core\Contracts\AuditTrail;
 use Modules\Core\Contracts\DocumentNumbers;
 use Modules\Core\Contracts\ExchangeRates;
 use Modules\Core\Contracts\NotificationTemplates;
+use Modules\Core\Contracts\Onboarding;
 use Modules\Core\Contracts\PlanLimits;
 use Modules\Core\Contracts\ReferenceData;
 use Modules\Core\Contracts\Settings;
+use Modules\Core\Contracts\SubscriptionAccount;
 use Modules\Core\Contracts\TaxEngine;
+use Modules\Core\Contracts\TenantDataExports;
 use Modules\Core\Contracts\UsageMeters;
 use Modules\Core\DTOs\DocumentType;
 use Modules\Core\DTOs\NotificationTemplateDefinition;
+use Modules\Core\DTOs\OnboardingStep;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
 use Modules\Core\Models\ApprovalRequest;
+use Modules\Core\Models\TaxCategory;
 use Modules\Core\Policies\ApprovalRequestPolicy;
 use Modules\Core\Services\ApprovalEngineService;
 use Modules\Core\Services\ApprovalRegistryService;
@@ -37,10 +44,13 @@ use Modules\Core\Services\AuditTrailService;
 use Modules\Core\Services\DocumentNumberService;
 use Modules\Core\Services\ExchangeRateService;
 use Modules\Core\Services\NoAnnouncements;
+use Modules\Core\Services\NoSubscriptionAccount;
 use Modules\Core\Services\NotificationTemplateService;
+use Modules\Core\Services\OnboardingService;
 use Modules\Core\Services\ReferenceDataService;
 use Modules\Core\Services\SettingsService;
 use Modules\Core\Services\TaxEngineService;
+use Modules\Core\Services\TenantDataExportService;
 use Modules\Core\Services\UnlimitedPlanLimits;
 use Modules\Core\Services\UsageMeterRegistry;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -74,6 +84,7 @@ class CoreServiceProvider extends ModuleServiceProvider
      */
     protected array $commands = [
         SeedApprovalsCommand::class,
+        PurgeDataExportsCommand::class,
     ];
 
     public function register(): void
@@ -82,6 +93,7 @@ class CoreServiceProvider extends ModuleServiceProvider
 
         // Registries (filled at boot) and stateless services behind the contracts other modules use.
         $this->app->singleton(Settings::class, SettingsService::class);
+        $this->app->singleton(Onboarding::class, OnboardingService::class);
         $this->app->singleton(DocumentNumbers::class, DocumentNumberService::class);
         $this->app->singleton(NotificationTemplates::class, NotificationTemplateService::class);
         $this->app->singleton(AuditTrail::class, AuditTrailService::class);
@@ -89,6 +101,9 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->app->singletonIf(PlanLimits::class, UnlimitedPlanLimits::class);
         $this->app->singleton(UsageMeters::class, UsageMeterRegistry::class);
         $this->app->singletonIf(Announcements::class, NoAnnouncements::class);
+        // Subscriptions (Step 7.4): Platform binds the real account; a company's data exports are Core's.
+        $this->app->bindIf(SubscriptionAccount::class, NoSubscriptionAccount::class);
+        $this->app->bind(TenantDataExports::class, TenantDataExportService::class);
         $this->app->singleton(ExchangeRates::class, ExchangeRateService::class);
         $this->app->singleton(ReferenceData::class, ReferenceDataService::class);
         $this->app->singleton(TaxEngine::class, TaxEngineService::class);
@@ -120,7 +135,12 @@ class CoreServiceProvider extends ModuleServiceProvider
         Gate::policy(ApprovalRequest::class, ApprovalRequestPolicy::class);
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));
+        $this->app->make(Onboarding::class)->register(new OnboardingStep('taxes', 'Taxes', 'Service charge and VAT on rooms and food.', 20, 'core.onboarding.taxes', fn (): bool => TaxCategory::query()->exists()));
         $this->shareNotificationBell();
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('core:purge-data-exports')->dailyAt('03:30');
+        });
     }
 
     private function registerSettings(Settings $settings): void
@@ -131,6 +151,9 @@ class CoreServiceProvider extends ModuleServiceProvider
             help: 'The currency the company reports in (ISO 4217).'));
         $settings->define(new SettingDefinition('core.date_format', 'Date format', SettingType::Select, 'd M Y', group: 'General',
             options: ['d M Y' => '27 Sep 2026', 'd/m/Y' => '27/09/2026', 'Y-m-d' => '2026-09-27', 'm/d/Y' => '09/27/2026']));
+
+        $settings->define(new SettingDefinition('core.onboarding_dismissed', 'Setup checklist put away', SettingType::Boolean, false, group: 'General',
+            help: 'Stops the reminder to finish the setup checklist on the dashboard.'));
 
         // Check-in/out times are property columns (Property module), not settings.
         $settings->define(new SettingDefinition('core.night_audit_time', 'Night audit time', SettingType::Time, '02:00', SettingScope::Property, 'Operations',
@@ -173,6 +196,17 @@ class CoreServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('core.notification-template.manage', 'Change email and notification templates', $managers),
         ]);
 
+        $permissions->register('Setup checklist', [
+            new PermissionDefinition('core.onboarding.manage', 'Work through the setup checklist of a new company', $managers),
+        ]);
+
+        // The company's own subscription and data (Step 7.4); the Tenant Owner holds every permission.
+        $permissions->register('Subscription', [
+            new PermissionDefinition('core.subscription.view', 'See the plan, the trial and the platform invoices', [DefaultRole::GeneralManager]),
+            new PermissionDefinition('core.subscription.manage', 'Cancel the subscription', []),
+            new PermissionDefinition('core.data-export.manage', 'Export all of the company\'s data', []),
+        ]);
+
         $permissions->register('Approvals', [
             new PermissionDefinition('core.approval.view', 'See the approvals that concern them and delegate their own', DefaultRole::cases()),
             new PermissionDefinition('core.approval.manage', 'Set up approval workflows and see every request', $managers),
@@ -187,6 +221,10 @@ class CoreServiceProvider extends ModuleServiceProvider
     private function registerMenu(MenuRegistry $menu): void
     {
         $menu->group('setup', 'Setup', 'bi-gear', order: 900);
+        $menu->add(new MenuItem('core.onboarding', 'Setup checklist', route: 'core.onboarding.index', parent: 'setup', order: 0,
+            permission: 'core.onboarding.manage', module: 'core', active: 'core.onboarding.*'));
+        $menu->add(new MenuItem('core.subscription', 'Subscription', route: 'core.subscription.show', parent: 'setup', order: 1,
+            permission: 'core.subscription.view', module: 'core', active: 'core.subscription.*'));
         $menu->add(new MenuItem('core.taxes', 'Taxes', route: 'core.taxes.index', parent: 'setup', order: 9,
             permission: 'core.tax.view', module: 'core', active: 'core.taxes.*'));
         $menu->add(new MenuItem('core.approvals', 'Approvals', icon: 'bi-check2-square', route: 'core.approvals.index', order: 5, permission: 'core.approval.view', module: 'core', active: 'core.approvals.*'));

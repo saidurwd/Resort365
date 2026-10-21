@@ -9,7 +9,9 @@ use Modules\Core\Http\Controllers\AuditLogController;
 use Modules\Core\Http\Controllers\DocumentSequenceController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\NotificationTemplateController;
+use Modules\Core\Http\Controllers\OnboardingController;
 use Modules\Core\Http\Controllers\SettingsController;
+use Modules\Core\Http\Controllers\SubscriptionController;
 use Modules\Core\Http\Controllers\TaxController;
 
 /*
@@ -22,6 +24,27 @@ use Modules\Core\Http\Controllers\TaxController;
 */
 
 Route::prefix('core')->name('core.')->middleware(['auth', 'verified'])->group(function (): void {
+    Route::middleware('can:core.onboarding.manage')->group(function (): void {
+        Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
+        Route::post('/onboarding/dismiss', [OnboardingController::class, 'dismiss'])->name('onboarding.dismiss');
+        Route::get('/onboarding/taxes', [OnboardingController::class, 'taxes'])->name('onboarding.taxes');
+        Route::post('/onboarding/taxes', [OnboardingController::class, 'storeTaxes'])->name('onboarding.taxes.store');
+    });
+
+    // The company's own subscription and its data (Step 7.4).
+    Route::middleware('can:core.subscription.view')->group(function (): void {
+        Route::get('/subscription', [SubscriptionController::class, 'show'])->name('subscription.show');
+        Route::get('/subscription/invoices/{invoice}', [SubscriptionController::class, 'invoice'])->whereNumber('invoice')->name('subscription.invoice');
+    });
+    Route::middleware('can:core.subscription.manage')->group(function (): void {
+        Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
+        Route::post('/subscription/resume', [SubscriptionController::class, 'resume'])->name('subscription.resume');
+    });
+    Route::middleware('can:core.data-export.manage')->group(function (): void {
+        Route::post('/data-exports', [SubscriptionController::class, 'export'])->middleware('throttle:5,60')->name('data-exports.store');
+        Route::get('/data-exports/{export}/download', [SubscriptionController::class, 'download'])->whereNumber('export')->name('data-exports.download');
+    });
+
     Route::middleware('can:core.approval.view')->group(function (): void {
         Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
         Route::get('/approvals/{approval}', [ApprovalController::class, 'show'])->whereNumber('approval')->name('approvals.show');

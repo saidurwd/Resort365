@@ -23,6 +23,18 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Trial
+    |--------------------------------------------------------------------------
+    |
+    | How long a company that signs up may use the system before its first
+    | invoice (Step 7.4).
+    |
+    */
+
+    'trial_days' => (int) env('TENANCY_TRIAL_DAYS', 14),
+
     'reserved_slugs' => [
         'admin', 'api', 'app', 'assets', 'auth', 'billing', 'blog', 'cdn', 'console', 'dashboard', 'dev',
         'docs', 'ftp', 'help', 'mail', 'platform', 'resort365', 'smtp', 'staging', 'static', 'status',

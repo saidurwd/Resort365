@@ -13,8 +13,10 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
+use Modules\Core\Contracts\Onboarding;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Contracts\UsageMeters;
+use Modules\Core\DTOs\OnboardingStep;
 use Modules\Property\Contracts\BusinessDates;
 use Modules\Property\Contracts\DepartmentDirectory;
 use Modules\Property\Contracts\InventoryCatalog;
@@ -88,6 +90,11 @@ class PropertyServiceProvider extends ModuleServiceProvider
         $meters = $this->app->make(UsageMeters::class);
         $meters->register('properties', 'Properties', 'count', fn (): int => Property::query()->count());
         $meters->register('rooms', 'Rooms', 'count', fn (): int => Room::query()->count());
+
+        // The first steps of the setup checklist (Step 7.4).
+        $onboarding = $this->app->make(Onboarding::class);
+        $onboarding->register(new OnboardingStep('property', 'Your resort', 'Name, address, currency, timezone and check-in and check-out times.', 10, 'property.onboarding.property', fn (): bool => Property::query()->exists(), 'property'));
+        $onboarding->register(new OnboardingStep('rooms', 'Cottages and rooms', 'How many cottages and rooms you have to sell.', 30, 'property.onboarding.rooms', fn (): bool => Room::query()->exists(), 'property'));
 
         Relation::morphMap([
             'property' => Property::class,

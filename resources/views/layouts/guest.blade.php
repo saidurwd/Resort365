@@ -1,5 +1,6 @@
 @props([
     'title' => null,
+    'wide' => false,
 ])
 
 {{-- Centred card for sign-in, password reset and similar pages. --}}
@@ -9,7 +10,7 @@
     @include('layouts.partials.head', ['title' => $title])
 </head>
 <body class="login-page bg-body-secondary">
-    <div class="login-box">
+    <div @class(['login-box', 'signup-box' => $wide])>
         <div class="login-logo">
             <a href="{{ url('/') }}" class="link-body-emphasis text-decoration-none">
                 <i class="bi bi-tree-fill text-success"></i>
