@@ -97,6 +97,6 @@ class PrintBill extends Action
             }
 
             return $bills;
-        });
+        }, attempts: 5); // A lock conflict over the outlet's numbers is tried again (Step 7.5 load test).
     }
 }

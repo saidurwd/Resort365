@@ -9,7 +9,7 @@ return [
         'invoice_due_days' => 7,
         // Days before the end of a trial that its owner is reminded.
         'trial_warning_days' => 3,
-        // Days a cancelled tenant's data is kept before it may be purged. TODO(step-7.5): the purge.
+        // Days a cancelled tenant's data is kept before `platform:purge-tenants` deletes it.
         'retention_days' => 30,
         // The payment gateway (manual invoicing first; Cashier/Stripe later).
         'gateway' => 'manual',

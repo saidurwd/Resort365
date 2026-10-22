@@ -24,6 +24,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('/exports', [ExportController::class, 'index'])->name('exports.index');
             Route::get('/exports/{export}/download', [ExportController::class, 'download'])->whereNumber('export')->name('exports.download');
         });
-        Route::get('/{key}', [ReportController::class, 'show'])->where('key', '[a-z-]+')->name('show');
+        Route::get('/{key}', [ReportController::class, 'show'])->where('key', '[a-z-]+')->middleware('throttle:reports')->name('show');
     });
 });

@@ -112,7 +112,7 @@ class HousekeepingServiceProvider extends ModuleServiceProvider
 
         // Preventive maintenance: once a day, schedules due by each property's business date.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $schedule->job(new RunPreventiveMaintenance)->name('housekeeping:preventive')->dailyAt('06:00')->withoutOverlapping();
+            $schedule->job(new RunPreventiveMaintenance)->name('housekeeping:preventive')->dailyAt('06:00')->withoutOverlapping()->onOneServer();
         });
     }
 }

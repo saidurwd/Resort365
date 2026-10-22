@@ -68,10 +68,13 @@ class ItemCategory extends Model
         return $this->hasMany(Item::class);
     }
 
-    /** The class of the category, else of the nearest parent that has one, else operating supplies. */
+    /**
+     * The class of the category, else of the nearest parent that has one, else operating supplies. Uses the parents already loaded
+     * (callers eager-load `category.parent`) and fetches any further ancestor on purpose; the tree is small and shallow.
+     */
     public function stockClass(): StockClass
     {
-        for ($category = $this, $guard = 0; $category instanceof self && $guard < 20; $category = $category->parent, $guard++) {
+        for ($category = $this, $guard = 0; $category instanceof self && $guard < 20; $category = $category->parentCategory(), $guard++) {
             if ($category->account_class instanceof StockClass) {
                 return $category->account_class;
             }
@@ -80,9 +83,21 @@ class ItemCategory extends Model
         return StockClass::Operating;
     }
 
+    /** The parent, loaded if it was not. */
+    private function parentCategory(): ?self
+    {
+        if ($this->parent_id === null) {
+            return null;
+        }
+
+        return $this->relationLoaded('parent') ? $this->parent : self::query()->find($this->parent_id);
+    }
+
     /** "Food › Dairy" */
     public function path(): string
     {
-        return $this->parent instanceof self ? $this->parent->path().' › '.$this->name : $this->name;
+        $parent = $this->parentCategory();
+
+        return $parent instanceof self ? $parent->path().' › '.$this->name : $this->name;
     }
 }

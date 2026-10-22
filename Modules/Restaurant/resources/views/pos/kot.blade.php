@@ -30,6 +30,6 @@
         @endforeach
     </table>
     @if (request()->boolean('auto'))
-        <script>window.addEventListener('load', () => window.print());</script>
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">window.addEventListener('load', () => window.print());</script>
     @endif
 </x-layouts::print>

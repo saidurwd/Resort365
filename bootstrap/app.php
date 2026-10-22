@@ -3,15 +3,21 @@
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
 use App\Http\Middleware\IdentifyTenant;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetCurrentProperty;
 use App\Support\Tenancy\PlanLimitReached;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Sentry\Laravel\Integration;
+use Sentry\State\Scope;
 use Symfony\Component\HttpFoundation\Response;
+
+use function Sentry\configureScope;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,6 +36,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['module' => EnsureModuleEnabled::class]);
 
+        // Security headers on every response, the central domain's and the tenants' (Step 7.5).
+        $middleware->append(SecurityHeaders::class);
+
         // Modules append to this group (e.g. IAM adds EnsureUserIsActive and SetUserLocale).
         $middleware->group('tenant', [
             IdentifyTenant::class,
@@ -44,10 +53,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: EnsureUserBelongsToTenant::class);
         $middleware->prependToPriorityList(before: AuthenticatesRequests::class, prepend: SetCurrentProperty::class);
 
-        $middleware->redirectGuestsTo(fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.login') : route('login'));
-        $middleware->redirectUsersTo(fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.console') : route('dashboard'));
+        // Everything under /platform (the console, and Horizon and Pulse since Step 7.5) belongs to the platform admins' sign-in.
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->routeIs('platform.*') || $request->is('platform', 'platform/*') ? route('platform.login') : route('login'));
+        $middleware->redirectUsersTo(fn (Request $request): string => $request->routeIs('platform.*') || $request->is('platform', 'platform/*') ? route('platform.console') : route('dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Sentry (Step 7.5): which tenant and which user id, never names or emails (send_default_pii is off).
+        $exceptions->reportable(function (Throwable $exception): void {
+            if (app()->bound('sentry')) {
+                configureScope(function (Scope $scope): void {
+                    $scope->setTag('tenant', (string) (app(TenantContext::class)->tenant()->slug ?? 'central'));
+                    $id = auth()->id();
+                    $scope->setUser($id !== null ? ['id' => (string) $id] : []);
+                });
+            }
+        });
+        Integration::handles($exceptions);
+
         // A plan limit is a friendly refusal, on the page the person was on (Step 7.3).
         $exceptions->render(function (PlanLimitReached $exception, Request $request): ?Response {
             if ($request->expectsJson() || $request->is('api/*')) {

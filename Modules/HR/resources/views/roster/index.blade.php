@@ -17,7 +17,7 @@
         <form method="GET" action="{{ route('hr.roster.index') }}" class="d-flex gap-2">
             <input type="hidden" name="from" value="{{ $from }}">
             <input type="hidden" name="days" value="{{ $days }}">
-            <select name="department" class="form-select form-select-sm" aria-label="{{ __('Department') }}" onchange="this.form.submit()">
+            <select name="department" class="form-select form-select-sm" aria-label="{{ __('Department') }}" data-submit-on-change>
                 <option value="">{{ __('All departments') }}</option>
                 @foreach ($departments as $id => $name)<option value="{{ $id }}" @selected($department === $id)>{{ $name }}</option>@endforeach
             </select>

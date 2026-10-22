@@ -11,6 +11,7 @@ use Modules\Core\Contracts\Impersonation;
 use Modules\Core\Contracts\PlanLimits;
 use Modules\Core\Contracts\SubscriptionAccount;
 use Modules\Platform\Console\CreatePlatformAdminCommand;
+use Modules\Platform\Console\PurgeTenantsCommand;
 use Modules\Platform\Console\RunBillingCommand;
 use Modules\Platform\Console\SeedPlansCommand;
 use Modules\Platform\Contracts\PaymentGateway;
@@ -42,6 +43,7 @@ class PlatformServiceProvider extends ModuleServiceProvider
         CreatePlatformAdminCommand::class,
         SeedPlansCommand::class,
         RunBillingCommand::class,
+        PurgeTenantsCommand::class,
     ];
 
     /**
@@ -74,7 +76,8 @@ class PlatformServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $schedule->command('platform:billing')->dailyAt('00:30')->withoutOverlapping();
+            $schedule->command('platform:billing')->dailyAt('00:30')->withoutOverlapping()->onOneServer();
+            $schedule->command('platform:purge-tenants')->dailyAt('04:00')->withoutOverlapping()->onOneServer();
         });
 
         // Sign-ups per address and hour (Step 7.4).

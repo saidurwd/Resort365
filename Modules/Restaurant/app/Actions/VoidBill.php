@@ -42,6 +42,8 @@ class VoidBill extends Action
     public function handle(PosBill $bill, string $reason, bool $foodPrepared, PosSession $session, int $userId, bool $mayVoid, ?int $approvalId = null): PosBill
     {
         return $this->transaction(function () use ($bill, $reason, $foodPrepared, $session, $userId, $mayVoid, $approvalId): PosBill {
+            // The session first, then the bill, as TakePayment does, so a void and a payment never wait on each other (Step 7.5).
+            PosSession::query()->lockForUpdate()->findOrFail($session->id);
             $locked = PosBill::query()->lockForUpdate()->findOrFail($bill->id);
 
             if ($locked->status !== BillStatus::Settled) {

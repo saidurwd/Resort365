@@ -17,7 +17,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     @include('layouts.partials.head', ['title' => $title])
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         // A POS device keeps its own colour mode (dark for bars), separate from the admin's.
         try {
             const mode = localStorage.getItem('pos-theme');

@@ -47,7 +47,7 @@
     <section class="ui-kit-section">
         <h5 class="mb-3">{{ __('Forms') }}</h5>
         <x-card :title="__('New booking')" icon="bi-calendar-plus" variant="primary">
-            <form method="POST" action="#" onsubmit="return false">
+            <form method="POST" action="#" x-data x-on:submit.prevent>
                 <div class="row">
                     <div class="col-md-6"><x-form.input name="guest_name" :label="__('Guest name')" required :help="__('As shown on the passport or national ID.')" /></div>
                     <div class="col-md-6"><x-form.input name="email" type="email" :label="__('Email')" prepend="@" /></div>

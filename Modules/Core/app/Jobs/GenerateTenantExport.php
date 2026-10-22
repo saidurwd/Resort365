@@ -34,7 +34,15 @@ class GenerateTenantExport implements ShouldQueue, TenantAware
 
     public int $timeout = 1800;
 
-    public function __construct(public readonly int $exportId) {}
+    public function __construct(public readonly int $exportId)
+    {
+        // Long-running: the `long` queue, on a connection that waits long enough before retrying (Step 7.5).
+        $this->onQueue('long');
+
+        if (config('queue.default') === 'redis') {
+            $this->onConnection('redis-long');
+        }
+    }
 
     public function handle(TenantDataWriter $writer, TenantStorage $storage, ApprovalParticipants $people): void
     {

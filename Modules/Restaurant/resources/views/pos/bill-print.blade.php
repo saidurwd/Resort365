@@ -55,6 +55,6 @@
     @endif
     @if ($bill->outlet->receipt_footer)<p class="text-center small mb-0">{{ $bill->outlet->receipt_footer }}</p>@endif
     @if (request()->boolean('auto'))
-        <script>window.addEventListener('load', () => window.print());</script>
+        <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">window.addEventListener('load', () => window.print());</script>
     @endif
 </x-layouts::print>

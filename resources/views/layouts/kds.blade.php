@@ -13,7 +13,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="dark">
 <head>
     @include('layouts.partials.head', ['title' => $title])
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         // Kitchens default to dark; a screen may keep light (kds-theme in localStorage).
         try {
             document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('kds-theme') || 'dark');

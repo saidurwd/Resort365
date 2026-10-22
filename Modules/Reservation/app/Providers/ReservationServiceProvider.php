@@ -155,7 +155,7 @@ class ReservationServiceProvider extends ModuleServiceProvider
 
         // Hold expiry (ARCHITECTURE §6.5 rule 4): unpaid tentative bookings past their deposit due time.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $schedule->job(new ExpireTentativeHolds)->name('reservation:expire-holds')->everyFiveMinutes()->withoutOverlapping();
+            $schedule->job(new ExpireTentativeHolds)->name('reservation:expire-holds')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
         });
     }
 

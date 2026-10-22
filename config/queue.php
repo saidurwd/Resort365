@@ -73,6 +73,16 @@ return [
             'after_commit' => false,
         ],
 
+        // Long jobs (data and report exports, Step 7.5): their own queue on a connection that waits longer before retrying.
+        'redis-long' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'long',
+            'retry_after' => 1950,
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

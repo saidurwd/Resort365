@@ -3,7 +3,7 @@
         <x-slot:actions>
             <form method="GET" action="{{ route('core.sequences.index') }}" class="d-flex align-items-center gap-2">
                 <label for="sequence-scope" class="small text-body-secondary text-nowrap">{{ __('Numbering for') }}</label>
-                <select id="sequence-scope" name="property" class="form-select form-select-sm" onchange="this.form.submit()">
+                <select id="sequence-scope" name="property" class="form-select form-select-sm" data-submit-on-change>
                     <option value="">{{ __('Company-wide') }}</option>
                     @foreach ($properties as $id => $name)
                         <option value="{{ $id }}" @selected($propertyId === $id)>{{ $name }}</option>

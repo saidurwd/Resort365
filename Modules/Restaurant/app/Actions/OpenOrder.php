@@ -68,7 +68,7 @@ class OpenOrder extends Action
             TableStatusChanged::dispatch($order->tenant_id, $outlet->id, $table instanceof DiningTable ? [$table->id] : []);
 
             return $order;
-        });
+        }, attempts: 5); // A lock conflict over the outlet's numbers is tried again (Step 7.5 load test).
     }
 
     /**

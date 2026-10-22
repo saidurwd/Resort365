@@ -13,7 +13,7 @@ use Modules\Platform\Services\PlatformAudit;
 
 /**
  * Closes a tenant (Step 7.4): its subdomain stops answering and its subscription ends. Its data stays for
- * `platform.billing.retention_days`, during which an admin can still export it from the console. TODO(step-7.5): purge after that.
+ * `platform.billing.retention_days`, during which an admin can still export it from the console; `platform:purge-tenants` deletes it after that.
  */
 class CancelTenant extends Action
 {

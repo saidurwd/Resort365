@@ -73,7 +73,7 @@ class ReportsServiceProvider extends ModuleServiceProvider
         Relation::morphMap(['report_export' => ReportExport::class]);
         Gate::policy(ReportExport::class, ReportExportPolicy::class);
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $schedule->command('reports:purge-exports')->dailyAt('03:30')->withoutOverlapping();
+            $schedule->command('reports:purge-exports')->dailyAt('03:30')->withoutOverlapping()->onOneServer();
         });
 
         $templates = $this->app->make(NotificationTemplates::class);

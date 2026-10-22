@@ -55,8 +55,10 @@ class TakePayment extends Action
         }
 
         return $this->transaction(function () use ($bill, $method, $amount, $tip, $tendered, $reference, $session, $userId, $target): PosPayment {
-            $locked = PosBill::query()->lockForUpdate()->with('outlet')->findOrFail($bill->id);
+            // The session first, then the bill: every payment on the terminal needs the session, so payments queue there rather than
+            // locking bills and the session in different orders (deadlocks found by the Step 7.5 load test).
             $open = PosSession::query()->lockForUpdate()->findOrFail($session->id);
+            $locked = PosBill::query()->lockForUpdate()->with('outlet')->findOrFail($bill->id);
 
             if (! $open->isOpen() || $open->outlet_id !== $locked->outlet_id) {
                 throw new PosNotAllowed(__('Open a cash session on this terminal to take payments.'));
@@ -116,7 +118,7 @@ class TakePayment extends Action
             $this->settlement->settleIfPaid($locked, $userId);
 
             return $payment;
-        });
+        }, attempts: 3); // A deadlock with another terminal's work on the same bill is tried again (Step 7.5 load test).
     }
 
     /**

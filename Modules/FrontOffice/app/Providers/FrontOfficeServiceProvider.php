@@ -103,7 +103,7 @@ class FrontOfficeServiceProvider extends ModuleServiceProvider
 
         // The scheduled night audit; each property runs at its own night audit time.
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $schedule->job(new RunDueNightAudits)->name('frontoffice:night-audit')->everyFiveMinutes()->withoutOverlapping();
+            $schedule->job(new RunDueNightAudits)->name('frontoffice:night-audit')->everyFiveMinutes()->withoutOverlapping()->onOneServer();
         });
 
         // The booking page's Front desk tab (stay status, check-in, registration card).

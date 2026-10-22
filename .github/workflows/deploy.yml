@@ -1,0 +1,57 @@
+name: Deploy
+
+# Zero-downtime deploy with Deployer (Step 7.5, docs/OPERATIONS.md §Deploy). Run by hand from the Actions tab, or push a tag
+# such as v1.4.0 to deploy to production. The same checks as CI run first; a deploy never starts on a red build.
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Where to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: deploy-${{ github.event.inputs.stage || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-24.04
+    environment: ${{ github.event.inputs.stage || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, intl, pdo_mysql, redis
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Load the SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust the server
+        run: echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        env:
+          DEPLOY_PRODUCTION_HOST: ${{ secrets.DEPLOY_PRODUCTION_HOST }}
+          DEPLOY_STAGING_HOST: ${{ secrets.DEPLOY_STAGING_HOST }}
+          DEPLOY_REPOSITORY: ${{ secrets.DEPLOY_REPOSITORY }}
+        run: vendor/bin/dep deploy ${{ github.event.inputs.stage || 'production' }} -v

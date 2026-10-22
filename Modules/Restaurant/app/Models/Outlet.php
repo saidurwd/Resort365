@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Modules\Restaurant\Database\Factories\OutletFactory;
 use Modules\Restaurant\Enums\OutletType;
 
@@ -28,6 +29,10 @@ use Modules\Restaurant\Enums\OutletType;
  * @property int|null $default_tax_category_id
  * @property int|null $store_id
  * @property string $bill_prefix
+ * @property Carbon|null $numbers_date the business date of last_order_no and last_kot_no (PosNumbers)
+ * @property int $last_order_no
+ * @property int $last_kot_no
+ * @property int $last_bill_sequence
  * @property string|null $receipt_header
  * @property string|null $receipt_footer
  * @property array<string, array{open: string|null, close: string|null}>|null $opening_hours
@@ -59,6 +64,10 @@ class Outlet extends Model
             'prices_include_tax' => 'boolean',
             'opening_hours' => 'array',
             'is_active' => 'boolean',
+            'numbers_date' => 'date',
+            'last_order_no' => 'integer',
+            'last_kot_no' => 'integer',
+            'last_bill_sequence' => 'integer',
         ];
     }
 

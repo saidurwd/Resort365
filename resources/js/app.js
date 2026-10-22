@@ -57,6 +57,13 @@ window.initUi = (root = document) => {
 initConfirm();
 initThemePersistence();
 
+// A filter <select data-submit-on-change> sends its form when changed (no inline handlers: the CSP forbids them, Step 7.5).
+document.addEventListener('change', (event) => {
+    if (event.target instanceof HTMLElement && event.target.matches('[data-submit-on-change]')) {
+        event.target.form?.requestSubmit();
+    }
+});
+
 // POS and kitchen screens keep their own colour mode per device (<body data-theme-key>), not the admin's:
 // re-apply it after AdminLTE's colour mode has run on load.
 document.addEventListener('DOMContentLoaded', () => {

@@ -1,0 +1,10 @@
+# MySQL 8.4 settings for point-in-time recovery (Step 7.5). Copy to /etc/mysql/mysql.conf.d/zz-resort365.cnf and restart MySQL.
+# The nightly backup is a full dump; the binary logs replay everything after it (docs/OPERATIONS.md §Point-in-time recovery).
+[mysqld]
+server-id                  = 1
+log_bin                    = /var/log/mysql/mysql-bin
+binlog_format              = ROW
+binlog_expire_logs_seconds = 2592000   # 30 days, the backup retention
+sync_binlog                = 1
+innodb_flush_log_at_trx_commit = 1
+max_binlog_size            = 256M

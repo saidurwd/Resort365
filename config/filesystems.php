@@ -40,6 +40,27 @@ return [
 
         // Attachments (Core). Private: served only through authorized routes. Use ATTACHMENTS_DISK=s3
         // for S3-compatible storage (AWS S3, DigitalOcean Spaces, Cloudflare R2).
+        // Backups (Step 7.5): on this server by default; in production BACKUP_DISKS=backups-s3 sends them to their own bucket.
+        'backups' => [
+            'driver' => 'local',
+            'root' => storage_path('app/backups'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'backups-s3' => [
+            'driver' => 's3',
+            'key' => env('BACKUP_AWS_ACCESS_KEY_ID'),
+            'secret' => env('BACKUP_AWS_SECRET_ACCESS_KEY'),
+            'region' => env('BACKUP_AWS_DEFAULT_REGION', env('AWS_DEFAULT_REGION')),
+            'bucket' => env('BACKUP_AWS_BUCKET'),
+            'endpoint' => env('BACKUP_AWS_ENDPOINT', env('AWS_ENDPOINT')),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => true,
+            'report' => false,
+        ],
+
         'attachments' => [
             'driver' => 'local',
             'root' => storage_path('app/private/attachments'),

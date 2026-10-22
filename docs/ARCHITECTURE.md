@@ -1442,6 +1442,8 @@ Unique: `(outlet_id, bill_no)`
 - Scheduled tasks use `onOneServer()` and `withoutOverlapping()`.
 - Daily automated backups with point-in-time recovery; restore drills; a per-tenant export tool.
 
+**As built (Step 7.5):** `App\Http\Middleware\SecurityHeaders` sends a Content-Security-Policy on every page (per-request nonces for the few inline scripts, `'unsafe-eval'` for Alpine's standard build, `'unsafe-inline'` styles for style attributes, the Reverb socket, `form-action` limited to the central domain and its subdomains; no inline event handlers: `data-submit-on-change` and `data-print` replace them), `nosniff`, `SAMEORIGIN` framing, a strict referrer and permissions policy, and HSTS in production. Production refuses to boot with `APP_DEBUG=true`; lazy loading throws outside production (`Model::preventLazyLoading`), and the whole suite runs clean with it. A test requires an index starting with `tenant_id` on every table that has the column. Shared rate limits: `reports` (60 a minute per person and tenant) on report screens and exports, `device-api` (600 a minute per device and session) on the POS and kitchen display JSON. Every scheduled task is `onOneServer()->withoutOverlapping()`. Long jobs (data and report exports) run on the `long` queue of the `redis-long` connection (retry after 1,950 s). `/up` checks the database and the cache. The dashboard caches plain arrays: the cache never rebuilds objects (`cache.serializable_classes = false`). The 50-user load test (`tests/Load`, k6) found POS order, ticket and bill numbers repeated under concurrency and deadlocks between printing and paying; numbers now count on from counters on the locked outlet row (`outlets.numbers_date`, `last_order_no`, `last_kot_no`, `last_bill_sequence`), payments and voids lock the cash session before the bill, and the numbering actions retry lock conflicts. Backups (`spatie/laravel-backup`, nightly, encrypted, 30 days), the restore drill (`backup:restore-drill`), deployment and monitoring are in [OPERATIONS.md](OPERATIONS.md).
+
 ### 9.6 API (for the future booking website, mobile app and integrations)
 
 - REST, versioned: `/api/v1/...`, authenticated with Sanctum tokens, tenant resolved by subdomain or token.
@@ -1667,6 +1669,8 @@ Target: at least 80% coverage on Actions and Services in the Reservation, Billin
 | CI/CD | GitHub Actions: Pint → Larastan → Pest → build assets → zero-downtime deploy |
 | Monitoring | Laravel Pulse, error tracking (Sentry/Flare), uptime checks, Horizon dashboard |
 | Backups | Nightly full DB backup + binary logs for point-in-time recovery; 30-day retention; monthly restore test |
+
+**As built (Step 7.5):** an own Ubuntu VPS: Deployer releases with an atomic symlink switch (`deploy.php`, GitHub Actions *Deploy* after CI), Nginx for the central domain and `*.` subdomains on one wildcard certificate, Supervisor for Horizon (`default` and `long` supervisors), Reverb and `pulse:work`, cron for the scheduler, MySQL binary logs for point-in-time recovery (`deploy/`). Sentry for errors (tenant slug and user id only), Pulse and Horizon under `/platform/pulse` and `/platform/horizon` for platform admins, `/up` for uptime checks. The runbook is [OPERATIONS.md](OPERATIONS.md); the load test is `tests/Load/README.md` and its 800 ms budget is judged on staging (a development machine adds several hundred milliseconds per request).
 
 ---
 

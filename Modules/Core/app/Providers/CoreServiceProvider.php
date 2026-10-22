@@ -139,7 +139,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->shareNotificationBell();
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $schedule->command('core:purge-data-exports')->dailyAt('03:30');
+            $schedule->command('core:purge-data-exports')->dailyAt('03:30')->withoutOverlapping()->onOneServer();
         });
     }
 

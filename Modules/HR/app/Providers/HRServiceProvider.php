@@ -111,7 +111,7 @@ class HRServiceProvider extends ModuleServiceProvider
             [new ApprovalStepDefinition('HR approver', 'hr.leave.approve', '0.00'), new ApprovalStepDefinition('General Manager', 'hr.leave.approve-long', '10.00')],
         ), LeaveApprovalHandler::class);
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $schedule->command('hr:grant-leave')->dailyAt('01:30')->withoutOverlapping();
+            $schedule->command('hr:grant-leave')->dailyAt('01:30')->withoutOverlapping()->onOneServer();
         });
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));

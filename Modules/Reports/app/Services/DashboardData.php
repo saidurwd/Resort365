@@ -34,15 +34,27 @@ class DashboardData
     {
         sort($propertyIds);
 
-        return $this->cache->remember('dashboard:stats:'.implode('-', $propertyIds), 60, function () use ($propertyIds): array {
+        // The cache keeps plain arrays: it never rebuilds objects (config cache.serializable_classes), so the Kpis are stored as arrays.
+        $key = 'dashboard:stats:'.implode('-', $propertyIds);
+
+        // An entry written by an older release (objects the cache can no longer rebuild) is dropped and worked out again.
+        $stale = $this->cache->get($key);
+
+        if (is_array($stale) && ! is_array($stale['day'] ?? null)) {
+            $this->cache->forget($key);
+        }
+
+        $cached = $this->cache->remember($key, 60, function () use ($propertyIds): array {
             $date = $this->statistics->latestDate($propertyIds);
             $at = CarbonImmutable::parse($date ?? now()->toDateString());
             $day = $this->kpis->calculate($this->statistics->totals($propertyIds, $at->toDateString(), $at->toDateString()));
             $month = $this->kpis->calculate($this->statistics->totals($propertyIds, $at->startOfMonth()->toDateString(), $at->toDateString()));
             $year = $this->kpis->calculate($this->statistics->totals($propertyIds, $at->startOfYear()->toDateString(), $at->toDateString()));
 
-            return ['date' => $date, 'day' => $day, 'month' => $month, 'year' => $year, 'trend' => $this->trend($propertyIds, $at), 'months' => $this->months($propertyIds, $at)];
+            return ['date' => $date, 'day' => $day->toArray(), 'month' => $month->toArray(), 'year' => $year->toArray(), 'trend' => $this->trend($propertyIds, $at), 'months' => $this->months($propertyIds, $at)];
         });
+
+        return [...$cached, 'day' => Kpis::from($cached['day']), 'month' => Kpis::from($cached['month']), 'year' => Kpis::from($cached['year'])];
     }
 
     /**

@@ -6,6 +6,7 @@
 use App\Models\DatabaseNotification;
 use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
+use App\Support\Tenancy\TenantCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Modules\Reports\Enums\ExportFormat;
@@ -40,6 +41,20 @@ it('shows the management figures of the latest audited day, the month and the ye
 
     $page->assertOk()->assertSeeHtml('data-kpis')->assertSeeHtml('data-chart="trend"')->assertSeeHtml('data-chart="months"')->assertSeeHtml('data-period="year"');
     $page->assertSee('75.0%')->assertSee('6,500.00')->assertSee('4,875.00')->assertSee('39,000.00')->assertSee('8,000.00');
+});
+
+it('serves the dashboard from a cache that stores plain data (Redis in production), and drops an old entry it cannot read', function (): void {
+    config(['cache.default' => 'file', 'cache.stores.file.path' => storage_path('framework/cache/test-'.uniqid()), 'cache.serializable_classes' => false]);
+    rpStat(date('Y-m-d', strtotime(scToday().' -1 day')), ['rooms_available' => 8, 'rooms_occupied' => 6, 'room_revenue' => '39000.00']);
+    staffUser(DefaultRole::GeneralManager);
+
+    get(tenantUrl('sunrise', '/dashboard'))->assertOk()->assertSee('75.0%');
+    get(tenantUrl('sunrise', '/dashboard'))->assertOk()->assertSee('75.0%');
+
+    // What a release before this fix left behind: objects the cache now refuses to rebuild.
+    $propertyId = bookingIds()['property'];
+    booking(fn () => app(TenantCache::class)->put('dashboard:stats:'.$propertyId, ['date' => null, 'day' => new ArrayObject], 60));
+    get(tenantUrl('sunrise', '/dashboard'))->assertOk()->assertSee('75.0%');
 });
 
 it('shows a new tenant with no property yet the welcome page, not an error', function (): void {

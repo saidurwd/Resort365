@@ -62,6 +62,12 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            // Backups (Step 7.5): a consistent InnoDB snapshot without locking the tables, with the binlog position for point-in-time recovery.
+            'dump' => [
+                'use_single_transaction' => true,
+                'timeout' => 900,
+                'add_extra_option' => env('BACKUP_DUMP_EXTRA_OPTIONS', ''),
+            ],
         ],
 
         'mariadb' => [

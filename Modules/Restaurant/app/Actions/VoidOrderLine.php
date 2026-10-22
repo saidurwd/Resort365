@@ -71,6 +71,6 @@ class VoidOrderLine extends Action
             KotItemVoided::dispatch($order->tenant_id, $order->outlet_id, $locked->kitchen_station_id, $order->id, $locked->id, $kot->id, $wastage);
 
             return $kot;
-        });
+        }, attempts: 5); // A lock conflict over the outlet's numbers is tried again (Step 7.5 load test).
     }
 }

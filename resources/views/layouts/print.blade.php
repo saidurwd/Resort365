@@ -20,7 +20,7 @@
         <a href="{{ url()->previous() }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left"></i> {{ __('Back') }}
         </a>
-        <button type="button" class="btn btn-primary btn-sm" onclick="window.print()">
+        <button type="button" class="btn btn-primary btn-sm" data-print>
             <i class="bi bi-printer"></i> {{ __('Print') }}
         </button>
     </div>
@@ -28,5 +28,6 @@
     <main class="print-sheet">
         {{ $slot }}
     </main>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">document.querySelectorAll('[data-print]').forEach((button) => button.addEventListener('click', () => window.print()));</script>
 </body>
 </html>

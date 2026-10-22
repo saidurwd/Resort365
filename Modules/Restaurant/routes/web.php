@@ -166,7 +166,7 @@ Route::prefix('pos')->name('pos.')->group(function (): void {
     Route::get('/register', [PosController::class, 'register'])->name('register');
     Route::post('/register', [PosController::class, 'storeDevice'])->middleware('throttle:10,1')->name('register.store');
 
-    Route::middleware('pos.terminal')->group(function (): void {
+    Route::middleware(['pos.terminal', 'throttle:device-api'])->group(function (): void {
         Route::get('/', [PosController::class, 'home'])->name('home');
         Route::post('/sign-in', [PosController::class, 'signIn'])->middleware('throttle:30,1')->name('sign-in');
         Route::post('/lock', [PosController::class, 'lock'])->name('lock');
@@ -243,7 +243,7 @@ Route::prefix('kds')->name('kds.')->controller(KdsController::class)->group(func
     Route::post('/register', 'storeDevice')->middleware('throttle:10,1')->name('register.store');
     Route::get('/stations', 'stations')->middleware(['auth', 'verified', 'can:restaurant.kds.use'])->name('stations');
 
-    Route::middleware('kds.station')->group(function (): void {
+    Route::middleware(['kds.station', 'throttle:device-api'])->group(function (): void {
         Route::get('/', 'board')->name('board');
         Route::post('/sign-out', 'signOut')->name('sign-out');
         Route::get('/api/board', 'boardData')->name('api.board');

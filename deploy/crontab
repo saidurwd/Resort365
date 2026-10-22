@@ -1,0 +1,3 @@
+# Resort365 scheduler (Step 7.5): install for the deploy user with `crontab -u deploy deploy/crontab`.
+# Every task uses onOneServer(), so this may run on several app servers.
+* * * * * cd /var/www/resort365/current && php artisan schedule:run >> /dev/null 2>&1

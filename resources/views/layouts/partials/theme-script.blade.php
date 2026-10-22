@@ -1,6 +1,6 @@
 {{-- Apply the colour mode before first paint. AdminLTE's ColorMode uses the "lte-theme" key; a signed-in
      user's saved theme ($userTheme, shared by the IAM module) wins over what this browser remembered. --}}
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     (() => {
         let theme = @json($userTheme ?? null);
         try {

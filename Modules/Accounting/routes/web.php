@@ -105,7 +105,7 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
 
     Route::middleware('can:accounting.report.view')->group(function (): void {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-        Route::get('/reports/{report}', [ReportController::class, 'show'])->whereIn('report', array_keys(ReportController::REPORTS))->name('reports.show');
+        Route::get('/reports/{report}', [ReportController::class, 'show'])->whereIn('report', array_keys(ReportController::REPORTS))->middleware('throttle:reports')->name('reports.show');
     });
 
     Route::get('/periods', [FiscalPeriodController::class, 'index'])->middleware('can:accounting.period.view')->name('periods.index');
