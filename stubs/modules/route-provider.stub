@@ -41,12 +41,12 @@ class $CLASS$ extends ServiceProvider
     }
 
     /**
-     * API routes: stateless, on tenant subdomains under /api.
+     * API routes (Step 8.1): stateless, bearer tokens (`tenant-api` group), on tenant subdomains under /api/v1.
      */
     protected function mapApiRoutes(): void
     {
         Route::domain('{tenant}.'.config('tenancy.central_domain'))
-            ->middleware(['api', 'tenant', 'module:'.strtolower($this->name)])
+            ->middleware(['api', 'tenant-api', 'module:'.strtolower($this->name)])
             ->prefix('api')
             ->name('api.')
             ->group(module_path($this->name, '$API_ROUTES_PATH$'));

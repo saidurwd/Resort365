@@ -26,6 +26,11 @@ interface PlanLimits
     public function ensureWithin(string $name, int|float $newTotal): void;
 
     /**
+     * Whether the plan includes a feature: `api_access` (the REST API, Step 8.1). A tenant with no plan has every feature.
+     */
+    public function hasFeature(string $feature): bool;
+
+    /**
      * The name of the tenant's plan, or null without one.
      */
     public function planName(): ?string;

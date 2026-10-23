@@ -19,8 +19,10 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\LoginRateLimiter;
+use Laravel\Sanctum\Sanctum;
 use Modules\Core\Contracts\ApprovalParticipants;
 use Modules\Core\Contracts\Onboarding;
+use Modules\Core\Contracts\PlanLimits;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Contracts\UsageMeters;
 use Modules\Core\DTOs\OnboardingStep;
@@ -39,9 +41,12 @@ use Modules\IAM\Enums\UserStatus;
 use Modules\IAM\Http\Controllers\ImpersonationController;
 use Modules\IAM\Http\Middleware\EnsureTwoFactorEnabled;
 use Modules\IAM\Http\Middleware\EnsureUserIsActive;
+use Modules\IAM\Http\Middleware\PrepareApiRequest;
 use Modules\IAM\Http\Middleware\SetUserLocale;
+use Modules\IAM\Models\ApiToken;
 use Modules\IAM\Models\Role;
 use Modules\IAM\Models\User;
+use Modules\IAM\Policies\ApiTokenPolicy;
 use Modules\IAM\Policies\RolePolicy;
 use Modules\IAM\Policies\UserPolicy;
 use Modules\IAM\Services\ApprovalParticipantsService;
@@ -121,9 +126,11 @@ class IAMServiceProvider extends ModuleServiceProvider
         $this->configureFortify();
         $this->configureRateLimiting();
         $this->configureMiddleware();
+        $this->configureApiTokens();
 
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(ApiToken::class, ApiTokenPolicy::class);
 
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->app->make(Settings::class)->define(new SettingDefinition(
@@ -180,6 +187,20 @@ class IAMServiceProvider extends ModuleServiceProvider
         $kernel->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, EnsureUserIsActive::class);
         $kernel->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, SetUserLocale::class);
         $kernel->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, EnsureTwoFactorEnabled::class);
+
+        // The REST API (Step 8.1): the plan, property and usage checks run right after the token signed the request in.
+        $kernel->appendMiddlewareToGroup('tenant-api', PrepareApiRequest::class);
+        $kernel->addToMiddlewarePriorityAfter(AuthenticatesRequests::class, PrepareApiRequest::class);
+    }
+
+    /**
+     * API tokens (Step 8.1) are IAM's ApiToken, owned by the tenant (so another tenant's token is never found), and stop working when
+     * their user is deactivated.
+     */
+    private function configureApiTokens(): void
+    {
+        Sanctum::usePersonalAccessTokenModel(ApiToken::class);
+        Sanctum::authenticateAccessTokensUsing(fn (ApiToken $token, bool $isValid): bool => $isValid && $token->tokenable instanceof User && $token->tokenable->isActive());
     }
 
     /**
@@ -219,6 +240,8 @@ class IAMServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('iam.role.create', 'Create roles'),
             new PermissionDefinition('iam.role.update', 'Change roles'),
             new PermissionDefinition('iam.role.delete', 'Delete roles'),
+            new PermissionDefinition('iam.api-token.create', 'Create API tokens for yourself', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager]),
+            new PermissionDefinition('iam.api-token.manage', "See and revoke everyone's API tokens"),
         ]);
     }
 
@@ -229,5 +252,8 @@ class IAMServiceProvider extends ModuleServiceProvider
             permission: 'iam.user.view', module: 'iam', active: 'iam.users.*'));
         $menu->add(new MenuItem('iam.roles', 'Roles & permissions', 'bi-shield-check', route: 'iam.roles.index', parent: 'setup', order: 20,
             permission: 'iam.role.view', module: 'iam', active: 'iam.roles.*'));
+        $menu->add(new MenuItem('iam.api-tokens', 'API tokens', 'bi-key', route: 'iam.api-tokens.index', parent: 'setup', order: 25,
+            permission: 'iam.api-token.create', module: 'iam', active: 'iam.api-tokens.*',
+            visible: fn (): bool => app(PlanLimits::class)->hasFeature('api_access')));
     }
 }

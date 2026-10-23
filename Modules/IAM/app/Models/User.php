@@ -17,6 +17,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 use Modules\IAM\Database\Factories\UserFactory;
 use Modules\IAM\Enums\UserStatus;
 use Spatie\Permission\Traits\HasRoles;
@@ -62,6 +63,9 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail
 {
     use BelongsToTenant;
+
+    /** @use HasApiTokens<ApiToken> */
+    use HasApiTokens;
 
     /** @use HasFactory<UserFactory> */
     use HasFactory;

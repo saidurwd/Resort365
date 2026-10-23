@@ -3,8 +3,10 @@
 use App\Models\Tenant;
 use App\Support\Authorization\DefaultRole;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\MessageBag;
+use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Testing\TestView;
 use Illuminate\View\FileViewFinder;
@@ -14,6 +16,8 @@ use Modules\IAM\Models\Role;
 use Modules\IAM\Models\User;
 use Tests\DuskTestCase;
 use Tests\TestCase;
+
+use function Pest\Laravel\withHeaders;
 
 /*
 |--------------------------------------------------------------------------
@@ -160,4 +164,36 @@ function roleId(Tenant $tenant, DefaultRole $role): int
         $tenant,
         fn (): int => Role::query()->where('name', $role->value)->value('id') ?? throw new RuntimeException("Role {$role->value} missing"),
     );
+}
+
+/**
+ * An API token for the user (Step 8.1); returns the plain token. Abilities default to every permission the user holds.
+ *
+ * @param  list<string>|null  $abilities
+ * @param  list<int>|null  $propertyIds
+ */
+function apiToken(User $user, ?array $abilities = null, ?array $propertyIds = null, ?CarbonInterface $expiresAt = null): string
+{
+    return app(TenantContext::class)->run(Tenant::query()->findOrFail($user->tenant_id), function () use ($user, $abilities, $propertyIds, $expiresAt): string {
+        $plain = 'test-'.Str::random(40);
+        $user->tokens()->create([
+            'name' => 'Test client',
+            'token' => hash('sha256', $plain),
+            'abilities' => $abilities ?? $user->getAllPermissions()->pluck('name')->all(),
+            'property_ids' => $propertyIds,
+            'expires_at' => $expiresAt,
+        ]);
+
+        return $plain;
+    });
+}
+
+/**
+ * The next requests carry the API token (pass '' for none). Forgets the resolved guards, so one test can switch tokens.
+ */
+function api(string $token): Illuminate\Foundation\Testing\TestCase
+{
+    app('auth')->forgetGuards();
+
+    return withHeaders(['Authorization' => $token === '' ? '' : 'Bearer '.$token, 'Accept' => 'application/json']);
 }

@@ -48,6 +48,8 @@ use Spatie\MediaLibrary\HasMedia;
  * @property bool $marketing_consent
  * @property string|null $notes
  * @property int|null $merged_into_id
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read string $full_name
  * @property-read Company|null $company
  */

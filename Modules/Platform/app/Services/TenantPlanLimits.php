@@ -35,6 +35,16 @@ class TenantPlanLimits implements PlanLimits
         throw new PlanLimitReached($name, $max, $this->message($name, $plan->name, $max));
     }
 
+    public function hasFeature(string $feature): bool
+    {
+        $plan = $this->plan();
+
+        return ! $plan instanceof Plan || match ($feature) {
+            'api_access' => $plan->api_access,
+            default => false,
+        };
+    }
+
     public function planName(): ?string
     {
         return $this->plan()?->name;

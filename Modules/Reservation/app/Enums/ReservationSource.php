@@ -19,6 +19,17 @@ enum ReservationSource: string implements HasLabelAndColor
     case TravelAgent = 'travel_agent';
     case Corporate = 'corporate';
     case Online = 'online';
+    case Api = 'api';
+
+    /**
+     * The sources staff choose from in the booking wizard (API bookings are made by the API only).
+     *
+     * @return array<int|string, string> value => label
+     */
+    public static function staffOptions(): array
+    {
+        return array_diff_key(self::options(), [self::Api->value => true]);
+    }
 
     public function label(): string
     {
@@ -30,13 +41,14 @@ enum ReservationSource: string implements HasLabelAndColor
             self::TravelAgent => __('Travel agent'),
             self::Corporate => __('Corporate'),
             self::Online => __('Online'),
+            self::Api => __('API'),
         };
     }
 
     public function color(): string
     {
         return match ($this) {
-            self::Online => 'info',
+            self::Online, self::Api => 'info',
             self::TravelAgent, self::Corporate => 'primary',
             default => 'secondary',
         };

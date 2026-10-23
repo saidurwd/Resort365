@@ -11,6 +11,10 @@ use App\Support\Tenancy\PropertyContext;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Dedoc\Scramble\Scramble;
+use Dedoc\Scramble\Support\Generator\OpenApi;
+use Dedoc\Scramble\Support\Generator\SecurityScheme;
+use Dedoc\Scramble\Support\Generator\ServerVariable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\DiagnosingHealth;
@@ -26,6 +30,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Sanctum\PersonalAccessToken;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(ModuleAccess::class);
         $this->app->scoped(PropertyContext::class);
         $this->app->scoped(DisplayTimezone::class);
+
+        // The API documents are served on the central domain only (routes/web.php), not on every host.
+        Scramble::ignoreDefaultRoutes();
 
         // Filled by modules' service providers at boot.
         $this->app->singleton(PermissionRegistry::class);
@@ -59,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
         Model::preventLazyLoading(! $this->app->isProduction());
 
         $this->registerRateLimiters();
+        $this->configureApiDocuments();
 
         // /up (uptime checks, Step 7.5) fails when the database or the cache store (Redis in production) does not answer.
         Event::listen(DiagnosingHealth::class, function (): void {
@@ -91,14 +100,32 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
+     * The REST API's OpenAPI document (Step 8.1, Scramble): each company's subdomain as the {tenant} server variable, bearer tokens.
+     */
+    private function configureApiDocuments(): void
+    {
+        Scramble::configure()->withServerVariables(['tenant' => ServerVariable::make('rodela', description: "Your company's subdomain")]);
+        Scramble::afterOpenApiGenerated(function (OpenApi $openApi): void {
+            $openApi->secure(SecurityScheme::http('bearer')->setDescription('An API token from Setup → API tokens.'));
+        });
+    }
+
+    /**
      * Shared rate limits (Step 7.5), per tenant: `reports` for report screens and exports, which can start heavy work; `device-api`
-     * for the POS and kitchen display's JSON calls, per device and sign-in session (they poll every few seconds).
+     * for the POS and kitchen display's JSON calls, per device and sign-in session (they poll every few seconds); `api` for the REST API
+     * per token (Step 8.1).
      */
     private function registerRateLimiters(): void
     {
         $who = fn (Request $request): string => (app(TenantContext::class)->id() ?? 0).'|'.($request->user()?->getAuthIdentifier() ?? $request->ip());
 
         RateLimiter::for('reports', fn (Request $request): Limit => Limit::perMinute(60)->by('reports|'.$who($request)));
+        // The REST API (Step 8.1): per token, 120 requests a minute.
+        RateLimiter::for('api', function (Request $request) use ($who): Limit {
+            $token = $request->user()?->currentAccessToken();
+
+            return Limit::perMinute(120)->by('api|'.($token instanceof PersonalAccessToken ? (app(TenantContext::class)->id() ?? 0).'|token:'.$token->getKey() : $who($request)));
+        });
         RateLimiter::for('device-api', fn (Request $request): Limit => Limit::perMinute(600)->by('device|'.($request->cookie('pos_device') ?? $request->cookie('kds_device') ?? $who($request)).'|'.($request->hasSession() ? $request->session()->getId() : '')));
     }
 

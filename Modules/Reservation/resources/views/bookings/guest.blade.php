@@ -58,7 +58,7 @@
 
                 <x-card :title="__('Booked by')" icon="bi-building">
                     <div class="row">
-                        <div class="col-md-4"><x-form.select name="source" :label="__('Source')" :options="\Modules\Reservation\Enums\ReservationSource::options()" :value="$state['source'] ?? 'front_desk'" required :search="false" /></div>
+                        <div class="col-md-4"><x-form.select name="source" :label="__('Source')" :options="\Modules\Reservation\Enums\ReservationSource::staffOptions()" :value="$state['source'] ?? 'front_desk'" required :search="false" /></div>
                         <div class="col-md-4"><x-form.select name="company_id" :label="__('Company')" :options="$companies" :value="$state['company_id'] ?? null" :placeholder="__('None')" /></div>
                         <div class="col-md-4"><x-form.select name="travel_agent_id" :label="__('Travel agent')" :options="$travelAgents" :value="$state['travel_agent_id'] ?? null" :placeholder="__('None')" /></div>
                     </div>

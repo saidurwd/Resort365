@@ -16,6 +16,11 @@ class UnlimitedPlanLimits implements PlanLimits
 
     public function ensureWithin(string $name, int|float $newTotal): void {}
 
+    public function hasFeature(string $feature): bool
+    {
+        return true;
+    }
+
     public function planName(): ?string
     {
         return null;

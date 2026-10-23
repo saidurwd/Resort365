@@ -188,6 +188,9 @@ class DemoSeeder extends Seeder
         // Step 7.3: plans (Rodela on Enterprise, Green Valley on Professional) and one announcement.
         DemoPlatform::seed();
 
+        // Step 8.1: an API token for Rodela's reservations agent (DEMO-API-RODELA-0001).
+        DemoApi::seed($rodela, 'reservations@'.self::DOMAINS['rodela']);
+
         PlatformAdmin::query()->updateOrCreate(
             ['email' => 'admin@resort365.test'],
             ['name' => 'Platform Admin', 'password' => self::PASSWORD],

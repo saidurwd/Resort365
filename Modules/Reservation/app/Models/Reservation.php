@@ -66,6 +66,7 @@ use Modules\Reservation\Enums\ReservationStatus;
  * @property string|null $cancellation_reason
  * @property string|null $cancellation_fee
  * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Collection<int, ReservationItem> $items
  * @property-read Collection<int, ReservationGuest> $guests
  * @property-read Collection<int, ReservationLog> $logs

@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Middleware\AuthorizeApiAbility;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsureUserBelongsToTenant;
+use App\Http\Middleware\Idempotent;
 use App\Http\Middleware\IdentifyTenant;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetCurrentProperty;
+use App\Support\Api\ApiErrors;
 use App\Support\Tenancy\PlanLimitReached;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -34,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['module' => EnsureModuleEnabled::class]);
+        $middleware->alias(['module' => EnsureModuleEnabled::class, 'api.can' => AuthorizeApiAbility::class, 'idempotent' => Idempotent::class]);
 
         // Security headers on every response, the central domain's and the tenants' (Step 7.5).
         $middleware->append(SecurityHeaders::class);
@@ -44,6 +47,14 @@ return Application::configure(basePath: dirname(__DIR__))
             IdentifyTenant::class,
             EnsureUserBelongsToTenant::class,
             SetCurrentProperty::class,
+        ]);
+
+        // The REST API on tenant subdomains (Step 8.1): stateless, bearer tokens only. IAM appends its token checks (plan, active
+        // user, property restriction) right after authentication.
+        $middleware->group('tenant-api', [
+            IdentifyTenant::class,
+            'auth:sanctum',
+            'throttle:api',
         ]);
 
         // The tenant must be known before authentication, throttling and route-model binding
@@ -69,6 +80,9 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
         Integration::handles($exceptions);
+
+        // Every API error has one shape: {message, code, errors?} (Step 8.1).
+        $exceptions->render(fn (Throwable $exception, Request $request): ?Response => $request->is('api/*') ? ApiErrors::render($exception) : null);
 
         // A plan limit is a friendly refusal, on the page the person was on (Step 7.3).
         $exceptions->render(function (PlanLimitReached $exception, Request $request): ?Response {

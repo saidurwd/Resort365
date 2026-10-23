@@ -51,6 +51,7 @@ use Modules\Reservation\Enums\ReservationSource;
  * @property Carbon|null $accepted_at
  * @property Carbon|null $declined_at
  * @property int|null $created_by
+ * @property Carbon|null $created_at
  * @property-read Collection<int, QuoteItem> $items
  */
 #[UseFactory(QuoteFactory::class)]

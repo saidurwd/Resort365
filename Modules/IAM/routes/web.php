@@ -1,12 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\IAM\Http\Controllers\ApiTokenController;
 use Modules\IAM\Http\Controllers\ImpersonationController;
 use Modules\IAM\Http\Controllers\InvitationController;
 use Modules\IAM\Http\Controllers\ProfileController;
 use Modules\IAM\Http\Controllers\RoleController;
 use Modules\IAM\Http\Controllers\UserController;
 use Modules\IAM\Http\Controllers\WelcomeController;
+use Modules\IAM\Models\ApiToken;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,5 +64,10 @@ Route::prefix('iam')->name('iam.')->group(function (): void {
             Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
         });
         Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('can:iam.role.delete')->name('roles.destroy');
+
+        // API tokens (Step 8.1): your own with iam.api-token.create, everyone's with iam.api-token.manage (ApiTokenPolicy).
+        Route::get('/api-tokens', [ApiTokenController::class, 'index'])->middleware('can:viewAny,'.ApiToken::class)->name('api-tokens.index');
+        Route::post('/api-tokens', [ApiTokenController::class, 'store'])->middleware(['can:iam.api-token.create', 'throttle:10,1'])->name('api-tokens.store');
+        Route::delete('/api-tokens/{apiToken}', [ApiTokenController::class, 'destroy'])->middleware('can:delete,apiToken')->name('api-tokens.destroy');
     });
 });

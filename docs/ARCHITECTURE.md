@@ -413,6 +413,7 @@ Route ─► Middleware ─► Controller (thin: authorize, validate, delegate, 
 | Receipt / KOT printing | v1: browser printing with 80 mm thermal print CSS. Phase 8 (Step 8.5, Q17): a small local print agent for silent printing to network ESC/POS printers. The agent runs on one computer in the resort and polls the server over HTTPS with its device token for queued `print_jobs` (ESC/POS rendered on the server). It sends each job to its printer over raw TCP 9100 and reports printed or failed. It opens no ports at the resort and needs no WebSocket channel; it has its own `print-agent` rate limit; browser printing is the fallback when no agent is online. |
 | Modules | `nwidart/laravel-modules` |
 | Auth | Laravel Fortify (login, 2FA, password reset) + Sanctum (API tokens) |
+| API documents | Scramble (OpenAPI 3.1 generated from routes, FormRequests and API Resources, Step 8.1) |
 | Roles / permissions | `spatie/laravel-permission` (teams enabled) |
 | Audit log | `spatie/laravel-activitylog` |
 | Files / media | `spatie/laravel-medialibrary` on S3-compatible storage |
@@ -1458,10 +1459,12 @@ Unique: `(outlet_id, bill_no)`
 
 ### 9.6 API (for the future booking website, mobile app and integrations)
 
-- REST, versioned: `/api/v1/...`, authenticated with Sanctum tokens, tenant resolved by subdomain or token.
+- REST, versioned: `/api/v1/...`, authenticated with Sanctum tokens, tenant resolved by the subdomain (a token works only on its own company's).
 - API Resources for responses; consistent error format; rate limiting per token.
 - Public booking endpoints (availability, quote, create booking, pay deposit) with strict throttling. The public website itself ([§5.18](#518-website-public-resort-site-and-booking)) is server-rendered Blade that calls the same Actions; it does not depend on the API.
 - OpenAPI documentation generated from code.
+
+*As built (Step 8.1):* Sanctum personal access tokens owned by the tenant (IAM's `ApiToken` with `BelongsToTenant`, so a token is only found on its own company's subdomain; the tenant is resolved by the subdomain only, and a token from elsewhere is a 401). A token belongs to a tenant user and carries some of that user's permissions as its abilities, optionally only some of the user's properties and an end date; it stops working when it is revoked, expires or its user is deactivated. Setup → API tokens (`iam.api-token.create` for your own, `iam.api-token.manage` for everyone's) shows the plain token once. API routes use the stateless `tenant-api` middleware group (`IdentifyTenant`, `auth:sanctum`, IAM's `PrepareApiRequest`: the plan's `api_access` through Core's `PlanLimits::hasFeature()`, the property restriction from `property_id`, last use; then `throttle:api`, 120 requests a minute per token), plus `module:<alias>` and `api.can:<permission>` (user and token both). Endpoints live in the module that owns the data and call the same Actions: IAM `GET /iam/me`; Reservation `GET /reservation/availability`, `POST /reservation/quotes`, `GET /reservation/quotes/{id}`, `GET|POST /reservation/reservations`, `GET /reservation/reservations/{id}`, `POST /reservation/reservations/{id}/cancel` (items are checked against availability by `BookingItemsResolver`, a room may be asked for by type; source `api`; a blacklisted guest is refused; `Idempotency-Key` through the `idempotent` middleware); Guest `GET|POST /guest/guests`, `GET|PUT /guest/guests/{id}` (duplicates are a 409 until confirmed; ID numbers masked without `guest.guest.view-id`); Billing `GET /billing/reservations/{id}/folios`, `GET /billing/folios/{id}` (read only; payments come with Step 8.3). Every error is `{message, code, errors?}` (`App\Support\Api\ApiErrors`; module exceptions implement `ApiError`). Scramble publishes the document on the central domain at `/docs/api` and `/docs/api.json` (a `{tenant}` server variable, bearer security); a test checks that it covers every `/api/v1` route. Not in v1: CORS for browser clients (the public website of Step 8.2 is server-rendered), changing a booking's rooms, check-in and check-out.
 
 ---
 

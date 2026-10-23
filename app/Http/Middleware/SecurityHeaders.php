@@ -13,13 +13,13 @@ use Symfony\Component\HttpFoundation\Response;
  * The Content-Security-Policy allows scripts from this site, with a per-request nonce for the few inline scripts (render them with
  * `nonce="{{ Vite::cspNonce() }}"`), the Vite dev server when it runs, and the Reverb WebSocket. Alpine's standard build evaluates
  * its expressions, so scripts also need 'unsafe-eval'; styles need 'unsafe-inline' for style attributes. Forms may post to the
- * central domain and its tenant subdomains (sign-up redirects to the new one). Horizon and Pulse (platform admins only) render their
- * own inline scripts, so they get the other headers but no CSP. HSTS is sent in production only.
+ * central domain and its tenant subdomains (sign-up redirects to the new one). Horizon and Pulse (platform admins only) and the API
+ * documents (Step 8.1, a static page from a CDN) render their own inline scripts, so they get the other headers but no CSP. HSTS is sent in production only.
  */
 class SecurityHeaders
 {
     /** Paths whose pages bring their own inline scripts. */
-    private const array WITHOUT_CSP = ['platform/horizon*', 'platform/pulse*', 'livewire*'];
+    private const array WITHOUT_CSP = ['platform/horizon*', 'platform/pulse*', 'livewire*', 'docs/api*'];
 
     public function handle(Request $request, Closure $next): Response
     {
