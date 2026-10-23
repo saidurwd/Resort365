@@ -84,7 +84,7 @@ Resort365 is a multi-tenant, subscription-based (SaaS) platform for running reso
 - Online food ordering and third-party delivery platforms.
 - OTA channel-manager integration (Booking.com, Expedia, and so on).
 - Native mobile apps (the REST API is designed to support them).
-- Guest self-service portal and public booking website (planned for Phase 8).
+- Guest self-service portal and public booking website (planned for Phase 8; the website is designed in [§5.18](#518-website-public-resort-site-and-booking)).
 
 ### 1.5 Glossary
 
@@ -410,7 +410,7 @@ Route ─► Middleware ─► Controller (thin: authorize, validate, delegate, 
 | Cache / queue / session | Redis 7 |
 | Queue monitoring | Laravel Horizon |
 | Real-time | Laravel Reverb (WebSockets) + Laravel Echo on the client, for the kitchen display, table status and POS alerts |
-| Receipt / KOT printing | v1: browser printing with 80 mm thermal print CSS. Upgrade: QZ Tray or a small local print agent for silent printing to network ESC/POS printers (see Q17). |
+| Receipt / KOT printing | v1: browser printing with 80 mm thermal print CSS. Phase 8 (Step 8.5, Q17): a small local print agent for silent printing to network ESC/POS printers. The agent runs on one computer in the resort and polls the server over HTTPS with its device token for queued `print_jobs` (ESC/POS rendered on the server). It sends each job to its printer over raw TCP 9100 and reports printed or failed. It opens no ports at the resort and needs no WebSocket channel; it has its own `print-agent` rate limit; browser printing is the fallback when no agent is online. |
 | Modules | `nwidart/laravel-modules` |
 | Auth | Laravel Fortify (login, 2FA, password reset) + Sanctum (API tokens) |
 | Roles / permissions | `spatie/laravel-permission` (teams enabled) |
@@ -554,7 +554,7 @@ The booking engine. See [§6](#6-booking-engine--detailed-design) for the full d
 - **Folio posting contract** (`FolioPostingContract`): the public API that other modules (Restaurant today, spa or laundry later) use to post a charge to an in-house guest's folio. It checks that the reservation is checked in, that the folio is open and that the credit limit is not exceeded.
 - **Extra charges catalogue:** airport transfer, extra bed, laundry, spa, excursions, and so on.
 - **Payments:** cash, card, bank transfer, mobile wallet, online gateway, and city ledger (bill to a company). Each payment records its type (deposit, payment, refund), currency and exchange rate, and gets a receipt number.
-- **Payment gateway abstraction:** a `PaymentGateway` contract with adapters (Stripe, PayPal, SSLCommerz or others per market), webhooks with idempotency, and payment links for deposit requests.
+- **Payment gateway abstraction (Step 8.3, Q4):** Billing's `GuestPaymentGateway` contract (guest payments; not Platform's `PaymentGateway`, which collects the SaaS subscription) with adapters for **SSLCommerz** and **bKash** (BDT; SSLCommerz also takes international Visa, Mastercard and Amex) and **Stripe** (optional, for tenants registered in a country Stripe supports; Stripe does not take merchants based in Bangladesh). Credentials are per tenant and property, with a sandbox switch. Hosted checkout or redirect, callbacks and webhooks with signature verification and idempotency (a replayed webhook never creates a second payment), a gateway log, online refunds, and payment links for deposit requests. Each gateway's script and redirect hosts are added to the Content-Security-Policy.
 - **Invoices:** issued at check-out or on demand, with sequential numbering, tax breakdown and PDF output. Invoices are immutable once issued; corrections are made with credit notes.
 - **Refunds:** policy-driven, and approval-gated above a threshold.
 - **Accounts receivable:** a city ledger for company and travel-agent billing, with aging.
@@ -873,6 +873,18 @@ flowchart LR
 All reports: filter by property (or all properties for consolidation), date range, export to Excel/PDF. Heavy reports run as queued jobs, and the user is notified when the file is ready.
 
 *Implemented in Step 7.1 (Reports module): the management dashboard (the tenant's home page: latest audited day, month and year to date, a 30-day trend, 12 months of revenue, the front desk's day and the cash position; each part by permission), the report framework (registry, filters with a consolidated option for properties that share a currency, one table shape for screen, CSV, Excel and PDF; Excel and PDF are queued, kept a week in `report_exports` and announced by a notification) and the rooms reports (forecast, booking pace, sources, cancellations and no-shows, length of stay) and guest reports (nationality mix, repeat guests, top guests and companies). Reports uses other modules only through read-only contracts (FrontOffice `StatisticsLookup`, Reservation `ReservationAnalytics`, Guest `GuestLookup`, Accounting `CashPosition`), so the dependency table in §4.3 gains those arrows. **Not built:** booking pace compared with the same days last year (there are no snapshots of the bookings on the books), scheduled or emailed reports, saved filters. The finance, restaurant, inventory, procurement and HR reports stay in their modules; the hub links to them.*
+
+### 5.18 Website (public resort site and booking)
+
+*Designed before Phase 8 (Q5); built in Step 8.2, with payment in Step 8.3.* A new **Website** module gives each property a public site that looks like a standard resort website. It is phone first and branded per tenant, and is served on the tenant's subdomain (custom domains later). It depends on Core, Property (`PropertyDirectory`, `InventoryCatalog`, photos), Rates (`RateLookup`), Reservation (availability, pricing and `CreateReservation` through its contracts), Guest (`GuestRegistry`), Billing (`GuestPaymentGateway`, Step 8.3) and, optionally, Restaurant (outlets for the dining page). It reads them through their contracts only and owns only its own content tables.
+
+- **Pages:** home (hero photos, introduction, highlights, featured cottages, offers), accommodation (each cottage type and room type with its gallery, description, capacity, amenities and a *from* price), dining, offers, gallery, location and contact, and policies (deposit, cancellation, house rules). The `website_settings` and `website_pages` tables (per property: texts per menu language, SEO title and description, published flag; photos through `HasPhotos`) are edited in the back office under **Website** (`website.content.manage`). Rooms, prices, promotions and policies come from their modules and are never entered twice.
+- **Offers:** only promotions marked `show_on_website` (a new Rates column and a `RateLookup` method). Code-only promotions such as MONSOON20 stay hidden.
+- **Booking:** an availability search (dates, adults, children) on every page. Results list room types and the cottages bookable whole, with rate plans, nightly prices, restrictions and automatic promotions; a promotion code can be entered. The guest **adds rooms or whole cottages to a cart** (session, re-priced on every change, server totals only) and sees the total, the deposit and the policies. They then enter their details and go to payment.
+- **No separate hold:** going to payment creates the booking as **Tentative** with `CreateReservation` (source `website`). Its own `inventory_locks` hold the rooms, since a room night has one lock. The payment window is the deposit's due time, shortened for website bookings by the setting `website.payment_minutes` (default 15), so the existing `ExpireTentativeHolds` releases unpaid rooms. There is one lock and one timer, and a clash shows the guest that the room has just gone.
+- **After booking:** the confirmation page, the existing guest emails, and a signed **manage booking** link (view; cancel within the policy through `CancelReservation`).
+- **Embedding:** an embeddable search widget (`/website/widget`). For that route only, `SecurityHeaders` drops `X-Frame-Options` and sets `frame-ancestors` to the property's allowed sites (setting `website.embed_origins`); every other page keeps `frame-ancestors 'self'`.
+- **Abuse:** a `website` rate limit per IP, a honeypot on forms, and a cap on open Tentative website bookings per guest email and IP.
 
 ---
 
@@ -1448,7 +1460,7 @@ Unique: `(outlet_id, bill_no)`
 
 - REST, versioned: `/api/v1/...`, authenticated with Sanctum tokens, tenant resolved by subdomain or token.
 - API Resources for responses; consistent error format; rate limiting per token.
-- Public booking endpoints (availability, quote, create booking, pay deposit) with strict throttling.
+- Public booking endpoints (availability, quote, create booking, pay deposit) with strict throttling. The public website itself ([§5.18](#518-website-public-resort-site-and-booking)) is server-rendered Blade that calls the same Actions; it does not depend on the API.
 - OpenAPI documentation generated from code.
 
 ---
@@ -1721,7 +1733,7 @@ Please confirm or adjust. The document reflects the **assumed answer** in each c
 | Q1 | **Data isolation level:** is a shared database with `tenant_id` enough, or does any customer contractually need a **separate database**? | Shared DB with strict scoping. The design allows a later move to database-per-tenant for enterprise customers. | Answer: Shared database with `tenant_id` is enough.
 | Q2 | Is a tenant a **company that may own several resorts**, or always exactly one resort? | A company with one or more resorts (properties). | Answer: A company that may own several resorts.
 | Q3 | Which **countries** and **currencies** at launch? Which taxes apply (VAT, service charge, tourism levy)? | Configurable; a single country first, with multi-currency ready. | Answer: multi-currency ready
-| Q4 | Which **payment gateways** are required (Stripe, PayPal, SSLCommerz, bKash…)? | A gateway abstraction in Phase 1; the first real gateway in Phase 8. | Answer: SSLCommerze, bKash is ok now but will need all in future. **Decided before Phase 8 (2026-10-23):** SSLCommerz and bKash for Bangladesh (BDT), Stripe for international cards; all behind one `PaymentGateway` contract, so more can be added later.
+| Q4 | Which **payment gateways** are required (Stripe, PayPal, SSLCommerz, bKash…)? | A gateway abstraction in Phase 1; the first real gateway in Phase 8. | Answer: SSLCommerze, bKash is ok now but will need all in future. **Decided before Phase 8 (2026-10-23):** SSLCommerz and bKash are the Bangladesh gateways (SSLCommerz also takes international cards); Stripe is an optional adapter for tenants in countries Stripe supports (it does not take Bangladeshi merchants). All sit behind Billing's `GuestPaymentGateway` contract ([§5.9](#59-billing--payments)), so more can be added later.
 | Q5 | Is **online guest self-booking** needed in the first release, or is staff-entered booking enough initially? | Staff-entered in v1; public booking engine in Phase 8. | Answer: online guest self-booking including staff-entered booking. **Decided before Phase 8 (2026-10-23):** a public website per property that looks like a standard resort website: guests browse the rooms and cottages, check availability, add rooms or whole cottages to a cart and pay online (Step 8.2, payment in 8.3).
 | Q6 | Should a specific **room number be assigned at booking**, or booked by room type and assigned at check-in? | Assigned at booking (auto-picked, changeable). Simpler and fully safe against overbooking. | Answer: assign the room number at booking.
 | Q7 | **Deposit:** is 30–50% fixed per resort, or negotiable per booking? Is the deposit refundable, and on what terms? Should unpaid bookings auto-cancel, and after how long? | Per-resort policy with a 30–50% range that staff can choose within; refund per cancellation policy; auto-cancel after 48 h. | *(Built in Step 1.4: a default % per resort, negotiable per booking within optional limits; refunds follow the cancellation policy; unpaid deposits due in 30 minutes by default, set per resort.)* Answer: Not fixed, negotiable per booking. Deposit may refundable. ld unpaid bookings auto-cancel, 30 mins (configureable) may vary from resort to resort. 
