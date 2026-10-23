@@ -589,7 +589,7 @@ The AI ticks a step here when it commits the step.
 
 **Goal:** guests book and pay online; the system connects to the outside world.
 
-**Decisions needed before starting:** Q4 (payment gateway — e.g. SSLCommerz / bKash for Bangladesh, Stripe for international cards), Q5 (booking website), Q17 (silent printing).
+**Decisions (made 2026-10-23):** Q4: SSLCommerz and bKash for Bangladesh, Stripe for international cards. Q5: a public resort website with rooms, cottages, availability, a cart and online payment. Q17: a small local print agent.
 
 ### Step 8.1 — REST API v1
 
@@ -600,14 +600,17 @@ The AI ticks a step here when it commits the step.
 ### Step 8.2 — Public booking engine
 
 - **Read:** ARCHITECTURE §1.4, §6, §9.6.
-- **Build:** a public booking site per property (search, choose cottages/rooms, guest details, pay deposit), embeddable widget, branding per tenant, anti-abuse throttling, booking management link for guests.
-- **Done when:** a guest books two rooms on the public site on a phone, and the booking appears on the tape chart as Tentative.
+- **Build:** a public website per property that looks like a standard resort website (Q5), phone first, branded per tenant:
+  - **Pages:** home (hero photos, introduction, highlights, featured cottages, offers), accommodation (each cottage type and room type with its photo gallery, description, capacity, amenities and a *from* price), dining (the property's outlets), offers (public promotions), gallery, location and contact, and policies (deposit, cancellation, house rules). Content, photos and SEO titles are edited in the back office (Website menu); the rooms, prices and policies come from the existing modules, never entered twice.
+  - **Booking:** an availability search (dates, adults, children) on every page; results list the room types and the cottages bookable whole, with nightly prices, the rate plans (room only, B&B…), restrictions and promotions; guests **add rooms or whole cottages to a cart** (mixing both, several units), see the total, the deposit and the policies, enter their details and go to payment. Going to payment places a short **hold** (`inventory_locks` type hold, about 15 minutes), so the rooms cannot be sold twice while the guest pays; the booking is created Tentative and confirmed when the payment arrives (Step 8.3).
+  - Also: a booking management link for guests (view, cancel within the policy), an embeddable search widget for an existing website, anti-abuse throttling and a honeypot. Served on the tenant's subdomain (custom domains later).
+- **Done when:** a guest on a phone browses the cottages, adds two rooms to the cart, checks out, and the booking appears on the tape chart as Tentative with the rooms held.
 
 ### Step 8.3 — Payment gateways
 
 - **Read:** ARCHITECTURE §5.9 (gateway abstraction), §9.1.
-- **Build:** `PaymentGateway` contract, the first gateway adapter(s), payment links for deposit requests, webhooks with signature verification and idempotency, gateway logs, online refunds.
-- **Done when:** paying the deposit online confirms the booking automatically; replaying a webhook does not create a second payment.
+- **Build:** `PaymentGateway` contract and three adapters (Q4): **SSLCommerz** and **bKash** for BDT, **Stripe** for international cards (the guest chooses; credentials per tenant, sandbox mode), checkout from the website's cart (deposit or the full amount), payment links for deposit requests, webhooks and callbacks with signature verification and idempotency, gateway logs, online refunds.
+- **Done when:** paying the deposit online through each gateway (sandbox) confirms the booking automatically; replaying a webhook does not create a second payment.
 
 ### Step 8.4 — Notifications & guest portal
 
@@ -618,7 +621,7 @@ The AI ticks a step here when it commits the step.
 ### Step 8.5 — Silent printing
 
 - **Read:** ARCHITECTURE §4.6 (printing), §14 (POS devices).
-- **Build:** QZ Tray (or a small local print agent) integration for silent KOT and receipt printing to network ESC/POS printers, with per-station printer mapping and a browser-print fallback.
+- **Build:** a **small local print agent** (Q17): a single program installed on one computer in the resort's network, registered with a device token like a POS terminal; it connects out to the server (no open ports at the resort), takes the property's print jobs (KOTs, receipts, bills rendered as ESC/POS on the server) and sends them to the network thermal printers (raw TCP 9100), reporting printed or failed. Per-station printer mapping, a print-job queue with retries, and the browser-print fallback when no agent is online.
 - **Done when:** sending an order prints the KOT at the station printer with no print dialog.
 
 **Phase 8 exit criteria:** end-to-end online booking with online deposit payment; silent printing in the restaurant.
