@@ -28,7 +28,9 @@ scheduled jobs. Written for the person on call. Built in Step 7.5; the design is
 6. `mkdir -p /var/www/resort365/shared` and put the production `.env` there, from `.env.production.example` (fill every `<…>`).
    Generate `APP_KEY` once and keep it in the password manager: **encrypted fields cannot be read without it.**
 7. First deploy (section 3), then `php artisan permissions:sync` and `php artisan platform:seed-plans` and
-   `php artisan platform:create-admin you@example.com "Your Name"` in `/var/www/resort365/current`.
+   `php artisan platform:create-admin you@example.com "Your Name"` in `/var/www/resort365/current`. At the first sign-in the
+   console asks every platform admin to set up two-factor sign-in (required in production); a locked-out admin is reset with
+   `php artisan platform:reset-two-factor <email>`.
 8. Copy `deploy/supervisor.conf` to `/etc/supervisor/conf.d/resort365.conf`; `supervisorctl reread && supervisorctl update`.
 9. `crontab -u deploy deploy/crontab`.
 10. Point the uptime monitor at `https://resort365.app/up` (fails when the database or Redis does not answer).

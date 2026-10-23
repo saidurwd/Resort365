@@ -3,6 +3,9 @@
 return [
     'name' => 'Platform',
 
+    // Platform admins must set up two-factor sign-in (Phase 7 review). null = in production only.
+    'require_two_factor' => null,
+
     // Subscriptions and platform invoices (Step 7.4).
     'billing' => [
         // Days a platform invoice may stay unpaid before the tenant is suspended.

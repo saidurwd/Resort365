@@ -49,6 +49,7 @@
                             ['platform.plans.index', 'bi-box-seam', __('Plans'), 'platform.plans.*'],
                             ['platform.announcements.index', 'bi-megaphone', __('Announcements'), 'platform.announcements.*'],
                             ['platform.audit.index', 'bi-journal-text', __('Audit log'), 'platform.audit.*'],
+                            ['platform.two-factor.show', 'bi-shield-lock', __('Security'), 'platform.two-factor.*'],
                         ] as [$route, $icon, $label, $active])
                             <li class="nav-item"><a href="{{ route($route) }}" @class(['nav-link', 'active' => request()->routeIs($active)])><i class="nav-icon bi {{ $icon }}"></i><p>{{ $label }}</p></a></li>
                         @endforeach

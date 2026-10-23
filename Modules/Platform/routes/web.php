@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Platform\Http\Controllers\AnnouncementController;
 use Modules\Platform\Http\Controllers\AuditController;
 use Modules\Platform\Http\Controllers\Auth\PlatformLoginController;
+use Modules\Platform\Http\Controllers\Auth\PlatformTwoFactorController;
 use Modules\Platform\Http\Controllers\ConsoleController;
 use Modules\Platform\Http\Controllers\InvoiceController;
 use Modules\Platform\Http\Controllers\PlanController;
@@ -11,6 +12,7 @@ use Modules\Platform\Http\Controllers\SignupController;
 use Modules\Platform\Http\Controllers\SubscriptionController;
 use Modules\Platform\Http\Controllers\TenantController;
 use Modules\Platform\Http\Controllers\TenantExportController;
+use Modules\Platform\Http\Middleware\EnsurePlatformTwoFactor;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,10 +35,14 @@ Route::prefix('platform')->name('platform.')->group(function (): void {
     Route::middleware('guest:platform')->group(function (): void {
         Route::get('/login', [PlatformLoginController::class, 'create'])->name('login');
         Route::post('/login', [PlatformLoginController::class, 'store'])->middleware('throttle:platform-login')->name('login.store');
+        Route::get('/two-factor-challenge', [PlatformTwoFactorController::class, 'challenge'])->name('two-factor.challenge');
+        Route::post('/two-factor-challenge', [PlatformTwoFactorController::class, 'verify'])->middleware('throttle:platform-two-factor')->name('two-factor.verify');
     });
 
-    Route::middleware('auth:platform')->group(function (): void {
+    Route::middleware(['auth:platform', EnsurePlatformTwoFactor::class])->group(function (): void {
         Route::get('/', ConsoleController::class)->name('console');
+        Route::get('/security/two-factor', [PlatformTwoFactorController::class, 'show'])->name('two-factor.show');
+        Route::post('/security/two-factor', [PlatformTwoFactorController::class, 'confirm'])->middleware('throttle:platform-two-factor')->name('two-factor.confirm');
 
         Route::prefix('tenants')->name('tenants.')->controller(TenantController::class)->group(function (): void {
             Route::get('/', 'index')->name('index');

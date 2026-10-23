@@ -12,6 +12,7 @@ use Modules\Core\Contracts\PlanLimits;
 use Modules\Core\Contracts\SubscriptionAccount;
 use Modules\Platform\Console\CreatePlatformAdminCommand;
 use Modules\Platform\Console\PurgeTenantsCommand;
+use Modules\Platform\Console\ResetTwoFactorCommand;
 use Modules\Platform\Console\RunBillingCommand;
 use Modules\Platform\Console\SeedPlansCommand;
 use Modules\Platform\Contracts\PaymentGateway;
@@ -44,6 +45,7 @@ class PlatformServiceProvider extends ModuleServiceProvider
         SeedPlansCommand::class,
         RunBillingCommand::class,
         PurgeTenantsCommand::class,
+        ResetTwoFactorCommand::class,
     ];
 
     /**
@@ -82,6 +84,7 @@ class PlatformServiceProvider extends ModuleServiceProvider
 
         // Sign-ups per address and hour (Step 7.4).
         RateLimiter::for('signup', fn (Request $request): Limit => Limit::perHour(10)->by($request->ip()));
+        RateLimiter::for('platform-two-factor', fn (Request $request): Limit => Limit::perMinute(5)->by($request->session()->getId().'|'.$request->ip()));
         RateLimiter::for('platform-login', fn (Request $request): Limit => Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
     }
 }

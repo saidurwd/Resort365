@@ -12,6 +12,7 @@ use Laravel\Pulse\Recorders\SlowQueries;
 use Laravel\Pulse\Recorders\SlowRequests;
 use Laravel\Pulse\Recorders\UserJobs;
 use Laravel\Pulse\Recorders\UserRequests;
+use Modules\Platform\Http\Middleware\EnsurePlatformTwoFactor;
 
 return [
 
@@ -132,6 +133,7 @@ return [
     'middleware' => [
         'web',
         'auth:platform',
+        EnsurePlatformTwoFactor::class,
         Authorize::class,
     ],
 

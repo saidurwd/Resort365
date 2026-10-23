@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Str;
+use Modules\Platform\Http\Middleware\EnsurePlatformTwoFactor;
 
 return [
 
@@ -83,7 +84,7 @@ return [
     |
     */
 
-    'middleware' => ['web', 'auth:platform'],
+    'middleware' => ['web', 'auth:platform', EnsurePlatformTwoFactor::class],
 
     /*
     |--------------------------------------------------------------------------

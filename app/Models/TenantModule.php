@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * A module switched on or off for a tenant. TODO(step-7.3): managed from Platform plans.
+ * A module switched on or off for a tenant (no row means on). Platform's ChangeTenantPlan writes these rows from the tenant's plan.
  *
  * @property int $id
  * @property int $tenant_id
