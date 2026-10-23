@@ -3,6 +3,7 @@
 namespace Modules\FrontOffice\Services;
 
 use Modules\Billing\Contracts\DailyTakings;
+use Modules\Billing\DTOs\DailyTakingsSummary;
 use Modules\FrontOffice\Models\DailyStatistic;
 use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\DTOs\RoomSummary;
@@ -30,7 +31,10 @@ class FlashReport
         $snapshot = DailyStatistic::query()->where('property_id', $propertyId)->where('business_date', $date)->first();
 
         if ($snapshot instanceof DailyStatistic) {
-            return ['provisional' => false, 'stats' => $snapshot->attributesToArray(), 'takings' => $snapshot->takings];
+            // A snapshot without the full takings (older ones, the demo history) reads as nothing taken rather than failing.
+            $empty = new DailyTakingsSummary($date, [], '0.00', '0.00', '0.00', [], '0.00', '0.00', '0.00', 0)->toArray();
+
+            return ['provisional' => false, 'stats' => $snapshot->attributesToArray(), 'takings' => [...$empty, ...(array) $snapshot->takings]];
         }
 
         if ($date !== $businessDate) {

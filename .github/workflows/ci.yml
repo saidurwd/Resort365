@@ -59,7 +59,7 @@ jobs:
         with:
           php-version: '8.4'
           extensions: bcmath, intl, pdo_mysql, redis
-          coverage: none
+          coverage: pcov
 
       - name: Install Composer dependencies
         uses: ramsey/composer-install@v3
@@ -86,5 +86,101 @@ jobs:
       - name: Larastan
         run: composer analyse
 
-      - name: Pest
-        run: composer test
+      - name: Pest (with coverage)
+        run: php artisan test --coverage-clover=build/coverage.xml
+
+      - name: Coverage of Actions and Services (ARCHITECTURE §13; floor in scripts/coverage-floor.json)
+        run: php scripts/coverage-report.php build/coverage.xml --min-file=scripts/coverage-floor.json
+
+      - name: Keep the coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: build/coverage.xml
+          if-no-files-found: ignore
+
+  browser:
+    name: Browser tests (Dusk)
+    runs-on: ubuntu-24.04
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: resort365_dusk
+          MYSQL_USER: resort365
+          MYSQL_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, intl, pdo_mysql, redis, zip, gd
+          coverage: none
+
+      - name: Install Composer dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build front-end assets
+        run: |
+          npm ci
+          npm run build
+
+      # Tenants live at rodela.localhost:8000: Chrome sends every *.localhost name to this machine, so no DNS is needed.
+      - name: Prepare the application
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          set_env() { grep -q "^$1=" .env && sed -i "s|^$1=.*|$1=$2|" .env || echo "$1=$2" >> .env; }
+          set_env APP_URL http://localhost:8000
+          set_env TENANCY_CENTRAL_DOMAIN localhost
+          set_env DB_DATABASE resort365_dusk
+          set_env SESSION_DRIVER file
+          set_env CACHE_STORE file
+          set_env QUEUE_CONNECTION sync
+          set_env BROADCAST_CONNECTION log
+          set_env MAIL_MAILER log
+          set_env PULSE_ENABLED false
+          cp .env .env.dusk.local
+          php artisan migrate:fresh --seed --force
+
+      - name: Install the ChromeDriver for the runner's Chrome
+        run: php artisan dusk:chrome-driver --detect
+
+      - name: Serve the application
+        run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload > storage/logs/serve.log 2>&1 &
+
+      - name: Dusk
+        run: php artisan dusk
+
+      - name: Keep screenshots and console logs of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-failures
+          path: |
+            tests/Browser/screenshots
+            tests/Browser/console
+            storage/logs

@@ -120,7 +120,7 @@ The AI ticks a step here when it commits the step.
 | **4. Accounting** | [x] 4.1 · [x] 4.2 · [x] 4.3 · [x] 4.4 · [x] 4.5 |
 | **5. Inventory & Procurement** | [x] 5.1 · [x] 5.2 · [x] 5.3 · [x] 5.4 · [x] 5.5 · [x] 5.6 · [x] 5.7 · [x] 5.8 |
 | **6. HR & Payroll** | [x] 6.1 · [x] 6.2 · [x] 6.3 · [x] 6.4 · [x] 6.5 · [x] 6.6 |
-| **7. Reports & SaaS** | [x] 7.1 · [x] 7.2 · [x] 7.3 · [x] 7.4 · [x] 7.5 |
+| **7. Reports & SaaS** | [x] 7.1 · [x] 7.2 · [x] 7.3 · [x] 7.4 · [x] 7.5 · [x] 7.6 |
 | **8. Online & Integrations** | [ ] 8.1 · [ ] 8.2 · [ ] 8.3 · [ ] 8.4 · [ ] 8.5 |
 
 **Open exit checks (Phase 7 review, 2026-10-23):** Phase 7's code is complete, but its exit criterion and two Step 7.5 checks need servers that do not exist yet: a real resort onboarded self-service **on production**, the 50-user load test's 800 ms budget **on staging** (it shows no errors locally; a development machine is too slow to judge timing), and a backup restored **on staging** (the drill passes locally). Run them as soon as staging and production are up (docs/OPERATIONS.md).
@@ -574,6 +574,12 @@ The AI ticks a step here when it commits the step.
 - **Read:** ARCHITECTURE §9, §13, §14.
 - **Build:** performance pass (indexes, N+1 checks, caching), security review (`/security-review`), security headers, rate limits, backup and restore procedure, Pulse and error tracking, production deployment scripts, zero-downtime deploy.
 - **Done when:** load test of 50 concurrent users on booking and POS shows no errors; a backup is restored successfully on staging.
+
+### Step 7.6 — Browser tests and coverage
+
+- **Read:** ARCHITECTURE §13.
+- **Build:** Laravel Dusk browser tests for the critical journeys (booking wizard, check-in and check-out, POS order to cash, payroll run from submission to payment), a smoke tour of every screen, a console guard that fails on script errors and refused requests (Content-Security-Policy), a CI `browser` job, and coverage of Actions and Services in Reservation, Billing, Restaurant, Accounting, Inventory and Payroll measured in CI with a floor that may not drop.
+- **Done when:** the four journeys and the smoke tour pass in CI against the seeded demo data, and CI reports coverage per module and fails below the floor.
 
 **Phase 7 exit criteria:** a second, real resort company can be onboarded self-service on production.
 

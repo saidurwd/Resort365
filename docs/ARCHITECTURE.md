@@ -1651,6 +1651,8 @@ Modules/Reservation/
 
 Target: at least 80% coverage on Actions and Services in the Reservation, Billing, Restaurant, Accounting, Inventory and Payroll modules.
 
+**As built (Step 7.6):** Laravel Dusk with Pest in `tests/Browser` (`phpunit.dusk.xml`, base class `tests/DuskTestCase.php`), run against the seeded demo data (`composer test:browser`: reseeds the `resort365_dusk` database from `.env.dusk.local`, then `php artisan dusk`). Four journeys: the booking wizard (availability, tape chart, wizard, new guest, booking), the front desk (check in room 201 with the guest's ID, check out room 402 with room nights posted and the folio settled), the POS (device token, cashier PIN, takeaway, KOT, bill, cash) and a payroll run (submit, the approvers, paid). Room charge from the POS stays covered by the feature tests (Step 3.7). A smoke tour opens every page in the Tenant Owner's sidebar and signs in as every default role. After every page the browser console must be clean: a script error or a request the Content-Security-Policy refused fails the test (a missing Reverb server is ignored, because the screens poll instead). Chrome runs headless and in incognito, because its password prompts swallow input after a sign-in. CI runs the browser tests in their own `browser` job (`php artisan serve` on `localhost:8000`, MySQL 8.4), and the `quality` job measures coverage with PCOV: `scripts/coverage-report.php` reports the statement coverage of each module's `app/Actions` and `app/Services` from the Clover file and fails when a module falls below `scripts/coverage-floor.json`. The floor is set from the first CI measurement and raised step by step towards the 80% target; the local Herd has no coverage driver.
+
 ---
 
 ## 14. Deployment & Operations

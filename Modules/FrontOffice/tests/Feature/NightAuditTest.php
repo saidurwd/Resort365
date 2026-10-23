@@ -238,6 +238,14 @@ it('skips properties that turned the automatic audit off, and runs from the comm
     expect(booking(fn (): NightAudit => NightAudit::query()->sole())->status)->toBe(NightAuditStatus::Completed);
 });
 
+it('shows the flash report of a snapshot stored without the takings breakdown (older days, demo history)', function (): void {
+    staffUser(DefaultRole::FrontOfficeManager);
+    $day = auditDay()->subDays(3)->toDateString();
+    booking(fn () => DailyStatistic::factory()->create(['property_id' => bookingIds()['property'], 'business_date' => $day, 'takings' => []]));
+
+    get(tenantUrl('sunrise', '/frontoffice/reports/flash?date='.$day))->assertOk()->assertSeeHtml('data-flash-report="'.$day.'"')->assertSeeHtml('data-flash-charges');
+});
+
 it('shows the flash report: provisional for the open date, final after the audit', function (): void {
     staffUser(DefaultRole::FrontOfficeManager);
     $day = auditDay();

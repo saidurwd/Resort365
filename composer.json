@@ -37,6 +37,7 @@
         "driftingly/rector-laravel": "^2.6",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.12",
+        "laravel/dusk": "^8.7",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",
@@ -104,6 +105,11 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "test:browser": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan migrate:fresh --seed --force --env=dusk.local",
+            "@php artisan dusk"
         ]
     },
     "extra": {

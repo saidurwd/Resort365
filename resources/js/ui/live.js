@@ -25,7 +25,8 @@ function echo() {
                 wsPort: env.VITE_REVERB_PORT ?? 80,
                 wssPort: env.VITE_REVERB_PORT ?? 443,
                 forceTLS: tls,
-                enabledTransports: ['ws', 'wss'],
+                // Only the configured scheme: pusher-js otherwise falls back from ws:// to wss://, which the CSP refuses.
+                enabledTransports: tls ? ['wss'] : ['ws'],
                 // The tenant's own subdomain authorizes its channels.
                 authEndpoint: '/broadcasting/auth',
                 auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' } },

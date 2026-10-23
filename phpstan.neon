@@ -11,3 +11,7 @@ parameters:
         - database
         - routes
         - tests
+    excludePaths:
+        # Dusk journeys call the DuskTestCase helpers on Pest's bound $this, which PHPStan cannot see (Step 7.6). The base class
+        # tests/DuskTestCase.php is still analysed.
+        - tests/Browser

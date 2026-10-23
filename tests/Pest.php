@@ -12,6 +12,7 @@ use Modules\IAM\Actions\SeedDefaultRoles;
 use Modules\IAM\Actions\SyncPermissions;
 use Modules\IAM\Models\Role;
 use Modules\IAM\Models\User;
+use Tests\DuskTestCase;
 use Tests\TestCase;
 
 /*
@@ -26,6 +27,14 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)->in('Feature', 'Tenancy', '../Modules/*/tests/Feature');
+
+// Browser tests (Step 7.6) run in Chrome against a served copy of the app: `composer test:browser`.
+// Pest does not run the base class's #[BeforeClass] / #[AfterClass] hooks, so ChromeDriver is started here and each file's
+// browsers are closed after it (they are shared by every test class, and a file would otherwise reuse or leave behind the last).
+pest()->extend(DuskTestCase::class)
+    ->beforeAll(fn () => DuskTestCase::prepare())
+    ->afterAll(fn () => DuskTestCase::closeAll())
+    ->in('Browser');
 
 /*
 |--------------------------------------------------------------------------

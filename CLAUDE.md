@@ -33,6 +33,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
   `docker run -d --name resort365-redis --restart unless-stopped -p 127.0.0.1:6379:6379 -v resort365-redis:/data redis:7-alpine redis-server --appendonly yes`
 - **Real time (Step 3.5):** Laravel Reverb on `localhost:8080` (`php artisan reverb:start`) plus a queue worker (`php artisan queue:work`), because broadcasts are queued. `composer dev` starts both. Without them the POS and kitchen display still work, refreshing every 5 seconds. Tests use the `null` broadcaster; the channel tests switch to Reverb with test keys.
 - First-time setup: `cp .env.example .env && php artisan key:generate && php artisan migrate`.
+- **Browser tests (Step 7.6):** Laravel Dusk with Chrome. `.env.dusk.local` (not committed: a copy of `.env` with `DB_DATABASE=resort365_dusk`, file session and cache, `sync` queue, `log` mail and broadcasting, Pulse off) replaces `.env` while `php artisan dusk` runs, and Herd serves it. Match ChromeDriver to Chrome with `php artisan dusk:chrome-driver --detect`. Journeys share the seeded data without resetting it, so each uses demo records no other test changes; reseed before a run (`composer test:browser` does). `visitClean()` / `assertConsoleClean()` fail on console errors (script errors, CSP refusals). Chrome runs in incognito, because its password prompts swallow input after a sign-in. Coverage of Actions and Services is measured in CI only (PCOV; `scripts/coverage-report.php`, floor `scripts/coverage-floor.json`).
 
 ## Commands
 
@@ -55,6 +56,7 @@ Only packages that a completed step needs are installed. See ARCHITECTURE §4.6 
 | `php artisan module:make <Name>` then `composer dump-autoload` | Create a module with the §11 structure |
 | `php artisan module:make-action <Class> <Module>` (also `-enum`, `-event`, `-model … -mf`, `-request`, `-interface`, …) | Generate a class inside a module; see MODULE_GUIDE §2 |
 | `php artisan test --testsuite=Architecture` | Run only the architecture tests |
+| `composer test:browser` | Reseed `resort365_dusk` and run the Dusk browser tests (`tests/Browser`) against Herd (Step 7.6) |
 
 **Quality gate (R12):** before reporting a step as done, run `composer fix`, then make sure `composer lint`, `composer analyse` and `composer test` all pass. Generated stubs (`artisan make:*`) usually need `composer fix` to satisfy Rector, which adds closure return types.
 

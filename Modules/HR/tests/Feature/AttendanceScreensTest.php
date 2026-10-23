@@ -79,6 +79,14 @@ it('shows the roster grid and assigns, copies and clears it from the form', func
     post(tenantUrl('sunrise', '/hr/roster/assign'), ['employee_ids' => [$employee->id], 'from' => '2025-01-01', 'to' => '2026-12-31', 'shift_id' => $day->id])->assertSessionHas('error');
 });
 
+it('shows a rostered day with no record yet (found by the browser smoke tour, Step 7.6)', function (): void {
+    $employee = hrEmployee();
+    hrRoster([$employee->id], '2026-03-02', '2026-03-02', hrShift()->id);
+    staffUser(DefaultRole::HrManager);
+
+    get(tenantUrl('sunrise', '/hr/attendance?date=2026-03-02'))->assertOk()->assertSeeHtml('data-attendance-row="EMP-0001"')->assertSee('No record');
+});
+
 it('records, corrects and removes a day from the attendance screen', function (): void {
     $employee = hrEmployee();
     staffUser(DefaultRole::HrManager);
