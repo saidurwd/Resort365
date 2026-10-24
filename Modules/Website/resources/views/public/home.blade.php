@@ -23,7 +23,7 @@
                 @if ($site->translated('tagline'))
                     <p class="lead mb-4">{{ $site->translated('tagline') }}</p>
                 @endif
-                <a class="btn btn-website-primary btn-lg" href="{{ route('website.rooms', ['site' => $site->slug]) }}">{{ __('See rooms & cottages') }}</a>
+                <div class="website-hero-search">@include('website::public.partials.search', ['compact' => true])</div>
             </div>
         </div>
     </section>

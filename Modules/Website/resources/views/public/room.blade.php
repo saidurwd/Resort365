@@ -52,8 +52,9 @@
                             <li><i class="bi bi-arrows-fullscreen"></i> {{ __(':size m²', ['size' => \Modules\Website\Services\Prices::number($unit['size_sqm'])]) }}</li>
                         @endif
                     </ul>
+                    <a class="btn btn-website-primary btn-lg w-100" href="{{ route('website.book', ['site' => $site->slug]) }}"><i class="bi bi-calendar2-check"></i> {{ __('Check availability') }}</a>
                     @if ($site->phone)
-                        <a class="btn btn-website-primary btn-lg w-100" href="tel:{{ preg_replace('/[^\d+]/', '', $site->phone) }}"><i class="bi bi-telephone"></i> {{ __('Call to book') }}</a>
+                        <a class="btn btn-outline-website w-100 mt-2" href="tel:{{ preg_replace('/[^\d+]/', '', $site->phone) }}"><i class="bi bi-telephone"></i> {{ __('Or call us') }}</a>
                     @endif
                 </div>
             </div>

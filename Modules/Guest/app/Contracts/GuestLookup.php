@@ -52,6 +52,12 @@ interface GuestLookup
     public function findDuplicates(?string $phone, ?string $email): array;
 
     /**
+     * The one guest whose email and phone are both these (the phone normalised as stored), or null when none or several match
+     * (Step 8.2b: a website booking reuses the profile only when it is certainly the same person).
+     */
+    public function matchContact(string $email, string $phone): ?GuestSummary;
+
+    /**
      * Names of several companies at once, keyed by the ids asked for (Step 7.1).
      *
      * @param  list<int>  $companyIds

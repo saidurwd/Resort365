@@ -47,6 +47,11 @@
                 <div class="col-md-4"><x-form.input name="map_url" type="url" :label="__('Map link')" :value="$value('map_url')" :help="__('A Google Maps share link.')" /></div>
                 <div class="col-md-4"><x-form.input name="facebook_url" type="url" :label="__('Facebook page')" :value="$value('facebook_url')" /></div>
                 <div class="col-md-4"><x-form.input name="instagram_url" type="url" :label="__('Instagram')" :value="$value('instagram_url')" /></div>
+                <div class="col-md-12">
+                    <x-form.field name="embed_origins" :label="__('Websites that may show the search box')" :help="__('One address per line, e.g. https://www.rodelaresort.com. Embed it with an iframe of :url', ['url' => $site ? route('website.widget', ['site' => $site->slug]) : '/resort/…/widget'])">
+                        <textarea name="embed_origins" id="field-embed_origins" rows="2" @class(['form-control', 'is-invalid' => $errors->has('embed_origins')])>{{ $value('embed_origins') }}</textarea>
+                    </x-form.field>
+                </div>
             </div>
         </x-card>
 

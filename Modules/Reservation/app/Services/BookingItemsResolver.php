@@ -30,7 +30,7 @@ class BookingItemsResolver
      *
      * @throws ValidationException
      */
-    public function resolve(int $propertyId, int $ratePlanId, CarbonImmutable $checkIn, CarbonImmutable $checkOut, array $rows, ?string $promoCode = null): array
+    public function resolve(int $propertyId, int $ratePlanId, CarbonImmutable $checkIn, CarbonImmutable $checkOut, array $rows, ?string $promoCode = null, string $channel = 'front_desk'): array
     {
         /** @var array<string, AvailabilityResult> $results */
         $results = [];
@@ -38,11 +38,16 @@ class BookingItemsResolver
         $items = [];
         $errors = [];
 
-        foreach ($rows as $index => $row) {
+        // Whole cottages first, so a room asked for by type never takes a room of a cottage booked whole in the same stay.
+        $order = array_keys($rows);
+        usort($order, fn (int $a, int $b): int => [($rows[$a]['type'] ?? '') === ItemType::Cottage->value ? 0 : 1, $a] <=> [($rows[$b]['type'] ?? '') === ItemType::Cottage->value ? 0 : 1, $b]);
+
+        foreach ($order as $index) {
+            $row = $rows[$index];
             $adults = max(1, (int) $row['adults']);
             $children = max(0, (int) ($row['children'] ?? 0));
             $party = $adults.'+'.$children;
-            $result = $results[$party] ??= $this->search($propertyId, $ratePlanId, $checkIn, $checkOut, new Occupancy($adults, $children), $promoCode);
+            $result = $results[$party] ??= $this->search($propertyId, $ratePlanId, $checkIn, $checkOut, new Occupancy($adults, $children), $promoCode, $channel);
 
             if ($result->planViolations !== []) {
                 throw ValidationException::withMessages(['rate_plan_id' => implode(' ', array_map(fn (RestrictionViolation $violation): string => $violation->message(), $result->planViolations))]);
@@ -63,21 +68,26 @@ class BookingItemsResolver
 
             if ($type === ItemType::Room) {
                 $usedRooms[] = $unit;
+            } elseif ($type === ItemType::Cottage) {
+                $cottage = collect($result->cottages)->first(fn (CottageOption $option): bool => $option->cottage->id === $unit);
+                array_push($usedRooms, ...($cottage instanceof CottageOption ? $cottage->cottage->roomIds : []));
             }
 
-            $items[] = new BookingItem($type ?? ItemType::Room, $unit, $ratePlanId, $adults, $children);
+            $items[$index] = new BookingItem($type ?? ItemType::Room, $unit, $ratePlanId, $adults, $children);
         }
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
 
-        return $items;
+        ksort($items);
+
+        return array_values($items);
     }
 
-    private function search(int $propertyId, int $ratePlanId, CarbonImmutable $checkIn, CarbonImmutable $checkOut, Occupancy $party, ?string $promoCode): AvailabilityResult
+    private function search(int $propertyId, int $ratePlanId, CarbonImmutable $checkIn, CarbonImmutable $checkOut, Occupancy $party, ?string $promoCode, string $channel): AvailabilityResult
     {
-        return $this->availability->search(new AvailabilitySearch($propertyId, $ratePlanId, $checkIn, $checkOut, $party, $promoCode))
+        return $this->availability->search(new AvailabilitySearch($propertyId, $ratePlanId, $checkIn, $checkOut, $party, $promoCode, $channel))
             ?? throw ValidationException::withMessages(['rate_plan_id' => __('This rate plan cannot be booked here.')]);
     }
 

@@ -42,6 +42,7 @@ class SaveWebsiteSiteRequest extends FormRequest
             'map_url' => ['nullable', 'url:https', 'max:500'],
             'facebook_url' => ['nullable', 'url:https', 'max:255'],
             'instagram_url' => ['nullable', 'url:https', 'max:255'],
+            'embed_origins' => ['nullable', 'string', 'max:2000', 'regex:#^(\s*https://[a-z0-9.-]+(:\d+)?\s*)*$#i'],
         ];
 
         foreach (WebsiteSite::TEXTS as $text) {
@@ -57,7 +58,7 @@ class SaveWebsiteSiteRequest extends FormRequest
      */
     public function messages(): array
     {
-        return ['slug.regex' => __('Use small letters, numbers and dashes, e.g. rodela-cxb.')];
+        return ['slug.regex' => __('Use small letters, numbers and dashes, e.g. rodela-cxb.'), 'embed_origins.regex' => __('One address per line, like https://www.example.com, with no path.')];
     }
 
     public function propertyId(): int

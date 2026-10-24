@@ -177,8 +177,8 @@ it('seeds guests to search at scale, with a duplicate pair and a blacklisted gue
     seed(DatabaseSeeder::class);
 
     app(TenantContext::class)->run(tenant('rodela'), function (): void {
-        // 10,000 seeded, plus three guests named on the demo group's rooming list (Step 2.4).
-        expect(Guest::query()->count())->toBe(10_003)
+        // 10,000 seeded, plus three guests named on the demo group's rooming list (Step 2.4) and the website booking's (Step 8.2b).
+        expect(Guest::query()->count())->toBe(10_004)
             ->and(Company::query()->count())->toBe(8)
             ->and(TravelAgent::query()->count())->toBe(5)
             ->and(Guest::query()->where('phone', '+8801711000001')->count())->toBe(2)
@@ -233,30 +233,31 @@ it('seeds bookings that lock their rooms: tentative, confirmed by a deposit, and
         $bookings = Reservation::query()->with('items')->where('code', 'not like', 'RSV-H%')->orderBy('check_in')->orderBy('id')->get();
 
         // In house in 402 (2 nights, leaving today), arriving today in 201 (2 nights) and 703 (the night audit's no-show,
-        // 1 night), room 601 (overdue hold, 1 night), room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights).
+        // 1 night), room 601 (overdue hold, 1 night), room 501 (2 nights), room 101 (3 nights), Sunset Villa (3 rooms × 3 nights),
+        // and the website booking (a Deluxe King, 2 nights, Step 8.2b).
         $group = Reservation::query()->whereNotNull('group_name')->sole();
         expect([$group->group_name, $group->items()->count(), $group->status->value])->toBe(['Dhaka Bank offsite', 6, 'confirmed'])
             ->and(Folio::query()->where('reservation_id', $group->id)->where('type', 'master')->exists())->toBeTrue();
         $bookings = $bookings->reject(fn (Reservation $reservation): bool => $reservation->id === $group->id)->values();
 
-        expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative', 'cancelled'])
+        expect($bookings->pluck('status')->map->value->all())->toBe(['checked_in', 'confirmed', 'confirmed', 'tentative', 'tentative', 'confirmed', 'tentative', 'tentative', 'cancelled'])
             ->and($bookings[2]->items->sole()->check_out->diffInDays($bookings[2]->check_in, true))->toEqual(1)
             ->and($bookings[3]->deposit_due_at?->isPast())->toBeTrue()
             ->and($bookings[4]->deposit_percent)->toBe('50.00')
             ->and($bookings[5]->amount_paid)->toBe($bookings[5]->deposit_required)
             ->and(Payment::query()->pluck('receipt_no')->all())->toHaveCount(6)
             ->and(CashierShift::query()->where('status', 'open')->count())->toBe(1)
-            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 1 + 2 + 3 + 3 * 3 + 6 * 2)
+            ->and(InventoryLock::query()->where('lock_type', 'reservation')->count())->toBe(2 + 2 + 1 + 1 + 2 + 3 + 3 * 3 + 6 * 2 + 2)
             ->and(ExtraService::query()->count())->toBe(6)
             ->and(CityLedgerEntry::query()->sole()->due_on->isPast())->toBeTrue()
-            ->and(Folio::query()->count())->toBe(10)
+            ->and(Folio::query()->count())->toBe(11)
             ->and(FolioLine::query()->where('line_type', 'charge')->pluck('description')->all())->toBe(['Airport pickup on arrival (11:00)', 'Main Restaurant bill MR-B000002', 'Room Service bill RS-B000001'])
             ->and(Quote::query()->orderBy('check_in')->get()->map(fn (Quote $quote): string => $quote->currentStatus()->value)->all())->toBe(['sent', 'expired']);
     });
 
     ExpireTentativeHolds::dispatchSync();
     app(TenantContext::class)->run(tenant('rodela'), fn () => expect(Reservation::query()->where('code', 'not like', 'RSV-H%')->orderBy('check_in')->orderBy('id')->pluck('status')->map->value->all())
-        ->toBe(['checked_in', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative', 'cancelled']));
+        ->toBe(['checked_in', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'tentative', 'confirmed', 'tentative', 'tentative', 'cancelled']));
 });
 
 it('sets up the restaurant: outlets with stations, terminals and floor plans (Step 3.1)', function (): void {

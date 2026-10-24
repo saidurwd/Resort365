@@ -18,6 +18,12 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class SecurityHeaders
 {
+    /**
+     * A request attribute a page sets (a list of origins) to let those sites frame it, e.g. the website's embeddable search box
+     * (Step 8.2b). Every other page may only be framed by this site.
+     */
+    public const string FRAME_ANCESTORS = 'security.frame_ancestors';
+
     /** Paths whose pages bring their own inline scripts. */
     private const array WITHOUT_CSP = ['platform/horizon*', 'platform/pulse*', 'livewire*', 'docs/api*'];
 
@@ -29,7 +35,12 @@ class SecurityHeaders
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+        $framers = $request->attributes->get(self::FRAME_ANCESTORS);
+        $framers = is_array($framers) ? array_values(array_filter($framers, is_string(...))) : null;
+
+        if ($framers === null) {
+            $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+        }
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
 
         if (app()->isProduction()) {
@@ -37,13 +48,16 @@ class SecurityHeaders
         }
 
         if (! $request->is(...self::WITHOUT_CSP)) {
-            $response->headers->set('Content-Security-Policy', $this->policy());
+            $response->headers->set('Content-Security-Policy', $this->policy($framers ?? []));
         }
 
         return $response;
     }
 
-    private function policy(): string
+    /**
+     * @param  list<string>  $framers  origins besides this site that may frame the page
+     */
+    private function policy(array $framers = []): string
     {
         $central = (string) config('tenancy.central_domain');
         $scheme = parse_url((string) config('app.url'), PHP_URL_SCHEME) ?: 'https';
@@ -60,7 +74,7 @@ class SecurityHeaders
             "font-src 'self' data: {$dev}",
             "connect-src 'self' {$sockets} {$dev} ".str_replace('http', 'ws', $dev),
             "frame-src 'self'",
-            "frame-ancestors 'self'",
+            "frame-ancestors 'self' ".implode(' ', $framers),
             "form-action {$sites}",
             "base-uri 'self'",
             "object-src 'none'",

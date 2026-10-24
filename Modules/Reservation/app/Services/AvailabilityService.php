@@ -121,7 +121,7 @@ class AvailabilityService
      */
     private function planViolations(RatePlanSummary $plan, AvailabilitySearch $search): array
     {
-        $valid = $plan->isActive && $plan->sellsThrough('front_desk')
+        $valid = $plan->isActive && $plan->sellsThrough($search->channel)
             && $plan->isValidOn($search->checkIn->toDateString()) && $plan->isValidOn($search->checkOut->subDay()->toDateString());
 
         return $valid ? [] : [new RestrictionViolation(StayRestriction::PlanNotValid)];

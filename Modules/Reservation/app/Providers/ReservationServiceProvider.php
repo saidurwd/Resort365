@@ -19,6 +19,8 @@ use Modules\Core\Enums\SettingType;
 use Modules\Property\Contracts\RoomUsage;
 use Modules\Rates\Contracts\RatePlanUsage;
 use Modules\Reservation\Console\ExpireHoldsCommand;
+use Modules\Reservation\Contracts\BookingEngine;
+use Modules\Reservation\Contracts\GuestEmailLinks;
 use Modules\Reservation\Contracts\ReservationAnalytics;
 use Modules\Reservation\Contracts\ReservationLookup;
 use Modules\Reservation\Contracts\ReservationTabs;
@@ -38,6 +40,8 @@ use Modules\Reservation\Models\ReservationLog;
 use Modules\Reservation\Policies\QuotePolicy;
 use Modules\Reservation\Policies\ReservationPolicy;
 use Modules\Reservation\Services\BookedRatePlanUsage;
+use Modules\Reservation\Services\BookingEngineService;
+use Modules\Reservation\Services\GuestEmailLinkRegistry;
 use Modules\Reservation\Services\LockedRoomUsage;
 use Modules\Reservation\Services\ReservationAnalyticsService;
 use Modules\Reservation\Services\ReservationLookupService;
@@ -90,6 +94,8 @@ class ReservationServiceProvider extends ModuleServiceProvider
         $this->app->bind(StayOperations::class, StayOperationsService::class);
         $this->app->bind(RoomBlocks::class, RoomBlocksService::class);
         $this->app->singleton(ReservationTabs::class, ReservationTabRegistry::class);
+        $this->app->singleton(GuestEmailLinks::class, GuestEmailLinkRegistry::class);
+        $this->app->bind(BookingEngine::class, BookingEngineService::class);
     }
 
     public function boot(): void
@@ -166,14 +172,14 @@ class ReservationServiceProvider extends ModuleServiceProvider
     private function registerTemplates(NotificationTemplates $templates): void
     {
         $booking = ['guest', 'code', 'property', 'check_in', 'check_out', 'nights', 'rooms', 'currency', 'total', 'deposit', 'deposit_due',
-            'paid', 'balance', 'payment_instructions', 'check_in_time', 'check_out_time', 'property_phone', 'property_email'];
+            'paid', 'balance', 'payment_instructions', 'check_in_time', 'check_out_time', 'property_phone', 'property_email', 'links'];
 
         foreach ([
             new NotificationTemplateDefinition(GuestEmail::BookingCreated->value, 'mail', 'Your booking {code} at {property}',
-                "Dear {guest},\nThank you for booking with {property}. We are holding {rooms} for you from {check_in} to {check_out} ({nights} nights).\nTotal: {currency} {total}. To confirm the booking, please pay the deposit of {currency} {deposit} by {deposit_due}.\n{payment_instructions}\nIf the deposit is not received by then, the rooms are released.",
+                "Dear {guest},\nThank you for booking with {property}. We are holding {rooms} for you from {check_in} to {check_out} ({nights} nights).\nTotal: {currency} {total}. To confirm the booking, please pay the deposit of {currency} {deposit} by {deposit_due}.\n{payment_instructions}\nIf the deposit is not received by then, the rooms are released.\n{links}",
                 $booking, 'Booking received', 'To the guest, when a booking waits for its deposit.'),
             new NotificationTemplateDefinition(GuestEmail::BookingConfirmed->value, 'mail', 'Booking {code} confirmed',
-                "Dear {guest},\nYour booking {code} at {property} is confirmed: {rooms}, {check_in} to {check_out} ({nights} nights).\nPaid so far: {currency} {paid}. Balance: {currency} {balance}.\nCheck-in is from {check_in_time} and check-out by {check_out_time}. Your confirmation voucher is attached.\nWe look forward to welcoming you.",
+                "Dear {guest},\nYour booking {code} at {property} is confirmed: {rooms}, {check_in} to {check_out} ({nights} nights).\nPaid so far: {currency} {paid}. Balance: {currency} {balance}.\nCheck-in is from {check_in_time} and check-out by {check_out_time}. Your confirmation voucher is attached.\nWe look forward to welcoming you.\n{links}",
                 $booking, 'Booking confirmed', 'To the guest, when the deposit is paid or waived (with the voucher).'),
             new NotificationTemplateDefinition(GuestEmail::BookingCancelled->value, 'mail', 'Booking {code} cancelled',
                 "Dear {guest},\nYour booking {code} at {property} for {check_in} to {check_out} has been cancelled.\nCancellation fee: {currency} {fee}. Refund due to you: {currency} {refund}.\nWe hope to welcome you another time.",

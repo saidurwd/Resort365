@@ -5,13 +5,22 @@ namespace Database\Seeders;
 use App\Models\Tenant;
 use App\Support\Attachments\Attachments;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
+use Modules\Guest\Contracts\GuestRegistry;
+use Modules\Guest\DTOs\GuestDetails;
 use Modules\Property\Models\CottageType;
 use Modules\Property\Models\Property;
 use Modules\Property\Models\RoomType;
 use Modules\Rates\Models\Promotion;
+use Modules\Rates\Models\RatePlan;
+use Modules\Reservation\Contracts\BookingEngine;
+use Modules\Reservation\DTOs\NewReservation;
+use Modules\Reservation\Enums\ReservationSource;
 use Modules\Website\Actions\SaveWebsiteSite;
 use Modules\Website\Actions\SaveWebsiteUnits;
+use Modules\Website\Enums\PayChoice;
 use Modules\Website\Enums\SiteTheme;
+use Modules\Website\Models\WebsiteBooking;
 use Modules\Website\Models\WebsiteSite;
 use Spatie\MediaLibrary\HasMedia;
 
@@ -19,7 +28,7 @@ use Spatie\MediaLibrary\HasMedia;
  * Public website demo (Step 8.2a): Rodela's site, published in English and Bangla at http://rodela.resort365.test (`/` opens it),
  * with placeholder photos (soft gradients drawn with GD; there are no real photos) for the site, the room types and the cottage
  * types, the family villas and honeymoon cottages featured, and the Long stay promotion on the Offers page (MONSOON20 and
- * EARLYBIRD stay private). Green Valley has a site in English that is not published (open it as a preview when signed in).
+ * EARLYBIRD stay private), and one booking made on the website (Farhana Akter, a Deluxe King in 25 days, tentative). Green Valley has a site in English that is not published (open it as a preview when signed in).
  */
 final class DemoWebsite
 {
@@ -73,6 +82,8 @@ final class DemoWebsite
 
             SaveWebsiteUnits::make()->handle($site, $units);
             Promotion::query()->where('property_id', $resort)->where('name', 'Long stay')->update(['show_on_website' => true]);
+
+            self::booking($site);
         });
 
         app(TenantContext::class)->run($greenValley, function () use ($valley): void {
@@ -81,6 +92,31 @@ final class DemoWebsite
                 'tagline' => ['en' => 'Tea gardens and quiet hills'], 'intro_title' => ['en' => 'Coming soon'],
             ]);
         });
+    }
+
+    /**
+     * One booking made on the website (Step 8.2b): a Deluxe King for two in 25 days, tentative, the guest chose to pay the deposit.
+     */
+    private static function booking(WebsiteSite $site): void
+    {
+        if (WebsiteBooking::query()->where('website_site_id', $site->id)->exists()) {
+            return;
+        }
+
+        $engine = app(BookingEngine::class);
+        $plan = RatePlan::query()->where('property_id', $site->property_id)->where('code', 'RO')->firstOrFail();
+        $type = RoomType::query()->where('property_id', $site->property_id)->where('code', 'DK')->firstOrFail();
+        [$checkIn, $checkOut] = [CarbonImmutable::today()->addDays(25), CarbonImmutable::today()->addDays(27)];
+        $guest = app(GuestRegistry::class)->register(new GuestDetails('Farhana', 'Akter', '+8801712345678', 'farhana.akter@example.com', nationalityCode: 'BD'));
+
+        $items = $engine->resolveItems($site->property_id, $plan->id, $checkIn, $checkOut, [['type' => 'room', 'room_type_id' => $type->id, 'adults' => 2]], channel: 'online');
+        $reservation = $engine->book(new NewReservation($site->property_id, $checkIn, $checkOut, $items, $guest->id, ReservationSource::Website, specialRequests: 'A quiet room, please.'));
+
+        WebsiteBooking::query()->create([
+            'property_id' => $site->property_id, 'website_site_id' => $site->id, 'reservation_id' => $reservation->id, 'reservation_code' => $reservation->code,
+            'pay_choice' => PayChoice::Deposit, 'amount_due_now' => $reservation->depositRequired, 'currency_code' => $reservation->currencyCode,
+            'email' => 'farhana.akter@example.com', 'ip_address' => '203.0.113.10',
+        ]);
     }
 
     /**

@@ -3,7 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Website\Http\Controllers\Admin\SiteController;
 use Modules\Website\Http\Controllers\Admin\UnitsController;
+use Modules\Website\Http\Controllers\Public\BookingController;
+use Modules\Website\Http\Controllers\Public\CheckoutController;
+use Modules\Website\Http\Controllers\Public\ManageBookingController;
 use Modules\Website\Http\Controllers\Public\PageController;
+use Modules\Website\Http\Controllers\Public\WidgetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +28,18 @@ Route::prefix('resort/{site}')->name('website.')->where(['site' => '[a-z0-9-]+']
     Route::get('/gallery', [PageController::class, 'gallery'])->name('gallery');
     Route::get('/contact', [PageController::class, 'contact'])->name('contact');
     Route::get('/policies', [PageController::class, 'policies'])->name('policies');
+
+    // Search, cart and booking (Step 8.2b).
+    Route::get('/book', [BookingController::class, 'search'])->name('book');
+    Route::post('/cart', [BookingController::class, 'add'])->name('cart.add');
+    Route::delete('/cart/{index}', [BookingController::class, 'remove'])->whereNumber('index')->name('cart.remove');
+    Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:website-checkout')->name('checkout.store');
+    // The guest's booking: a permanent signed link (checked in the controller, so ?lang= may be added).
+    Route::get('/booking/{code}', [ManageBookingController::class, 'show'])->name('booking.show');
+    Route::post('/booking/{code}/cancel', [ManageBookingController::class, 'cancel'])->middleware('throttle:website-checkout')->name('booking.cancel');
+    // The search box other websites may embed (frame-ancestors from the site's embed_origins).
+    Route::get('/widget', WidgetController::class)->name('widget');
 });
 
 Route::prefix('website')->name('website.admin.')->middleware(['auth', 'verified'])->group(function (): void {

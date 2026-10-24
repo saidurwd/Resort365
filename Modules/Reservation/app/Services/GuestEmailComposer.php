@@ -9,6 +9,7 @@ use Modules\Guest\Contracts\GuestLookup;
 use Modules\Guest\DTOs\GuestSummary;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Property\DTOs\PropertySummary;
+use Modules\Reservation\Contracts\GuestEmailLinks;
 use Modules\Reservation\Enums\GuestEmail;
 use Modules\Reservation\Enums\ReservationLogAction;
 use Modules\Reservation\Models\Quote;
@@ -64,6 +65,8 @@ class GuestEmailComposer
             'paid' => $money($reservation->amount_paid),
             'balance' => $money($reservation->balance_due),
             'payment_instructions' => (string) $this->settings->get('reservation.payment_instructions', $reservation->property_id),
+            // Links other modules add (Step 8.2b), one per line: "Manage your booking: https://…".
+            'links' => implode("\n", array_map(fn (array $link): string => $link['label'].': '.$link['url'], app(GuestEmailLinks::class)->for($reservation->id))),
             ...$extra,
         ];
 

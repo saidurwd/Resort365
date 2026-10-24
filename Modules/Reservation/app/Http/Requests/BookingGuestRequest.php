@@ -33,7 +33,7 @@ class BookingGuestRequest extends FormRequest
             'confirm_new' => ['boolean'],
             'company_id' => ['nullable', 'integer', TenantRule::exists('companies')->withoutTrashed()],
             'travel_agent_id' => ['nullable', 'integer', TenantRule::exists('travel_agents')->withoutTrashed()],
-            'source' => ['required', Rule::enum(ReservationSource::class)->except(ReservationSource::Api)],
+            'source' => ['required', Rule::enum(ReservationSource::class)->except([ReservationSource::Api, ReservationSource::Website])],
         ];
     }
 

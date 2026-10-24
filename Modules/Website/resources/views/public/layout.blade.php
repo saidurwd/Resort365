@@ -28,7 +28,7 @@
     @endif
     <link rel="canonical" href="{{ url()->current() }}">
     @foreach ($locales as $code => $language)
-        <link rel="alternate" hreflang="{{ $code }}" href="{{ url()->current() }}?lang={{ $code }}">
+        <link rel="alternate" hreflang="{{ $code }}" href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}">
     @endforeach
     <meta property="og:title" content="{{ $fullTitle }}">
     <meta property="og:type" content="website">
@@ -70,15 +70,16 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 @foreach ($locales as $code => $language)
-                                    <li><a @class(['dropdown-item', 'active' => app()->getLocale() === $code]) href="{{ url()->current() }}?lang={{ $code }}" hreflang="{{ $code }}" lang="{{ $code }}">{{ $language }}</a></li>
+                                    <li><a @class(['dropdown-item', 'active' => app()->getLocale() === $code]) href="{{ request()->fullUrlWithQuery(['lang' => $code]) }}" hreflang="{{ $code }}" lang="{{ $code }}">{{ $language }}</a></li>
                                 @endforeach
                             </ul>
                         </li>
-                        @if ($site->phone)
-                            <li class="nav-item ms-lg-2">
-                                <a class="btn btn-website-primary" href="tel:{{ preg_replace('/[^\d+]/', '', $site->phone) }}"><i class="bi bi-telephone"></i> {{ __('Call to book') }}</a>
-                            </li>
-                        @endif
+                        @php($cartCount = count(app(\Modules\Website\Services\Cart::class)->get($site)['items']))
+                        <li class="nav-item ms-lg-2">
+                            <a class="btn btn-website-primary" href="{{ route('website.book', ['site' => $site->slug]) }}" data-book-link>
+                                <i class="bi bi-calendar2-check"></i> {{ __('Book now') }}@if ($cartCount > 0) <span class="badge text-bg-light ms-1" data-cart-count>{{ $cartCount }}</span>@endif
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -86,6 +87,14 @@
     </header>
 
     <main class="website-main">
+        @foreach (['success' => 'success', 'error' => 'danger'] as $flash => $variant)
+            @if (session($flash))
+                <div class="container pt-3"><div class="alert alert-{{ $variant }} mb-0" role="alert" data-flash="{{ $flash }}">{{ session($flash) }}</div></div>
+            @endif
+        @endforeach
+        @unless (request()->routeIs('website.book', 'website.checkout', 'website.booking.*', 'website.home'))
+            <div class="website-searchbar-wrap"><div class="container">@include('website::public.partials.search', ['compact' => true])</div></div>
+        @endunless
         @yield('content')
     </main>
 

@@ -44,12 +44,13 @@ use Spatie\MediaLibrary\HasMedia;
  * @property string|null $map_url
  * @property string|null $facebook_url
  * @property string|null $instagram_url
+ * @property string|null $embed_origins websites allowed to embed the search widget, one origin per line (Step 8.2b)
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
 #[UseFactory(WebsiteSiteFactory::class)]
 #[Fillable(['property_id', 'slug', 'is_published', 'published_at', 'theme', 'name', 'tagline', 'intro_title', 'intro_body', 'highlights', 'dining_intro',
-    'house_rules', 'seo_title', 'seo_description', 'phone', 'whatsapp', 'email', 'address', 'map_url', 'facebook_url', 'instagram_url'])]
+    'house_rules', 'seo_title', 'seo_description', 'phone', 'whatsapp', 'email', 'address', 'map_url', 'facebook_url', 'instagram_url', 'embed_origins'])]
 class WebsiteSite extends Model implements HasMedia
 {
     use BelongsToProperty;
@@ -84,6 +85,18 @@ class WebsiteSite extends Model implements HasMedia
     public function units(): HasMany
     {
         return $this->hasMany(WebsiteUnit::class);
+    }
+
+    /**
+     * The origins allowed to embed the search widget (`https://host[:port]`), from `embed_origins`.
+     *
+     * @return list<string>
+     */
+    public function embedOrigins(): array
+    {
+        $origins = preg_split('/[\s,]+/', (string) $this->embed_origins) ?: [];
+
+        return array_values(array_unique(array_filter($origins, fn (string $origin): bool => preg_match('#^https://[a-z0-9.-]+(:\d+)?$#i', $origin) === 1)));
     }
 
     /**

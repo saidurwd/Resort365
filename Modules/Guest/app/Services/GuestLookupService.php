@@ -23,6 +23,14 @@ class GuestLookupService implements GuestLookup
         return $this->duplicates->find($phone, $email, null, null)->map(fn (Guest $guest): GuestSummary => $this->guest($guest))->values()->all();
     }
 
+    public function matchContact(string $email, string $phone): ?GuestSummary
+    {
+        $matches = $this->duplicates->find($phone, $email, null, null)
+            ->filter(fn (Guest $guest): bool => $this->duplicates->matchedOn($guest, $phone, $email, null, null) === ['phone', 'email']);
+
+        return $matches->count() === 1 ? $this->guest($matches->sole()) : null;
+    }
+
     public function search(string $term, int $limit = 10, array|QueryBuilder|null $among = null): array
     {
         return $this->guestSearch->apply(Guest::query(), $term)

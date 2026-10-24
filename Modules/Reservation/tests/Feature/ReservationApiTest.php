@@ -12,6 +12,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Modules\Guest\Models\Guest;
+use Modules\Property\Models\RoomType;
 use Modules\Reservation\Enums\ReservationSource;
 use Modules\Reservation\Enums\ReservationStatus;
 use Modules\Reservation\Models\InventoryLock;
@@ -120,7 +121,7 @@ it('books a room by number or by type for an existing guest', function (): void 
 
     $response = api(raToken())->postJson(raUrl('/reservations'), raStay([
         ['type' => 'room', 'room_id' => $ids['rooms']['701'], 'adults' => 2],
-        ['type' => 'room', 'room_type_id' => booking(fn (): int => (int) DB::table('room_types')->value('id')), 'adults' => 1],
+        ['type' => 'room', 'room_type_id' => booking(fn (): int => (int) RoomType::query()->value('id')), 'adults' => 1],
     ], ['guest_id' => $ids['guest'], 'special_requests' => 'Late arrival']))->assertCreated()
         ->assertJsonPath('data.status', 'tentative')
         ->assertJsonPath('data.source', 'api')
@@ -178,9 +179,9 @@ it('answers a room taken at the last moment with a 409', function (): void {
     {
         public function __construct(private readonly BookingItemsResolver $inner) {}
 
-        public function resolve(int $propertyId, int $ratePlanId, CarbonImmutable $checkIn, CarbonImmutable $checkOut, array $rows, ?string $promoCode = null): array
+        public function resolve(int $propertyId, int $ratePlanId, CarbonImmutable $checkIn, CarbonImmutable $checkOut, array $rows, ?string $promoCode = null, string $channel = 'front_desk'): array
         {
-            $items = $this->inner->resolve($propertyId, $ratePlanId, $checkIn, $checkOut, $rows, $promoCode);
+            $items = $this->inner->resolve($propertyId, $ratePlanId, $checkIn, $checkOut, $rows, $promoCode, $channel);
             bookStay(['402'], $checkIn->toDateString(), $checkOut->toDateString());
 
             return $items;

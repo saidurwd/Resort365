@@ -190,3 +190,59 @@ $website-themes: (
 @include media-breakpoint-down(md) {
     .website-section { padding: 2.25rem 0; }
 }
+
+// Search, cart and booking (Step 8.2b).
+.website-searchbar-wrap { background: var(--website-tint); padding: 1rem 0; }
+
+.website-search {
+    background: #fff;
+    border-radius: .75rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+    padding: 1rem;
+}
+
+.website-hero-search { color: #2b2f33; margin-top: 1rem; max-width: 56rem; }
+.website-page-head .website-search { margin-top: 1.25rem; }
+
+.website-result {
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, .08);
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 7rem 1fr auto;
+    padding: 1rem 0;
+}
+
+.website-result-photo img, .website-result-photo .website-card-placeholder { aspect-ratio: 3 / 2; border-radius: .5rem; font-size: 1.5rem; height: auto; object-fit: cover; width: 100%; }
+.website-result-price { text-align: right; }
+
+.website-cart {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, .08);
+    border-radius: .75rem;
+    padding: 1.25rem;
+    position: sticky;
+    top: 5.5rem;
+}
+
+.website-cart-items li { border-bottom: 1px dashed rgba(0, 0, 0, .1); padding: .5rem 0; }
+
+.website-cart-totals {
+    display: grid;
+    gap: .25rem 1rem;
+    grid-template-columns: 1fr auto;
+    margin: 1rem 0;
+
+    dd { margin: 0; text-align: right; }
+}
+
+// The honeypot: kept out of sight and out of the tab order, but not display:none (some robots skip those).
+.website-hp { height: 1px; left: -10000px; overflow: hidden; position: absolute; width: 1px; }
+
+.website-widget { background: transparent; padding: .5rem; }
+.website-widget-title { color: var(--website-brand); font-weight: 700; margin-bottom: .5rem; }
+
+@include media-breakpoint-down(sm) {
+    .website-result { grid-template-columns: 5rem 1fr; }
+    .website-result-price { grid-column: 1 / -1; text-align: left; }
+}
