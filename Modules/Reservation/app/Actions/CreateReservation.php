@@ -65,6 +65,23 @@ class CreateReservation extends Action
         }
     }
 
+    /**
+     * When the deposit is due: the policy's time, or sooner when the booking was made with a payment window (a guest paying online
+     * on the website, Step 8.3), so unpaid rooms are released quickly.
+     */
+    private function depositDueAt(NewReservation $data, BookingQuote $quote, bool $confirmed): ?CarbonImmutable
+    {
+        $policy = $quote->deposit->dueAt !== null ? CarbonImmutable::parse($quote->deposit->dueAt)->utc() : null;
+
+        if ($confirmed || $data->paymentWindowMinutes === null) {
+            return $policy;
+        }
+
+        $window = CarbonImmutable::now()->utc()->addMinutes(max(1, $data->paymentWindowMinutes));
+
+        return $policy instanceof CarbonImmutable && $policy->lessThan($window) ? $policy : $window;
+    }
+
     private function save(NewReservation $data, BookingQuote $quote): Reservation
     {
         $confirmed = BigDecimal::of($quote->deposit->amount)->isZero();
@@ -93,8 +110,8 @@ class CreateReservation extends Action
             'deposit_policy_id' => $quote->depositPolicy?->id,
             'deposit_percent' => $quote->deposit->percent,
             'deposit_required' => $quote->deposit->amount,
-            'deposit_due_at' => $quote->deposit->dueAt !== null ? CarbonImmutable::parse($quote->deposit->dueAt)->utc() : null,
-            'auto_cancel_unpaid' => $quote->deposit->autoCancelUnpaid,
+            'deposit_due_at' => $this->depositDueAt($data, $quote, $confirmed),
+            'auto_cancel_unpaid' => $quote->deposit->autoCancelUnpaid || (! $confirmed && $data->paymentWindowMinutes !== null),
             'deposit_override_by' => $quote->depositWithinLimits ? null : $data->createdBy,
             'balance_due' => $quote->total,
             'balance_due_on' => $quote->deposit->balanceDueOn,

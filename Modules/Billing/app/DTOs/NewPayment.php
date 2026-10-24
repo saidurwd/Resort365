@@ -21,5 +21,7 @@ final readonly class NewPayment extends Data
         public ?int $receivedBy = null,
         public bool $securityDeposit = false,
         public ?int $folioId = null,
+        public ?string $gateway = null,
+        public ?string $gatewayTxnId = null,
     ) {}
 }

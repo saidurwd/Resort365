@@ -6,6 +6,7 @@ use App\Support\Actions\Action;
 use Brick\Math\BigDecimal;
 use Modules\Billing\DTOs\NewRefund;
 use Modules\Billing\Enums\FolioLineType;
+use Modules\Billing\Enums\PaymentMethod;
 use Modules\Billing\Enums\PaymentStatus;
 use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Enums\RefundKind;
@@ -16,6 +17,7 @@ use Modules\Billing\Models\Folio;
 use Modules\Billing\Models\FolioLine;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Services\FolioLedger;
+use Modules\Billing\Services\OnlineRefunds;
 use Modules\Billing\Services\ReservationPayments;
 use Modules\Billing\Services\ShiftRegister;
 use Modules\Core\Contracts\DocumentNumbers;
@@ -75,6 +77,13 @@ class RefundPayment extends Action
 
         if (! $amount->isPositive()) {
             throw new PaymentNotAllowed(__('The amount must be more than zero.'));
+        }
+
+        // Back through the gateway (Step 8.3): the gateway refunds first; only then is the refund recorded.
+        if ($data->method === PaymentMethod::Online) {
+            $this->check($data);
+            $data = new NewRefund($data->reservationId, $data->kind, $data->method, $data->amount, $data->reason, $data->sourceId,
+                app(OnlineRefunds::class)->refund($reservation->id, (string) $amount, $data->reason), $data->issuedBy);
         }
 
         return $this->transaction(function () use ($data, $reservation, $amount): Payment {

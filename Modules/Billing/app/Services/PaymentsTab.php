@@ -4,11 +4,13 @@ namespace Modules\Billing\Services;
 
 use Brick\Math\BigDecimal;
 use Illuminate\Contracts\View\View;
+use Modules\Billing\Contracts\OnlinePayments;
 use Modules\Billing\Enums\PaymentMethod;
 use Modules\Billing\Enums\PaymentType;
 use Modules\Billing\Enums\RefundKind;
 use Modules\Billing\Models\CreditNote;
 use Modules\Billing\Models\Folio;
+use Modules\Billing\Models\OnlinePayment;
 use Modules\Billing\Models\Payment;
 use Modules\Core\Contracts\ApprovalEngine;
 use Modules\Core\DTOs\ApprovalSummary;
@@ -45,11 +47,15 @@ class PaymentsTab
         return view('billing::payments.tab', [
             'reservation' => $reservation,
             'payments' => Payment::query()->where('reservation_id', $reservationId)->orderBy('received_at')->orderBy('id')->get(),
-            'methods' => PaymentMethod::cases(),
+            'methods' => PaymentMethod::manual(),
             'suggested' => $this->suggested($reservation),
             'timezone' => $this->properties->find($reservation->propertyId)->timezone ?? 'UTC',
             'refunds' => $this->refundOptions($reservation, $approvals),
             'approvals' => array_slice($approvals, 0, 8),
+            // Online payments (Step 8.3): refunds may go back through the gateway; a payment link can be emailed.
+            'refundMethods' => app(OnlineRefunds::class)->refundable($reservationId)->isPositive() ? [...PaymentMethod::manual(), PaymentMethod::Online] : PaymentMethod::manual(),
+            'canSendLink' => $reservation->acceptsPayments() && $reservation->balanceDue !== '0.00' && app(OnlinePayments::class)->options($reservation->propertyId) !== [],
+            'onlinePayments' => OnlinePayment::query()->where('reservation_id', $reservationId)->latest('id')->limit(10)->get(),
         ]);
     }
 

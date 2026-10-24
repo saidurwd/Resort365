@@ -90,6 +90,8 @@ class RecordPayment extends Action
                 'base_amount' => (string) $amount,
                 'reference' => $data->reference,
                 'notes' => $data->notes,
+                'gateway' => $data->gateway,
+                'gateway_txn_id' => $data->gatewayTxnId,
                 'status' => PaymentStatus::Succeeded,
                 'received_by' => $data->receivedBy,
                 ...$this->shifts->stamp($data->receivedBy, $reservation->propertyId),

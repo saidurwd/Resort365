@@ -26,7 +26,8 @@ class SetCurrentProperty
     {
         $user = Auth::guard('web')->user();
 
-        if ($user !== null && app()->bound(PropertyAccess::class)) {
+        // Routes without the session (payment gateways coming back, Step 8.3) have no current property.
+        if ($user !== null && $request->hasSession() && app()->bound(PropertyAccess::class)) {
             $accessible = app(PropertyAccess::class)->accessibleProperties($user);
             $selected = $request->session()->get(self::SESSION_KEY);
 

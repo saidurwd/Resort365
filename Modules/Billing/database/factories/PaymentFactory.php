@@ -24,7 +24,7 @@ class PaymentFactory extends Factory
     public function definition(): array
     {
         $amount = number_format(fake()->numberBetween(20, 400) * 100, 2, '.', '');
-        $method = fake()->randomElement(PaymentMethod::cases());
+        $method = fake()->randomElement(PaymentMethod::manual());
 
         return [
             'property_id' => $this->propertyId(...),

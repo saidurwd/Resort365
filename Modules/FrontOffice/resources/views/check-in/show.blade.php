@@ -88,7 +88,7 @@
                         @csrf
                         <input type="hidden" name="reservation_id" value="{{ $reservation->id }}">
                         <input type="hidden" name="return_to" value="{{ url()->current() }}">
-                        <div class="col-sm-4"><x-form.select name="method" :label="__('Method')" :search="false" :options="\Modules\Billing\Enums\PaymentMethod::options()" :value="'cash'" wrapper-class="mb-0" error-bag="payment" /></div>
+                        <div class="col-sm-4"><x-form.select name="method" :label="__('Method')" :search="false" :options="\Modules\Billing\Enums\PaymentMethod::manualOptions()" :value="'cash'" wrapper-class="mb-0" error-bag="payment" /></div>
                         <div class="col-sm-4"><x-form.input name="amount" type="number" step="0.01" min="0.01" :label="__('Amount')" :value="$reservation->balanceDue !== '0.00' ? $reservation->balanceDue : ''" wrapper-class="mb-0" error-bag="payment" /></div>
                         <div class="col-sm-4">
                             <div class="form-check mb-2">

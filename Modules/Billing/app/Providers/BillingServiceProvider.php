@@ -15,6 +15,9 @@ use Modules\Billing\Contracts\FolioPostingContract;
 use Modules\Billing\Contracts\FolioReferenceLinks;
 use Modules\Billing\Contracts\FolioSettlement;
 use Modules\Billing\Contracts\LedgerFacts;
+use Modules\Billing\Contracts\OnlinePayments;
+use Modules\Billing\Enums\GatewayMode;
+use Modules\Billing\Enums\GatewayProvider;
 use Modules\Billing\Models\CashierShift;
 use Modules\Billing\Models\ChargeCode;
 use Modules\Billing\Models\CityLedgerEntry;
@@ -37,13 +40,17 @@ use Modules\Billing\Services\DailyTakingsService;
 use Modules\Billing\Services\FolioPostingService;
 use Modules\Billing\Services\FolioSettlementService;
 use Modules\Billing\Services\FoliosTab;
+use Modules\Billing\Services\Gateways\GatewayDrivers;
 use Modules\Billing\Services\LedgerFactsService;
+use Modules\Billing\Services\OnlinePaymentsService;
 use Modules\Billing\Services\PaymentsTab;
 use Modules\Billing\Services\RefundApprovalHandler;
 use Modules\Core\Contracts\ApprovalRegistry;
+use Modules\Core\Contracts\NotificationTemplates;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\DTOs\ApprovalDocumentType;
 use Modules\Core\DTOs\ApprovalStepDefinition;
+use Modules\Core\DTOs\NotificationTemplateDefinition;
 use Modules\Core\DTOs\SettingDefinition;
 use Modules\Core\Enums\SettingScope;
 use Modules\Core\Enums\SettingType;
@@ -83,6 +90,8 @@ class BillingServiceProvider extends ModuleServiceProvider
         $this->app->bind(FolioSettlement::class, FolioSettlementService::class);
         $this->app->bind(DailyTakings::class, DailyTakingsService::class);
         $this->app->bind(LedgerFacts::class, LedgerFactsService::class);
+        $this->app->bind(OnlinePayments::class, OnlinePaymentsService::class);
+        $this->app->singleton(GatewayDrivers::class);
     }
 
     public function boot(): void
@@ -135,6 +144,8 @@ class BillingServiceProvider extends ModuleServiceProvider
             new PermissionDefinition('billing.city-ledger.manage', 'Receive city-ledger payments', [DefaultRole::GeneralManager, DefaultRole::Accountant]),
             new PermissionDefinition('billing.shift.open', 'Open and close own cashier shift', [DefaultRole::FrontOfficeManager, DefaultRole::FrontDeskAgent, DefaultRole::OutletCashier]),
             new PermissionDefinition('billing.shift.view', 'View every cashier shift and its variance', [DefaultRole::GeneralManager, DefaultRole::FrontOfficeManager, DefaultRole::Accountant]),
+            new PermissionDefinition('billing.gateway.manage', 'Set up the online payment gateways and see online payments', [DefaultRole::GeneralManager]),
+            new PermissionDefinition('billing.payment.link', 'Email guests a link to pay online', $desk),
         ]);
 
         $menu = $this->app->make(MenuRegistry::class);
@@ -150,6 +161,22 @@ class BillingServiceProvider extends ModuleServiceProvider
             permission: 'billing.charge-code.view', module: 'billing', active: 'billing.charge-codes.*'));
         $menu->add(new MenuItem('billing.extra-services', 'Extras', route: 'billing.extra-services.index', parent: 'setup', order: 37,
             permission: 'billing.extra-service.view', module: 'billing', active: 'billing.extra-services.*'));
+        $menu->add(new MenuItem('billing.gateways', 'Online payments', 'bi-credit-card-2-front', route: 'billing.gateways.index', parent: 'setup', order: 38,
+            permission: 'billing.gateway.manage', module: 'billing', active: 'billing.gateways.*'));
+
+        // Online payments (Step 8.3): the gateways' payment pages may receive the browser after a form post (CSP form-action).
+        $hosts = [];
+
+        foreach (GatewayProvider::cases() as $provider) {
+            foreach (GatewayMode::cases() as $mode) {
+                array_push($hosts, ...$provider->hosts($mode));
+            }
+        }
+
+        config(['security.form_action' => array_values(array_unique([...(array) config('security.form_action', []), ...$hosts]))]);
+        $this->app->make(NotificationTemplates::class)->register(new NotificationTemplateDefinition('billing.payment_link', 'mail', 'Pay for your booking {code}',
+            "Dear {guest},\nYou can pay the {what} of your booking {code} at {property} online: {currency} {amount}.\nUse the button below. The link works until {expires}.\n{link}",
+            ['guest', 'code', 'property', 'currency', 'amount', 'what', 'link', 'expires'], 'Payment link', 'To the guest, with a link to pay the deposit or balance online.'));
 
         $settings = $this->app->make(Settings::class);
         $settings->define(new SettingDefinition('billing.guest_credit_limit', 'Guest folio credit limit', SettingType::Decimal, '0', SettingScope::Property,

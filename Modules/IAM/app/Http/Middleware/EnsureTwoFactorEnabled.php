@@ -38,6 +38,11 @@ class EnsureTwoFactorEnabled
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Routes without the session (payment gateways coming back, Step 8.3) serve no signed-in screen.
+        if (! $request->hasSession()) {
+            return $next($request);
+        }
+
         $user = Auth::guard('web')->user();
 
         // A platform admin signed in as someone cannot set up that person's 2FA (Step 7.3).

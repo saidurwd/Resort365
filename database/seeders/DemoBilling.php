@@ -8,11 +8,15 @@ use Carbon\CarbonImmutable;
 use Modules\Billing\Actions\OpenShift;
 use Modules\Billing\Actions\PostCharge;
 use Modules\Billing\Actions\SaveExtraService;
+use Modules\Billing\Actions\SaveGateway;
 use Modules\Billing\DTOs\FolioCharge;
 use Modules\Billing\Enums\CityLedgerStatus;
+use Modules\Billing\Enums\GatewayMode;
+use Modules\Billing\Enums\GatewayProvider;
 use Modules\Billing\Models\ChargeCode;
 use Modules\Billing\Models\CityLedgerEntry;
 use Modules\Billing\Models\ExtraService;
+use Modules\Billing\Models\PaymentGateway;
 use Modules\Billing\Services\DefaultChargeCodes;
 use Modules\Billing\Services\ShiftRegister;
 use Modules\Core\Models\TaxCategory;
@@ -110,5 +114,18 @@ final class DemoBilling
 
             OpenShift::make()->handle($propertyId, $user->id, '5000.00');
         });
+    }
+
+    /**
+     * Online payments (Step 8.3): Rodela takes payments through the test gateway (never in production), so a website booking or a
+     * payment link can be paid end to end. SSLCommerz, bKash and Stripe are left for the tenant's own accounts.
+     */
+    public static function gateways(Tenant $tenant, int $propertyId): void
+    {
+        if (app()->isProduction()) {
+            return;
+        }
+
+        app(TenantContext::class)->run($tenant, fn (): PaymentGateway => SaveGateway::make()->handle($propertyId, GatewayProvider::Test, GatewayMode::Sandbox, [], true));
     }
 }

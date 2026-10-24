@@ -57,11 +57,11 @@ class CartPricer
      * @param  CartState  $cart
      * @param  list<BookingItem>  $items
      */
-    public function reservation(WebsiteSite $site, array $cart, array $items, int $guestId, ?string $specialRequests = null): NewReservation
+    public function reservation(WebsiteSite $site, array $cart, array $items, int $guestId, ?string $specialRequests = null, ?int $paymentWindowMinutes = null): NewReservation
     {
         return new NewReservation(
             $site->property_id, CarbonImmutable::parse((string) $cart['check_in']), CarbonImmutable::parse((string) $cart['check_out']), $items, $guestId,
-            ReservationSource::Website, promoCode: $cart['promo_code'], specialRequests: $specialRequests,
+            ReservationSource::Website, promoCode: $cart['promo_code'], specialRequests: $specialRequests, paymentWindowMinutes: $paymentWindowMinutes,
         );
     }
 

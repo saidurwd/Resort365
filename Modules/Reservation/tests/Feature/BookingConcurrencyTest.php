@@ -9,13 +9,26 @@
 use App\Actions\Tenancy\CreateTenant;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Process\Pool;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Schema;
 use Modules\Reservation\Models\InventoryLock;
 use Modules\Reservation\Models\Reservation;
 
 require_once __DIR__.'/../Support/booking-setup.php';
 
 uses(DatabaseTruncation::class);
+
+// The booking processes commit their data; truncate it again afterwards so the tests that follow in this run start clean.
+afterEach(function (): void {
+    Schema::withoutForeignKeyConstraints(function (): void {
+        foreach (Schema::getTables() as $table) {
+            if ($table['name'] !== 'migrations') {
+                DB::table($table['name'])->truncate();
+            }
+        }
+    });
+});
 
 /**
  * Runs the given bookings at the same time and returns each one's output.

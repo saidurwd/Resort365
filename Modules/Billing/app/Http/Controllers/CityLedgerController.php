@@ -42,7 +42,7 @@ class CityLedgerController extends Controller
             'companies' => $companies,
             'totals' => $aging->buckets($entries->map(fn (CityLedgerEntry $entry): array => ['open' => $entry->open(), 'due_on' => $entry->due_on]), $today),
             'buckets' => AgingCalculator::BUCKETS,
-            'methods' => PaymentMethod::options(),
+            'methods' => PaymentMethod::manualOptions(),
         ]);
     }
 

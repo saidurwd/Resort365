@@ -13,7 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
  * The Content-Security-Policy allows scripts from this site, with a per-request nonce for the few inline scripts (render them with
  * `nonce="{{ Vite::cspNonce() }}"`), the Vite dev server when it runs, and the Reverb WebSocket. Alpine's standard build evaluates
  * its expressions, so scripts also need 'unsafe-eval'; styles need 'unsafe-inline' for style attributes. Forms may post to the
- * central domain and its tenant subdomains (sign-up redirects to the new one). Horizon and Pulse (platform admins only) and the API
+ * central domain and its tenant subdomains (sign-up redirects to the new one) and to the hosts in `config('security.form_action')`
+ * (the payment gateways' pages, Step 8.3: Chrome applies form-action to the redirect after a post). Horizon and Pulse (platform admins only) and the API
  * documents (Step 8.1, a static page from a CDN) render their own inline scripts, so they get the other headers but no CSP. HSTS is sent in production only.
  */
 class SecurityHeaders
@@ -75,7 +76,7 @@ class SecurityHeaders
             "connect-src 'self' {$sockets} {$dev} ".str_replace('http', 'ws', $dev),
             "frame-src 'self'",
             "frame-ancestors 'self' ".implode(' ', $framers),
-            "form-action {$sites}",
+            "form-action {$sites} ".implode(' ', (array) config('security.form_action', [])),
             "base-uri 'self'",
             "object-src 'none'",
         ]));

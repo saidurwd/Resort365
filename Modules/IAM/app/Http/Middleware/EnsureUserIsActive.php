@@ -18,6 +18,11 @@ class EnsureUserIsActive
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Routes without the session (payment gateways coming back, Step 8.3) serve no signed-in screen.
+        if (! $request->hasSession()) {
+            return $next($request);
+        }
+
         $guard = Auth::guard('web');
         $user = $guard->user();
 

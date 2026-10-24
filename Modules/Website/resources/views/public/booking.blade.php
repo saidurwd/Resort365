@@ -24,6 +24,13 @@
     </section>
     <section class="website-section">
         <div class="container">
+            @if ($paymentOutcome === 'paid')
+                <div class="alert alert-success" data-payment-outcome="paid">{{ __('Thank you, your payment was received.') }}</div>
+            @elseif ($paymentOutcome === 'pending')
+                <div class="alert alert-info" data-payment-outcome="pending">{{ __('Your payment is being confirmed. You will receive an email once it is done.') }}</div>
+            @elseif (in_array($paymentOutcome, ['failed', 'review'], true))
+                <div class="alert alert-warning" data-payment-outcome="failed">{{ __('The payment did not go through. You can try again.') }}</div>
+            @endif
             <div class="row g-4">
                 <div class="col-lg-7">
                     <div class="website-policy">
@@ -33,7 +40,23 @@
                         <p class="mb-0 small text-body-secondary">{{ __('Booked for :name', ['name' => $reservation->guestName]) }}</p>
                     </div>
 
-                    @if ($status === 'tentative')
+                    @if (in_array($status, ['tentative', 'confirmed'], true) && (float) $dueNow > 0 && $options !== [])
+                        <div class="website-policy" data-pay-online>
+                            <h2 class="h5">{{ $status === 'tentative' ? __('Pay now to confirm your booking') : __('Pay the rest now') }}</h2>
+                            <p class="fs-4 fw-semibold mb-2">{{ Prices::format($dueNow, $currency) }}</p>
+                            @if ($reservation->depositDueAt && $status === 'tentative')
+                                <p class="small text-body-secondary">{{ __('Please pay by :time, or the rooms are released.', ['time' => \Carbon\CarbonImmutable::parse($reservation->depositDueAt)->setTimezone($property->timezone ?? 'UTC')->locale(app()->getLocale())->translatedFormat('j M Y, H:i')]) }}</p>
+                            @endif
+                            <form method="POST" action="{{ $payUrl }}" class="d-grid gap-2">
+                                @csrf
+                                @foreach ($options as $option)
+                                    <button name="provider" value="{{ $option->provider->value }}" class="btn btn-website-primary" data-pay-with="{{ $option->provider->value }}">
+                                        {{ __('Pay with :gateway', ['gateway' => $option->label]) }}@if ($option->sandbox) <span class="badge text-bg-warning">{{ __('test') }}</span>@endif
+                                    </button>
+                                @endforeach
+                            </form>
+                        </div>
+                    @elseif ($status === 'tentative')
                         <div class="website-policy" data-pay-now>
                             <h2 class="h5">{{ __('To confirm your booking') }}</h2>
                             <p class="mb-2">{{ __('Please pay :amount', ['amount' => Prices::format($booking->amount_due_now, $currency)]) }}@if ($reservation->depositDueAt) {{ __('by :time', ['time' => \Carbon\CarbonImmutable::parse($reservation->depositDueAt)->setTimezone($property->timezone ?? 'UTC')->locale(app()->getLocale())->translatedFormat('j M Y, H:i')]) }}@endif.</p>

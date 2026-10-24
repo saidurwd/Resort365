@@ -34,6 +34,8 @@ class AccountResolver
 
     private const array METHOD_DEFAULTS = [
         'cash' => 'cash_on_hand', 'card' => 'card_clearing', 'bank_transfer' => 'bank', 'mobile_wallet' => 'wallet_clearing',
+        // Payments through a gateway (Step 8.3) settle like card payments until the tenant maps `method:online` elsewhere.
+        'online' => 'card_clearing',
     ];
 
     /** @var array<string, int>|null */

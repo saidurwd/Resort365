@@ -37,7 +37,7 @@ it('books two rooms on the website from a phone and shows them on the tape chart
             ->click('[data-book]')
             ->waitFor('[data-booking-status]', 20)
             ->assertPresent('[data-booking-status="tentative"]')
-            ->assertPresent('[data-pay-now]');
+            ->assertPresent('[data-pay-online]');
         $this->assertConsoleClean($browser);
         $code = trim((string) $browser->script(["return document.querySelector('h1').textContent.match(/RSV-[\\d-]+/)[0]"])[0]);
 

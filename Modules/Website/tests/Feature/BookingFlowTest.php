@@ -10,6 +10,10 @@
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use Modules\Billing\Enums\GatewayProvider;
+use Modules\Billing\Models\OnlinePayment;
+use Modules\Billing\Models\PaymentGateway;
+use Modules\Billing\Services\Gateways\TestGateway;
 use Modules\Guest\Models\Guest;
 use Modules\Property\Models\RoomType;
 use Modules\Rates\Models\RatePlan;
@@ -213,4 +217,25 @@ it('lets only the listed websites embed the search box', function (): void {
 
     $page = get(bfUrl())->assertOk()->assertHeader('X-Frame-Options', 'SAMEORIGIN');
     expect((string) $page->headers->get('Content-Security-Policy'))->toContain("frame-ancestors 'self';");
+});
+
+it('pays online after booking when the property has a gateway, within the payment window', function (): void {
+    booking(fn () => PaymentGateway::factory()->provider(GatewayProvider::Test)->create(['property_id' => bookingIds()['property']]));
+    bfAdd('room', bfRoomType());
+
+    $link = (string) post(bfUrl('/checkout'), bfGuest())->headers->get('Location');
+    $reservation = booking(fn (): Reservation => Reservation::query()->sole());
+    expect($reservation->deposit_due_at?->between(now()->addMinutes(14), now()->addMinutes(16)))->toBeTrue()->and($reservation->auto_cancel_unpaid)->toBeTrue();
+
+    get($link)->assertOk()->assertSeeHtml('data-pay-with="test"')->assertSee('BDT 4,554');
+    $pay = booking(fn (): string => URL::signedRoute('website.booking.pay', ['site' => 'sunrise', 'code' => $reservation->code]));
+    $gatewayPage = (string) post($pay, ['provider' => 'test'])->assertRedirect()->headers->get('Location');
+    expect($gatewayPage)->toContain('/pay/test/');
+
+    $attempt = booking(fn (): OnlinePayment => OnlinePayment::query()->sole());
+    $txn = 'TEST-TXN-9';
+    get(tenantUrl('sunrise', '/pay/return/'.$attempt->uuid.'?'.http_build_query(['outcome' => 'paid', 'amount' => $attempt->amount, 'currency' => 'BDT', 'txn' => $txn,
+        'sig' => TestGateway::sign($attempt->uuid, 'paid', $attempt->amount, $txn)])))->assertRedirect($link.'&payment=paid');
+
+    get($link.'&payment=paid')->assertOk()->assertSeeHtml('data-payment-outcome="paid"')->assertSeeHtml('data-booking-status="confirmed"')->assertDontSeeHtml('data-pay-with');
 });

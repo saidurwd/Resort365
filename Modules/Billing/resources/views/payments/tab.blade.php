@@ -55,13 +55,45 @@
                             <input type="hidden" name="source_id" value="{{ $option['source'] }}">
                             <div class="fw-semibold mb-2">{{ $option['label'] }} <span class="text-body-secondary small">· {{ __('up to :amount', ['amount' => $money($option['amount'])]) }}</span></div>
                             <div class="row g-2">
-                                <div class="col-4"><select name="method" class="form-select form-select-sm" aria-label="{{ __('Method') }}">@foreach ($methods as $method)<option value="{{ $method->value }}">{{ $method->label() }}</option>@endforeach</select></div>
+                                <div class="col-4"><select name="method" class="form-select form-select-sm" aria-label="{{ __('Method') }}">@foreach ($refundMethods as $method)<option value="{{ $method->value }}">{{ $method->label() }}</option>@endforeach</select></div>
                                 <div class="col-3"><input type="number" step="0.01" min="0.01" name="amount" value="{{ $option['amount'] }}" class="form-control form-control-sm" aria-label="{{ __('Amount') }}"></div>
                                 <div class="col-5"><input type="text" name="reason" required maxlength="190" class="form-control form-control-sm" placeholder="{{ __('Reason') }}" aria-label="{{ __('Reason') }}"></div>
                             </div>
                             <button class="btn btn-sm btn-outline-danger mt-2"><i class="bi bi-arrow-counterclockwise"></i> {{ __('Refund') }}</button>
                         </form>
                     @endforeach
+                </x-card>
+            @endcan
+        @endif
+        @if ($onlinePayments->isNotEmpty())
+            <x-card :title="__('Online payments')" icon="bi-globe2" body-class="p-0" data-online-payments>
+                <ul class="list-group list-group-flush">
+                    @foreach ($onlinePayments as $attempt)
+                        <li class="list-group-item d-flex justify-content-between align-items-center small" data-online-payment="{{ $attempt->status->value }}">
+                            <span>{{ $attempt->provider->shortLabel() }} · {{ $money($attempt->amount) }}@if ($attempt->failure_reason)<br><span class="text-body-secondary">{{ $attempt->failure_reason }}</span>@endif</span>
+                            <x-status-badge :status="$attempt->status" />
+                        </li>
+                    @endforeach
+                </ul>
+            </x-card>
+        @endif
+        @if ($canSendLink)
+            @can('billing.payment.link')
+                <x-card :title="__('Pay online')" icon="bi-link-45deg" data-payment-link>
+                    @if (session('payment_link'))
+                        <div class="alert alert-success small text-break" data-payment-link-url>{{ session('payment_link') }}</div>
+                    @endif
+                    <form method="POST" action="{{ route('billing.payment-links.store', ['reservation' => $reservation->id]) }}" class="d-flex gap-2 align-items-end">
+                        @csrf
+                        <div class="flex-grow-1">
+                            <label class="form-label small" for="payment-link-purpose">{{ __('Email the guest a link to pay') }}</label>
+                            <select name="purpose" id="payment-link-purpose" class="form-select form-select-sm">
+                                @if ((float) $reservation->depositRequired > (float) $reservation->amountPaid)<option value="deposit">{{ __('The deposit') }}</option>@endif
+                                <option value="balance">{{ __('The balance') }}</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-envelope"></i> {{ __('Send link') }}</button>
+                    </form>
                 </x-card>
             @endcan
         @endif

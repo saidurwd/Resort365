@@ -1,12 +1,19 @@
 <?php
 
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Modules\Billing\Http\Controllers\ChargeCodeController;
 use Modules\Billing\Http\Controllers\CityLedgerController;
 use Modules\Billing\Http\Controllers\ExtraServiceController;
 use Modules\Billing\Http\Controllers\FolioController;
+use Modules\Billing\Http\Controllers\GatewayController;
 use Modules\Billing\Http\Controllers\InvoiceController;
+use Modules\Billing\Http\Controllers\Online\GatewayReturnController;
+use Modules\Billing\Http\Controllers\Online\PaymentLinkController as OnlinePaymentLinkController;
 use Modules\Billing\Http\Controllers\PaymentController;
+use Modules\Billing\Http\Controllers\PaymentLinkController;
 use Modules\Billing\Http\Controllers\RefundController;
 use Modules\Billing\Http\Controllers\ShiftController;
 
@@ -21,6 +28,11 @@ use Modules\Billing\Http\Controllers\ShiftController;
 */
 
 Route::prefix('billing')->name('billing.')->middleware(['auth', 'verified'])->group(function (): void {
+    // Online payments (Step 8.3): the property's gateways, and payment links from the booking's Payments tab.
+    Route::get('/online-payments', [GatewayController::class, 'index'])->middleware('can:billing.gateway.manage')->name('gateways.index');
+    Route::put('/online-payments/{provider}', [GatewayController::class, 'update'])->middleware('can:billing.gateway.manage')->name('gateways.update');
+    Route::post('/reservations/{reservation}/payment-links', [PaymentLinkController::class, 'store'])->whereNumber('reservation')->middleware('can:billing.payment.link')->name('payment-links.store');
+
     Route::post('/payments', [PaymentController::class, 'store'])->middleware('can:billing.payment.create')->name('payments.store');
     Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])->middleware('can:billing.payment.view')->name('payments.receipt');
 
@@ -60,4 +72,17 @@ Route::prefix('billing')->name('billing.')->middleware(['auth', 'verified'])->gr
     Route::get('/extras', [ExtraServiceController::class, 'index'])->middleware('can:billing.extra-service.view')->name('extra-services.index');
     Route::resource('extras', ExtraServiceController::class)->except(['index', 'show'])->parameters(['extras' => 'extra_service'])
         ->names('extra-services')->middleware('can:billing.extra-service.manage');
+});
+
+// Guests paying online (Step 8.3), no sign-in. Gateways come back and notify without the session or CSRF checks: a cross-site POST
+// must not replace the guest's session, and the adapters check signatures and ask the gateway instead.
+Route::prefix('pay')->name('billing.')->group(function (): void {
+    Route::match(['get', 'post'], '/return/{uuid}', [GatewayReturnController::class, 'back'])->whereUuid('uuid')
+        ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])->middleware('throttle:60,1')->name('online.return');
+    Route::post('/notify/{provider}/{gateway}', [GatewayReturnController::class, 'notify'])->whereIn('provider', ['sslcommerz', 'bkash', 'stripe', 'test'])->whereNumber('gateway')
+        ->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class])->middleware('throttle:120,1')->name('online.notify');
+    Route::get('/test/{uuid}', [GatewayReturnController::class, 'testPage'])->whereUuid('uuid')->middleware('signed')->name('online.test');
+    Route::post('/test/{uuid}', [GatewayReturnController::class, 'testSubmit'])->whereUuid('uuid')->middleware('signed')->name('online.test.submit');
+    Route::get('/link/{reservation}/{purpose}', [OnlinePaymentLinkController::class, 'show'])->whereNumber('reservation')->whereIn('purpose', ['deposit', 'balance'])->name('pay-link.show');
+    Route::post('/link/{reservation}/{purpose}', [OnlinePaymentLinkController::class, 'start'])->whereNumber('reservation')->whereIn('purpose', ['deposit', 'balance'])->middleware('throttle:10,1')->name('pay-link.start');
 });

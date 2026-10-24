@@ -27,7 +27,7 @@ class RecordPaymentRequest extends FormRequest
     {
         return [
             'reservation_id' => ['required', 'integer', TenantRule::exists('reservations')],
-            'method' => ['required', Rule::enum(PaymentMethod::class)],
+            'method' => ['required', Rule::enum(PaymentMethod::class)->except(PaymentMethod::Online)],
             'amount' => ['required', 'decimal:0,2', 'gt:0', 'max:9999999999999'],
             'reference' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:500'],

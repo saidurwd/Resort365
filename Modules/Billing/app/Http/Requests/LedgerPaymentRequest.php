@@ -21,7 +21,7 @@ class LedgerPaymentRequest extends FormRequest
     {
         return [
             'amount' => ['required', 'decimal:0,2', 'gt:0', 'max:9999999999'],
-            'method' => ['required', Rule::enum(PaymentMethod::class)],
+            'method' => ['required', Rule::enum(PaymentMethod::class)->except(PaymentMethod::Online)],
             'reference' => ['nullable', 'string', 'max:100'],
         ];
     }

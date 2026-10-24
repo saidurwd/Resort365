@@ -5,6 +5,8 @@ namespace Modules\Website\Actions;
 use App\Support\Actions\Action;
 use Brick\Math\BigDecimal;
 use Illuminate\Validation\ValidationException;
+use Modules\Billing\Contracts\OnlinePayments;
+use Modules\Core\Contracts\Settings;
 use Modules\Guest\Contracts\GuestLookup;
 use Modules\Guest\Contracts\GuestRegistry;
 use Modules\Guest\DTOs\GuestDetails;
@@ -42,6 +44,8 @@ class BookOnline extends Action
         private readonly GuestLookup $guests,
         private readonly GuestRegistry $registry,
         private readonly ReservationLookup $reservations,
+        private readonly OnlinePayments $online,
+        private readonly Settings $settings,
     ) {}
 
     /**
@@ -64,7 +68,9 @@ class BookOnline extends Action
         }
 
         $guestId = $match->id ?? $this->registry->register($guest)->id;
-        $reservation = $this->engine->book($this->pricer->reservation($site, $cart, $items, $guestId, $specialRequests));
+        // With online payment (Step 8.3) the deposit is due within the payment window, so unpaid rooms are released quickly.
+        $window = $this->online->options($site->property_id) !== [] ? (int) $this->settings->get('website.payment_minutes', $site->property_id) : null;
+        $reservation = $this->engine->book($this->pricer->reservation($site, $cart, $items, $guestId, $specialRequests, $window));
 
         $dueNow = $choice === PayChoice::Full || BigDecimal::of($reservation->depositRequired)->isZero() ? $reservation->grandTotal : $reservation->depositRequired;
         $booking = WebsiteBooking::query()->create([

@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
+use Modules\Core\Contracts\Settings;
+use Modules\Core\DTOs\SettingDefinition;
+use Modules\Core\Enums\SettingScope;
+use Modules\Core\Enums\SettingType;
 use Modules\Reservation\Contracts\GuestEmailLinks;
 use Modules\Website\Http\Middleware\ResolveSite;
 use Modules\Website\Models\WebsiteBooking;
@@ -74,6 +78,10 @@ class WebsiteServiceProvider extends ModuleServiceProvider
                 ? ['label' => __('Manage your booking'), 'url' => URL::signedRoute('website.booking.show', ['site' => $booking->site->slug, 'code' => $booking->reservation_code])]
                 : null;
         });
+
+        // How long a guest has to pay online after booking on the website (Step 8.3); unpaid rooms are released after it.
+        $this->app->make(Settings::class)->define(new SettingDefinition('website.payment_minutes', 'Time to pay online after booking (minutes)', SettingType::Integer, 15,
+            SettingScope::Property, 'Website', help: 'With a payment gateway switched on, a website booking that is not paid within this time is released.', rules: ['min:5', 'max:1440']));
 
         $this->registerPermissions($this->app->make(PermissionRegistry::class));
         $this->registerMenu($this->app->make(MenuRegistry::class));

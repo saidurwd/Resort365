@@ -44,7 +44,7 @@
                                 <input type="hidden" name="reservation_id" value="{{ $reservation->id }}">
                                 <input type="hidden" name="folio_id" value="{{ $folio->id }}">
                                 <input type="hidden" name="return_to" value="{{ $here }}">
-                                <div class="col-sm-4"><select name="method" class="form-select" aria-label="{{ __('Method') }}">@foreach (\Modules\Billing\Enums\PaymentMethod::cases() as $method)<option value="{{ $method->value }}">{{ $method->label() }}</option>@endforeach</select></div>
+                                <div class="col-sm-4"><select name="method" class="form-select" aria-label="{{ __('Method') }}">@foreach (\Modules\Billing\Enums\PaymentMethod::manual() as $method)<option value="{{ $method->value }}">{{ $method->label() }}</option>@endforeach</select></div>
                                 <div class="col-sm-4"><input type="number" name="amount" step="0.01" min="0.01" value="{{ $folio->balance }}" class="form-control" aria-label="{{ __('Amount') }}"></div>
                                 <div class="col-sm-4"><button class="btn btn-success w-100"><i class="bi bi-cash"></i> {{ __('Take payment') }}</button></div>
                             </form>

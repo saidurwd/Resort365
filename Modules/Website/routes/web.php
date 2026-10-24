@@ -38,6 +38,8 @@ Route::prefix('resort/{site}')->name('website.')->where(['site' => '[a-z0-9-]+']
     // The guest's booking: a permanent signed link (checked in the controller, so ?lang= may be added).
     Route::get('/booking/{code}', [ManageBookingController::class, 'show'])->name('booking.show');
     Route::post('/booking/{code}/cancel', [ManageBookingController::class, 'cancel'])->middleware('throttle:website-checkout')->name('booking.cancel');
+    // Paying online from the booking's page (Step 8.3).
+    Route::post('/booking/{code}/pay', [ManageBookingController::class, 'pay'])->middleware('throttle:website-checkout')->name('booking.pay');
     // The search box other websites may embed (frame-ancestors from the site's embed_origins).
     Route::get('/widget', WidgetController::class)->name('widget');
 });
