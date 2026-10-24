@@ -10,7 +10,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * attachable model. Same requirements as HasAttachments: HasMedia, a morph-map alias and a policy.
  *
  * Show it with <x-photo-gallery :subject="$model" />. Photos are private and served through
- * Core's authorized routes. TODO(step-8.2): public photo URLs for the booking website.
+ * Core's authorized routes; the public website shows them through signed links (Core's PublicPhotos, Step 8.2a).
  */
 trait HasPhotos
 {
@@ -30,5 +30,10 @@ trait HasPhotos
             ->performOnCollections(Attachments::PHOTOS)
             ->nonQueued()
             ->fit(Fit::Crop, 480, 320);
+
+        $this->addMediaConversion(Attachments::WEB)
+            ->performOnCollections(Attachments::PHOTOS)
+            ->nonQueued()
+            ->fit(Fit::Max, 1600, 1200);
     }
 }

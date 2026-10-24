@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\TenantHomeController;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
@@ -14,7 +15,8 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::redirect('/', '/dashboard')->name('tenant.home');
+// The company's public website when it has one (Step 8.2a), else the dashboard.
+Route::get('/', TenantHomeController::class)->name('tenant.home');
 
 // The management dashboard (Step 7.1) is the Reports module's: /dashboard.
 

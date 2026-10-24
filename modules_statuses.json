@@ -15,5 +15,6 @@
     "Procurement": true,
     "HR": true,
     "Payroll": true,
-    "Reports": true
+    "Reports": true,
+    "Website": true
 }

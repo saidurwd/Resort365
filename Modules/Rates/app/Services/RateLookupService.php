@@ -4,6 +4,7 @@ namespace Modules\Rates\Services;
 
 use Carbon\CarbonImmutable;
 use Modules\Rates\Contracts\RateLookup;
+use Modules\Rates\DTOs\CancellationPolicySummary;
 use Modules\Rates\DTOs\CancellationQuote;
 use Modules\Rates\DTOs\CancellationTerms;
 use Modules\Rates\DTOs\DepositPolicySummary;
@@ -13,6 +14,7 @@ use Modules\Rates\DTOs\PromotionDiscount;
 use Modules\Rates\DTOs\PromotionTerms;
 use Modules\Rates\DTOs\RatePlanSummary;
 use Modules\Rates\DTOs\StayRequest;
+use Modules\Rates\DTOs\WebsiteOffer;
 use Modules\Rates\Enums\BalanceDueRule;
 use Modules\Rates\Enums\DepositType;
 use Modules\Rates\Models\CancellationPolicy;
@@ -113,6 +115,29 @@ class RateLookupService implements RateLookup
         $terms = $policy instanceof CancellationPolicy ? $policy->terms() : new CancellationTerms([]);
 
         return $this->cancellations->quote($terms, $stayTotal, $nightlyTotals, $deposit, $paid, $daysBeforeArrival);
+    }
+
+    public function cancellationPolicy(int $ratePlanId): ?CancellationPolicySummary
+    {
+        $policyId = $this->cancellationPolicyId($ratePlanId);
+        $policy = $policyId !== null ? CancellationPolicy::query()->with('rules')->find($policyId) : null;
+
+        return $policy instanceof CancellationPolicy ? new CancellationPolicySummary($policy->id, $policy->name, $policy->terms()) : null;
+    }
+
+    public function websiteOffers(int $propertyId): array
+    {
+        $today = now()->toDateString();
+
+        return Promotion::query()->where('property_id', $propertyId)->where('is_active', true)->where('show_on_website', true)
+            ->where(fn ($query) => $query->whereNull('stay_to')->orWhereDate('stay_to', '>=', $today))
+            ->where(fn ($query) => $query->whereNull('book_to')->orWhereDate('book_to', '>=', $today))
+            ->where(fn ($query) => $query->whereNull('usage_limit')->orWhereColumn('times_used', '<', 'usage_limit'))
+            ->orderByRaw('stay_from is null desc')->orderBy('stay_from')->orderBy('name')->get()
+            ->map(fn (Promotion $promotion): WebsiteOffer => new WebsiteOffer(
+                $promotion->id, $promotion->name, $promotion->description, $promotion->code, $promotion->discount_type, $promotion->discount_value,
+                $promotion->stay_from?->toDateString(), $promotion->stay_to?->toDateString(), $promotion->book_to?->toDateString(), $promotion->min_nights, $promotion->min_advance_days,
+            ))->values()->all();
     }
 
     public function usePromotion(int $promotionId): void

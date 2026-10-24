@@ -6,6 +6,7 @@ use App\Support\Attachments\HasPhotos;
 use App\Support\Audit\RecordsActivity;
 use App\Support\Tenancy\BelongsToProperty;
 use App\Support\Tenancy\BelongsToTenant;
+use App\Support\Translations\HasTranslations;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,7 +17,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Restaurant\Database\Factories\MenuItemFactory;
 use Modules\Restaurant\Enums\Course;
 use Modules\Restaurant\Enums\MenuItemKind;
-use Modules\Restaurant\Models\Concerns\HasTranslations;
 use Spatie\MediaLibrary\HasMedia;
 
 /**

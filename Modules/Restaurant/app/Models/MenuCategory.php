@@ -5,6 +5,7 @@ namespace Modules\Restaurant\Models;
 use App\Support\Audit\RecordsActivity;
 use App\Support\Tenancy\BelongsToProperty;
 use App\Support\Tenancy\BelongsToTenant;
+use App\Support\Translations\HasTranslations;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Restaurant\Database\Factories\MenuCategoryFactory;
 use Modules\Restaurant\Enums\RevenueClass;
-use Modules\Restaurant\Models\Concerns\HasTranslations;
 
 /**
  * A menu category of a property (ARCHITECTURE §5.10.2), nested (Food → Mains → Seafood), with a colour for

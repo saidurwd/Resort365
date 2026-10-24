@@ -121,7 +121,7 @@ The AI ticks a step here when it commits the step.
 | **5. Inventory & Procurement** | [x] 5.1 · [x] 5.2 · [x] 5.3 · [x] 5.4 · [x] 5.5 · [x] 5.6 · [x] 5.7 · [x] 5.8 |
 | **6. HR & Payroll** | [x] 6.1 · [x] 6.2 · [x] 6.3 · [x] 6.4 · [x] 6.5 · [x] 6.6 |
 | **7. Reports & SaaS** | [x] 7.1 · [x] 7.2 · [x] 7.3 · [x] 7.4 · [x] 7.5 · [x] 7.6 |
-| **8. Online & Integrations** | [x] 8.1 · [ ] 8.2 · [ ] 8.3 · [ ] 8.4 · [ ] 8.5 |
+| **8. Online & Integrations** | [x] 8.1 · [x] 8.2a · [ ] 8.2b · [ ] 8.3 · [ ] 8.4 · [ ] 8.5 |
 
 **Open exit checks (Phase 7 review, 2026-10-23):** Phase 7's code is complete, but its exit criterion and two Step 7.5 checks need servers that do not exist yet: a real resort onboarded self-service **on production**, the 50-user load test's 800 ms budget **on staging** (it shows no errors locally; a development machine is too slow to judge timing), and a backup restored **on staging** (the drill passes locally). Run them as soon as staging and production are up (docs/OPERATIONS.md).
 
@@ -597,14 +597,23 @@ The AI ticks a step here when it commits the step.
 - **Build:** Sanctum tokens, versioned `/api/v1` for availability, quotes, reservations, guests, folios; API resources; consistent errors; rate limits; OpenAPI documentation.
 - **Done when:** the OpenAPI document is published and an API test suite covers every endpoint, including tenant isolation.
 
-### Step 8.2 — Public booking engine
+### Step 8.2a — Public website: site, pages and content
 
-- **Read:** ARCHITECTURE §5.18 (Website module), §1.4, §6, §9.6, §5.5 (promotions).
-- **Build:** the **Website** module (§5.18): a public website per property that looks like a standard resort website (Q5), phone first, branded per tenant:
-  - **Pages:** home (hero photos, introduction, highlights, featured cottages, offers), accommodation (each cottage type and room type with its photo gallery, description, capacity, amenities and a *from* price), dining (the property's outlets), offers (public promotions), gallery, location and contact, and policies (deposit, cancellation, house rules). Content, photos and SEO titles are edited in the back office (Website menu); the rooms, prices and policies come from the existing modules, never entered twice.
-  - **Booking:** an availability search (dates, adults, children) on every page; results list the room types and the cottages bookable whole, with nightly prices, the rate plans (room only, B&B…), restrictions and promotions; guests **add rooms or whole cottages to a cart** (mixing both, several units), see the total, the deposit and the policies, enter their details and go to payment. Going to payment creates the booking **Tentative** (its own locks hold the rooms; no separate hold), with the payment window `website.payment_minutes` (default 15) as its deposit due time, so `ExpireTentativeHolds` releases unpaid rooms; the payment confirms it (Step 8.3).
+*Step 8.2 was split in two when planned (2026-10-24).*
+
+- **Read:** ARCHITECTURE §5.18 (Website module), §1.4, §5.5 (promotions).
+- **Build:** the **Website** module (§5.18): a public website per property that looks like a standard resort website (Q5), phone first, branded per tenant, in English and Bangla:
+  - **Pages:** home (hero photos, introduction, highlights, featured cottages, offers), accommodation (each cottage type and room type with its photo gallery, description, capacity, amenities and a *from* price), dining (the property's outlets), offers (public promotions), gallery, location and contact, and policies (deposit, cancellation, house rules). Content, photos and SEO titles are edited in the back office (Website menu) per language; the rooms, prices and policies come from the existing modules, never entered twice.
   - **Offers:** a `show_on_website` flag on promotions (new Rates migration, `RateLookup` method); code-only promotions stay hidden.
-  - Also: a booking management link for guests (view, cancel within the policy), an embeddable search widget for an existing website (the widget route alone allows framing by `website.embed_origins`; every other page keeps `frame-ancestors 'self'`), anti-abuse throttling and a honeypot. Served on the tenant's subdomain (custom domains later).
+  - Public photo links (signed, `photos` collection only), `/` on the tenant subdomain shows the published site, the module in every plan.
+- **Done when:** a visitor on a phone opens Rodela's site, switches to Bangla, and browses the cottages with their photos, amenities and *from* prices, the dining page and the offers; an unpublished site is not public.
+
+### Step 8.2b — Public website: search, cart and booking
+
+- **Read:** ARCHITECTURE §5.18, §6, §9.6.
+- **Build:** on the Website module of 8.2a:
+  - **Booking:** an availability search (dates, adults, children) on every page; results list the room types and the cottages bookable whole, with nightly prices, the rate plans (room only, B&B…), restrictions and promotions; guests **add rooms or whole cottages to a cart** (mixing both, several units), see the total, the deposit and the policies, choose to pay the deposit or the full amount, enter their details and book. The booking is created **Tentative** (its own locks hold the rooms; no separate hold); the payment confirms it (Step 8.3, which also brings the short `website.payment_minutes` window).
+  - Also: a booking management link for guests (view, cancel within the policy), an embeddable search widget for an existing website (the widget route alone allows framing by `website.embed_origins`; every other page keeps `frame-ancestors 'self'`), anti-abuse throttling and a honeypot.
 - **Done when:** a guest on a phone browses the cottages, adds two rooms to the cart, checks out, and the booking appears on the tape chart as Tentative with the rooms held.
 
 ### Step 8.3 — Payment gateways

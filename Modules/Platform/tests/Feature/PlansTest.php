@@ -44,7 +44,7 @@ it('starts with Starter, Professional and Enterprise, and adds them only once', 
     $enterprise = pfPlan('enterprise');
 
     expect(Plan::query()->count())->toBe(3)->and(app(SeedDefaultPlans::class)->handle())->toBe(0)
-        ->and([$starter->max_properties, $starter->max_rooms, $starter->max_users, $starter->storage_gb])->toBe([1, 20, 5, 2])->and($starter->modules)->toBe(['property', 'guest', 'rates', 'reservation', 'billing', 'frontoffice', 'housekeeping'])
+        ->and([$starter->max_properties, $starter->max_rooms, $starter->max_users, $starter->storage_gb])->toBe([1, 20, 5, 2])->and($starter->modules)->toBe(['property', 'guest', 'rates', 'reservation', 'billing', 'frontoffice', 'housekeeping', 'website'])
         ->and([$professional->max_properties, $professional->max_rooms, $professional->max_users, $professional->storage_gb])->toBe([3, 150, 30, 20])->and($professional->modules)->toBe(ModuleCatalog::aliases())
         ->and([$enterprise->max_rooms, $enterprise->storage_gb, $enterprise->api_access])->toBe([null, null, true])->and($starter->monthly_price)->toBe('49.00');
 });

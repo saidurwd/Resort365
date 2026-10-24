@@ -1,0 +1,192 @@
+// Resort365 public website (Step 8.2a): Bootstrap 5.3 without AdminLTE, phone first. Each site picks a theme (`.theme-<name>`,
+// Modules\Website\Enums\SiteTheme) that sets the brand colours; no colour is typed in by a tenant, so pages need no inline styles.
+
+@import 'bootstrap/scss/bootstrap';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+$website-themes: (
+    forest: (#2f6b3b, #e8f1ea, #c8873a),
+    ocean: (#1f5f8b, #e6f0f7, #e0a93b),
+    sunset: (#c4552c, #fbeee6, #2f6b6b),
+    sand: (#8a6a2f, #f6f0e4, #2f5f6b),
+    slate: (#3d4f63, #eceff3, #c08a3e),
+    berry: (#7a3a6b, #f5ebf2, #3a7a6b),
+);
+
+@each $name, $colours in $website-themes {
+    .theme-#{$name} {
+        --website-brand: #{nth($colours, 1)};
+        --website-tint: #{nth($colours, 2)};
+        --website-accent: #{nth($colours, 3)};
+    }
+}
+
+.website {
+    background: #fff;
+    color: #2b2f33;
+    font-size: 1.0625rem;
+
+    a:not(.btn) { color: var(--website-brand); }
+}
+
+.website-preview-bar {
+    background: #fff3cd;
+    color: #664d03;
+    font-size: .875rem;
+    padding: .375rem 1rem;
+    text-align: center;
+}
+
+.website-header {
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .06);
+
+    .nav-link { color: #2b2f33; font-weight: 500; }
+    .nav-link.active, .nav-link:hover { color: var(--website-brand); }
+}
+
+.website-brand { line-height: 1.1; }
+.website-brand-name { color: var(--website-brand); display: block; font-size: 1.25rem; font-weight: 700; }
+.website-brand-tagline { color: #6c757d; font-size: .8125rem; }
+
+.btn-website-primary {
+    --bs-btn-bg: var(--website-brand);
+    --bs-btn-border-color: var(--website-brand);
+    --bs-btn-color: #fff;
+    --bs-btn-hover-bg: var(--website-brand);
+    --bs-btn-hover-border-color: var(--website-brand);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: var(--website-brand);
+    --bs-btn-active-color: #fff;
+    filter: saturate(1.05);
+
+    &:hover { filter: brightness(.92); }
+}
+
+.btn-outline-website {
+    --bs-btn-color: var(--website-brand);
+    --bs-btn-border-color: var(--website-brand);
+    --bs-btn-hover-bg: var(--website-brand);
+    --bs-btn-hover-border-color: var(--website-brand);
+    --bs-btn-hover-color: #fff;
+}
+
+.website-hero {
+    min-height: min(60vh, 44rem);
+    position: relative;
+
+    .carousel, .carousel-inner, .carousel-item { height: 100%; position: absolute; inset: 0; }
+}
+
+.website-hero-image { height: 100%; object-fit: cover; width: 100%; }
+.website-hero-plain { background: linear-gradient(135deg, var(--website-brand), var(--website-accent)); inset: 0; position: absolute; }
+
+.website-hero-text {
+    align-items: flex-end;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, .55) 100%);
+    color: #fff;
+    display: flex;
+    inset: 0;
+    padding-bottom: 3rem;
+    position: absolute;
+    z-index: 2;
+
+    h1 { text-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+}
+
+.website-page-head {
+    background: var(--website-tint);
+    padding: 3rem 0 2rem;
+
+    h1 { color: var(--website-brand); font-weight: 700; }
+}
+
+.website-section { padding: 3.5rem 0; }
+.website-section-alt { background: var(--website-tint); }
+.website-section-title { color: var(--website-brand); font-weight: 700; margin-bottom: 1.25rem; }
+.website-narrow { margin-left: auto; margin-right: auto; max-width: 46rem; }
+.website-lead { font-size: 1.125rem; }
+
+.website-highlights {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.5rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+
+    i { color: var(--website-accent); }
+}
+
+.website-card {
+    border: 0;
+    border-radius: .75rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+    overflow: hidden;
+}
+
+.website-card-photo img { aspect-ratio: 3 / 2; display: block; height: auto; object-fit: cover; width: 100%; }
+
+.website-card-placeholder {
+    align-items: center;
+    aspect-ratio: 3 / 2;
+    background: var(--website-tint);
+    color: var(--website-brand);
+    display: flex;
+    font-size: 3rem;
+    justify-content: center;
+}
+
+.website-card-placeholder-lg { border-radius: .75rem; font-size: 5rem; }
+.website-card-headline { color: #6c757d; }
+
+.website-price { line-height: 1.2; }
+.website-price-label { color: #6c757d; display: block; font-size: .8125rem; }
+.website-price-amount { color: var(--website-brand); font-size: 1.375rem; font-weight: 700; }
+.website-price-unit { color: #6c757d; font-size: .875rem; margin-left: .25rem; }
+
+.website-gallery-carousel img { aspect-ratio: 4 / 3; border-radius: .75rem; object-fit: cover; }
+
+.website-facts li, .website-contact li { margin-bottom: .5rem; }
+.website-facts i, .website-contact i { color: var(--website-accent); margin-right: .375rem; }
+
+.website-amenities {
+    display: grid;
+    gap: .5rem 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+
+    i { color: var(--website-brand); margin-right: .375rem; }
+}
+
+.website-offer, .website-outlet, .website-policy {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, .08);
+    border-radius: .75rem;
+    padding: 1.5rem;
+}
+
+.website-policy { margin-bottom: 1.5rem; }
+.website-offer-discount { color: var(--website-accent); font-size: 1.375rem; font-weight: 700; margin-bottom: .25rem; }
+
+.website-gallery {
+    display: grid;
+    gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+
+    img { aspect-ratio: 3 / 2; border-radius: .5rem; height: auto; object-fit: cover; width: 100%; }
+}
+
+.website-footer {
+    background: #23272b;
+    color: #c9ced3;
+    padding: 3rem 0 1.5rem;
+
+    a:not(.btn) { color: #fff; }
+}
+
+.website-footer-name { color: #fff; font-size: 1.25rem; font-weight: 700; margin-bottom: .5rem; }
+.website-footer-credit { border-top: 1px solid rgba(255, 255, 255, .1); font-size: .8125rem; margin-top: 2rem; padding-top: 1rem; }
+.website-social { font-size: 1.5rem; margin-left: .75rem; }
+
+@include media-breakpoint-down(md) {
+    .website-section { padding: 2.25rem 0; }
+}

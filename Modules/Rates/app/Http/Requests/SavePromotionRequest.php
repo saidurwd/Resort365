@@ -52,6 +52,7 @@ class SavePromotionRequest extends FormRequest
             'unit_keys.*' => ['string'],
             'usage_limit' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'is_active' => ['boolean'],
+            'show_on_website' => ['boolean'],
         ];
     }
 
@@ -88,6 +89,6 @@ class SavePromotionRequest extends FormRequest
     {
         $code = strtoupper(trim((string) $this->input('code')));
 
-        $this->merge(['code' => $code === '' ? null : $code, 'is_active' => ! $this->has('is_active') || $this->boolean('is_active')]);
+        $this->merge(['code' => $code === '' ? null : $code, 'is_active' => ! $this->has('is_active') || $this->boolean('is_active'), 'show_on_website' => $this->boolean('show_on_website')]);
     }
 }

@@ -19,7 +19,7 @@ class SeedDefaultPlans extends Action
      * @var array<string, array{0: string, 1: string, 2: int, 3: string, 4: string, 5: int|null, 6: int|null, 7: int|null, 8: int|null, 9: list<string>|null, 10: bool}>
      */
     public const array PLANS = [
-        'starter' => ['Starter', 'One resort at the front desk: rooms, bookings, billing and housekeeping.', 10, '49.00', '490.00', 1, 20, 5, 2, ['property', 'guest', 'rates', 'reservation', 'billing', 'frontoffice', 'housekeeping'], false],
+        'starter' => ['Starter', 'One resort at the front desk: rooms, bookings, billing and housekeeping.', 10, '49.00', '490.00', 1, 20, 5, 2, ['property', 'guest', 'rates', 'reservation', 'billing', 'frontoffice', 'housekeeping', 'website'], false],
         'professional' => ['Professional', 'Several resorts with restaurant, stores, purchasing, accounts, HR and payroll.', 20, '149.00', '1490.00', 3, 150, 30, 20, null, false],
         'enterprise' => ['Enterprise', 'Everything, without limits, with API access.', 30, '399.00', '3990.00', null, null, null, null, null, true],
     ];

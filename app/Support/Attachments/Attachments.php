@@ -23,6 +23,11 @@ final class Attachments
     public const string THUMB = 'thumb';
 
     /**
+     * A photo at web size (at most 1600 × 1200) for the public website (Step 8.2a); older photos fall back to the original.
+     */
+    public const string WEB = 'web';
+
+    /**
      * Upload collections a client may choose (UploadAttachmentRequest).
      */
     public const array UPLOAD_COLLECTIONS = [self::COLLECTION, self::PHOTOS];

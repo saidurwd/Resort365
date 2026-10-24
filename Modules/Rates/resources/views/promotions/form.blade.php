@@ -40,6 +40,12 @@
                         <input class="form-check-input" type="checkbox" role="switch" name="is_active" id="field-is_active" value="1" @checked(old('is_active', $promotion?->is_active ?? true))>
                         <label class="form-check-label" for="field-is_active">{{ __('Active') }}</label>
                     </div>
+                    <div class="form-check form-switch">
+                        <input type="hidden" name="show_on_website" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" name="show_on_website" id="field-show_on_website" value="1" @checked(old('show_on_website', $promotion?->show_on_website ?? false))>
+                        <label class="form-check-label" for="field-show_on_website">{{ __('Show on the website') }}</label>
+                        <div class="form-text">{{ __('Listed on the public Offers page, with its code if it has one.') }}</div>
+                    </div>
                 </x-card>
                 <div class="d-flex justify-content-end gap-2 mb-4">
                     <a href="{{ route('rates.promotions.index') }}" class="btn btn-outline-secondary">{{ __('Cancel') }}</a>

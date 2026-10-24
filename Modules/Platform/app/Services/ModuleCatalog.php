@@ -27,6 +27,7 @@ final class ModuleCatalog
         'accounting' => ['Accounting', []],
         'hr' => ['HR, attendance and leave', ['property']],
         'payroll' => ['Payroll', ['hr', 'property']],
+        'website' => ['Public website', ['reservation', 'rates', 'property']],
     ];
 
     /**

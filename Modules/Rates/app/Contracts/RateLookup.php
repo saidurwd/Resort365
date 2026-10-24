@@ -3,6 +3,7 @@
 namespace Modules\Rates\Contracts;
 
 use Carbon\CarbonImmutable;
+use Modules\Rates\DTOs\CancellationPolicySummary;
 use Modules\Rates\DTOs\CancellationQuote;
 use Modules\Rates\DTOs\DepositPolicySummary;
 use Modules\Rates\DTOs\DepositQuote;
@@ -11,6 +12,7 @@ use Modules\Rates\DTOs\PromotionDiscount;
 use Modules\Rates\DTOs\RatePlanSummary;
 use Modules\Rates\DTOs\RestrictionSet;
 use Modules\Rates\DTOs\StayRequest;
+use Modules\Rates\DTOs\WebsiteOffer;
 
 /**
  * Rates for other modules (Reservation): rate plans, nightly rates, restrictions and promotions.
@@ -81,4 +83,16 @@ interface RateLookup
      * Counts one use of a promotion (a booking that got its discount).
      */
     public function usePromotion(int $promotionId): void;
+
+    /**
+     * The cancellation policy of a rate plan with its terms (its own, else the property's default), for showing it.
+     */
+    public function cancellationPolicy(int $ratePlanId): ?CancellationPolicySummary;
+
+    /**
+     * The property's promotions marked for the public website that are active and not over (Step 8.2a), by stay start.
+     *
+     * @return list<WebsiteOffer>
+     */
+    public function websiteOffers(int $propertyId): array;
 }

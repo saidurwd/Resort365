@@ -10,6 +10,7 @@ use Modules\Core\Http\Controllers\DocumentSequenceController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\NotificationTemplateController;
 use Modules\Core\Http\Controllers\OnboardingController;
+use Modules\Core\Http\Controllers\PublicPhotoController;
 use Modules\Core\Http\Controllers\SettingsController;
 use Modules\Core\Http\Controllers\SubscriptionController;
 use Modules\Core\Http\Controllers\TaxController;
@@ -22,6 +23,10 @@ use Modules\Core\Http\Controllers\TaxController;
 | URLs are prefixed with /core; route names follow `core.resource.action`.
 |
 */
+
+// Gallery photos for the public website (Step 8.2a): permanent signed links made by Core's PublicPhotos, no sign-in.
+Route::get('/photos/{media}/{size}', PublicPhotoController::class)->whereNumber('media')->whereIn('size', ['thumb', 'web'])
+    ->middleware(['signed', 'throttle:300,1'])->name('core.photos.show');
 
 Route::prefix('core')->name('core.')->middleware(['auth', 'verified'])->group(function (): void {
     Route::middleware('can:core.onboarding.manage')->group(function (): void {

@@ -23,6 +23,7 @@ use Modules\Property\Contracts\InventoryCatalog;
 use Modules\Property\Contracts\PropertyDirectory;
 use Modules\Property\Contracts\RoomStatuses;
 use Modules\Property\Contracts\RoomUsage;
+use Modules\Property\Contracts\UnitShowcases;
 use Modules\Property\Models\Amenity;
 use Modules\Property\Models\Cottage;
 use Modules\Property\Models\CottageType;
@@ -44,6 +45,7 @@ use Modules\Property\Services\NoRoomUsage;
 use Modules\Property\Services\PropertyAccessService;
 use Modules\Property\Services\PropertyDirectoryService;
 use Modules\Property\Services\RoomStatusesService;
+use Modules\Property\Services\UnitShowcaseService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class PropertyServiceProvider extends ModuleServiceProvider
@@ -78,6 +80,7 @@ class PropertyServiceProvider extends ModuleServiceProvider
         $this->app->singleton(BusinessDates::class, BusinessDatesService::class);
         $this->app->singleton(RoomStatuses::class, RoomStatusesService::class);
         $this->app->singleton(InventoryCatalog::class, InventoryCatalogService::class);
+        $this->app->singleton(UnitShowcases::class, UnitShowcaseService::class);
         // The Reservation module replaces this with the real check (LockedRoomUsage).
         $this->app->bindIf(RoomUsage::class, NoRoomUsage::class, shared: true);
     }

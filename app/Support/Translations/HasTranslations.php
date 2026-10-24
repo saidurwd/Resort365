@@ -1,9 +1,9 @@
 <?php
 
-namespace Modules\Restaurant\Models\Concerns;
+namespace App\Support\Translations;
 
 /**
- * Multi-language text stored as json, one key per menu language (restaurant.menu_languages), e.g.
+ * Multi-language text stored as json, one key per language (the menu languages, restaurant.menu_languages; the website's, Step 8.2a), e.g.
  * {"en": "Beef rezala", "bn": "গরুর রেজালা"}. The text shown is the asked language, else English,
  * else the first one there is.
  */

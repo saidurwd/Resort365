@@ -23,6 +23,7 @@ use Modules\Core\Contracts\ExchangeRates;
 use Modules\Core\Contracts\NotificationTemplates;
 use Modules\Core\Contracts\Onboarding;
 use Modules\Core\Contracts\PlanLimits;
+use Modules\Core\Contracts\PublicPhotos;
 use Modules\Core\Contracts\ReferenceData;
 use Modules\Core\Contracts\Settings;
 use Modules\Core\Contracts\SubscriptionAccount;
@@ -47,6 +48,7 @@ use Modules\Core\Services\NoAnnouncements;
 use Modules\Core\Services\NoSubscriptionAccount;
 use Modules\Core\Services\NotificationTemplateService;
 use Modules\Core\Services\OnboardingService;
+use Modules\Core\Services\PublicPhotoLinks;
 use Modules\Core\Services\ReferenceDataService;
 use Modules\Core\Services\SettingsService;
 use Modules\Core\Services\TaxEngineService;
@@ -97,6 +99,7 @@ class CoreServiceProvider extends ModuleServiceProvider
         $this->app->singleton(DocumentNumbers::class, DocumentNumberService::class);
         $this->app->singleton(NotificationTemplates::class, NotificationTemplateService::class);
         $this->app->singleton(AuditTrail::class, AuditTrailService::class);
+        $this->app->singleton(PublicPhotos::class, PublicPhotoLinks::class);
         // Plans: no plan means no limits and no announcements; Platform replaces these (Step 7.3).
         $this->app->singletonIf(PlanLimits::class, UnlimitedPlanLimits::class);
         $this->app->singleton(UsageMeters::class, UsageMeterRegistry::class);

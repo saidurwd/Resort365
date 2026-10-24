@@ -38,11 +38,12 @@ use Modules\Rates\Enums\DiscountType;
  * @property int|null $usage_limit
  * @property int $times_used
  * @property bool $is_active
+ * @property bool $show_on_website shown on the public website's Offers page (Step 8.2a)
  */
 #[UseFactory(PromotionFactory::class)]
 #[Fillable([
     'property_id', 'code', 'name', 'description', 'discount_type', 'discount_value', 'stay_from', 'stay_to', 'book_from', 'book_to',
-    'min_nights', 'max_nights', 'min_advance_days', 'rate_plan_ids', 'unit_keys', 'usage_limit', 'is_active',
+    'min_nights', 'max_nights', 'min_advance_days', 'rate_plan_ids', 'unit_keys', 'usage_limit', 'is_active', 'show_on_website',
 ])]
 class Promotion extends Model
 {
@@ -75,6 +76,7 @@ class Promotion extends Model
             'usage_limit' => 'integer',
             'times_used' => 'integer',
             'is_active' => 'boolean',
+            'show_on_website' => 'boolean',
         ];
     }
 

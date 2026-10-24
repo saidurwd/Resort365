@@ -1,0 +1,24 @@
+{
+    "name": "resort365/website",
+    "description": "Resort365 Website module",
+    "type": "project",
+    "license": "proprietary",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Website\\": "app/",
+            "Modules\\Website\\Database\\Factories\\": "database/factories/",
+            "Modules\\Website\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Website\\Tests\\": "tests/"
+        }
+    }
+}
